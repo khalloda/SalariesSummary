@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Employee {
+  id          String   @id @default(cuid())
+  name        String
+  normalizedName String @unique
+  category    String?  // Partners/شركاء, Lawyers/محامين, Admins/عاملين, Consultants/مستشارين
+  employeeCode String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  salaries    SalaryRecord[]
+  
+  @@index([normalizedName])
+  @@index([category])
+}
+
+model SalaryRecord {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  year              Int
+  month             Int // 1-12
+  monthName         String // "January", "يونيو", etc.
+  
+  // Basic salary
+  basicSalary       Float    @default(0)
+  
+  // Additions - Direct (affect salary)
+  directAdditions   Float    @default(0)
+  
+  // Additions - Indirect (affect gross only)
+  indirectAdditions Float    @default(0)
+  
+  // Yearly increase and bonuses
+  yearlyIncrease    Float    @default(0)
+  bonuses           Float    @default(0)
+  
+  // Deductions - From salary
+  salaryDeductions  Float    @default(0)
+  
+  // Deductions - From gross only
+  grossDeductions   Float    @default(0)
+  
+  // Calculated totals
+  gross             Float    @default(0)
+  net               Float    @default(0)
+  
+  // Breakdown (stored as JSON string for flexibility)
+  additionsBreakdown String?   // JSON: { category: amount }
+  deductionsBreakdown String?  // JSON: { category: amount }
+  
+  // Metadata
+  paymentMethod     String?
+  accountNumber     String?
+  notes             String?
+  
+  // Source file info
+  sourceFile        String
+  importedAt        DateTime @default(now())
+  
+  @@index([employeeId])
+  @@index([year, month])
+  @@unique([employeeId, year, month])
+}
+
+model ImportLog {
+  id          String   @id @default(cuid())
+  fileName    String
+  year        Int
+  month       Int
+  status      String   // "success", "error", "partial"
+  recordsImported Int  @default(0)
+  errors      String?  // JSON string
+  importedAt  DateTime @default(now())
+  
+  @@index([year, month])
+}
+

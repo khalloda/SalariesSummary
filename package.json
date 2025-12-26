@@ -1,0 +1,22 @@
+{
+  "name": "salaries-summary",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "schema-discovery": "node scripts/schema-discovery.js",
+    "deep-analysis": "node scripts/deep-schema-analysis.js",
+    "decrypt-excel": "node scripts/decrypt-all-excel.js",
+    "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"cd apps/api && npm run dev\" \"cd apps/web && npm run dev\"",
+    "dev:api": "cd apps/api && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "build": "pnpm --filter api build && pnpm --filter web build",
+    "install:all": "pnpm install && pnpm --filter api install && pnpm --filter web install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

@@ -1,0 +1,72 @@
+import { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, useLocation } from 'react-router-dom';
+import LanguageToggle from './LanguageToggle';
+// Logo import - handle case where logo might not exist
+let logo: string;
+try {
+  logo = new URL('../../logo.png', import.meta.url).href;
+} catch {
+  logo = '/logo.png'; // Fallback to public path
+}
+
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  const { i18n } = useTranslation();
+  const location = useLocation();
+  const isRTL = i18n.language === 'ar';
+  
+  const navItems = [
+    { path: '/', label: i18n.t('dashboard') },
+    { path: '/employees', label: i18n.t('employees') },
+    { path: '/reports/joiners-leavers', label: i18n.t('joinersLeavers') },
+    { path: '/reports/salary-changes', label: i18n.t('salaryChanges') }
+  ];
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className={`flex justify-between items-center h-16 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <img 
+                src={logo} 
+                alt="Logo" 
+                className="h-10 w-auto"
+                style={{ [isRTL ? 'marginLeft' : 'marginRight']: '1rem' }}
+              />
+              <h1 className="text-xl font-semibold">{i18n.t('title')}</h1>
+            </div>
+            <LanguageToggle />
+          </div>
+        </div>
+        <nav className="bg-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className={`flex space-x-1 ${isRTL ? 'flex-row-reverse space-x-reverse' : ''}`}>
+              {navItems.map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    location.pathname === item.path
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </nav>
+      </header>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </main>
+    </div>
+  );
+}
+
