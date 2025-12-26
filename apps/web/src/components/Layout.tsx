@@ -2,13 +2,8 @@ import { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import LanguageToggle from './LanguageToggle';
-// Logo import - handle case where logo might not exist
-let logo: string;
-try {
-  logo = new URL('../../logo.png', import.meta.url).href;
-} catch {
-  logo = '/logo.png'; // Fallback to public path
-}
+// Logo path - Vite serves files from public directory at root
+const logo = '/logo.png';
 
 interface LayoutProps {
   children: ReactNode;
@@ -22,6 +17,7 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { path: '/', label: i18n.t('dashboard') },
     { path: '/employees', label: i18n.t('employees') },
+    { path: '/reports/category-totals', label: i18n.t('categoryTotals') },
     { path: '/reports/joiners-leavers', label: i18n.t('joinersLeavers') },
     { path: '/reports/salary-changes', label: i18n.t('salaryChanges') }
   ];

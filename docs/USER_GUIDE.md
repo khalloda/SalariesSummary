@@ -39,6 +39,7 @@ The Dashboard is the main entry point of the application.
 
 - **Import Status**: Shows last import time and record count
 - **Import Now Button**: Triggers import of all workbooks
+- **Merge Duplicates Button**: Merges duplicate employees based on normalized names
 - **Clear Database Button**: Removes all imported data (use with caution!)
 
 ### Importing Data
@@ -48,6 +49,21 @@ The Dashboard is the main entry point of the application.
 3. Check import status:
    - Success: Shows number of files processed and records imported
    - Errors: Shows list of errors encountered
+
+### Merging Duplicates
+
+If you notice duplicate employees (e.g., "أ/ أحمد" and "أ/أحمد" appearing as separate employees):
+
+1. Click **"Merge Duplicates"** button
+2. Confirm the action
+3. The system will:
+   - Find all duplicate employees based on normalized names
+   - Keep the oldest employee (first created)
+   - Move all salary records from duplicates to the kept employee
+   - Delete the duplicate employees
+4. A summary shows how many duplicates were merged
+
+**Note:** This is safe to run multiple times. It only merges actual duplicates.
 
 ### Clearing Data
 
@@ -90,6 +106,12 @@ Detailed view of an employee's salary data for a specific year.
 ### Features
 
 - **Year Selector**: Choose year to view
+- **Tabs**:
+  - **Summary**: Month-by-month overview with totals
+  - **Details**: Full breakdown including additions and deductions by category
+  - **Charts**: Visual representations (Bar, Pie, Line charts) of various metrics
+  - **Multi-Year Comparison**: Compare data across multiple years
+  - **Month-to-Month Comparison**: Compare any two specific months
 - **Monthly Table**: Shows all 12 months with:
   - Basic Salary
   - Direct Additions
@@ -105,6 +127,57 @@ Detailed view of an employee's salary data for a specific year.
   - **PDF**: Download formatted PDF report
   - **CSV**: Download CSV file for Excel
   - **XLSX**: Download Excel workbook
+
+### Summary Tab
+
+- Quick overview of monthly data
+- Basic Salary, Gross, and Net columns
+- Total row at the bottom
+
+### Details Tab
+
+- Complete monthly breakdown
+- Additions breakdown by category
+- Deductions breakdown by category
+- All financial metrics
+
+### Charts Tab
+
+- **Chart Type**: Choose Bar, Pie, or Line chart
+- **Metric**: Select which metric to visualize (Basic Salary, Gross, Net, Additions, Deductions, etc.)
+- **Monthly Data Chart**: Shows selected metric across all 12 months
+- **Additions Pie Chart**: Breakdown of additions by category
+- **Deductions Pie Chart**: Breakdown of deductions by category
+- **Print Support**: Charts are optimized for printing
+
+### Multi-Year Comparison Tab
+
+Compare an employee's salary data across multiple years.
+
+- **Year-over-Year Totals Chart**: Line chart showing Basic Salary, Gross, and Net trends
+- **Monthly Trend Chart**: Line chart showing monthly Basic Salary across all years
+- **Year-over-Year Comparison Table**: 
+  - Shows totals for each year
+  - Two comparison modes:
+    - **Selectable Metric**: Choose one metric (Basic Salary, Gross, or Net) to show change and % change
+    - **Show All Metrics**: Display change and % change for all three metrics side by side
+  - Color-coded changes (green for increases, red for decreases)
+- **Year-over-Year Bar Chart**: Bar chart comparing Basic Salary, Gross, and Net across years
+
+### Month-to-Month Comparison Tab
+
+Compare any two specific months from the same or different years.
+
+- **Month Selection**: Choose two months to compare
+  - First Month: Select month and year
+  - Second Month: Select month and year
+- **Comparison Table**:
+  - Shows both months side by side
+  - Two comparison modes:
+    - **Selectable Metric**: Choose one metric to show change and % change
+    - **Show All Metrics**: Display change and % change for all three metrics
+  - Color-coded changes (green for increases, red for decreases)
+- **Example**: Compare January 2024 vs March 2024, or December 2024 vs November 2025
 
 ### Exporting Reports
 
@@ -147,6 +220,30 @@ Track changes in Basic Salary across months.
   - New Basic Salary
   - Change amount
 - **Grand Total Row**: Sum of all changes
+
+## Category Totals Page
+
+View aggregated totals by employee category.
+
+### Features
+
+- **Year Selector**: Choose year to analyze
+- **Category Totals Table**: Shows totals for each category:
+  - Partners/شركاء
+  - Lawyers/محامين
+  - Admins/عاملين
+  - Consultants/مستشارين
+- **Metrics Displayed**:
+  - Employee Count
+  - Basic Salary Total
+  - Gross Total
+  - Net Total
+- **Grand Total Row**: Sum across all categories
+- **Charts**:
+  - **Chart Type**: Choose Bar, Pie, or Line chart
+  - **Metric**: Select which metric to visualize
+  - Visual representation of category distribution
+- **Print Support**: Optimized for printing
 
 ## Language Toggle
 

@@ -3,9 +3,28 @@ import { PrismaClient } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import puppeteer from 'puppeteer';
 import { Readable } from 'stream';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 const prisma = new PrismaClient();
 export const exportsRouter = Router();
+
+// Get logo as base64 for PDF embedding
+function getLogoBase64(): string {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    // Path from apps/api/src/routes/exports.ts to root/logo.png
+    // exports.ts -> routes -> src -> api -> apps -> root (4 levels up)
+    const logoPath = join(__dirname, '..', '..', '..', '..', 'logo.png');
+    const logoBuffer = readFileSync(logoPath);
+    return `data:image/png;base64,${logoBuffer.toString('base64')}`;
+  } catch (error) {
+    console.warn('Could not load logo for PDF:', error);
+    return ''; // Return empty string if logo not found
+  }
+}
 
 /**
  * GET /api/exports/employee/:id/annual?year=YYYY&format=csv|xlsx|pdf
@@ -277,6 +296,9 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
     net: 0
   });
   
+  const logoBase64 = getLogoBase64();
+  const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 40px; margin-bottom: 10px;" />` : '';
+  
   return `
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -285,6 +307,7 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
   <title>${employee.name} - ${year}</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
+    .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
     th { background-color: #f2f2f2; }
@@ -292,7 +315,10 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
   </style>
 </head>
 <body>
-  <h1>${employee.name} - ${year}</h1>
+  <div class="header">
+    ${logoImg}
+    <h1>${employee.name} - ${year}</h1>
+  </div>
   <table>
     <thead>
       <tr>
@@ -331,6 +357,165 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
         <td>${totals.salaryDeductions + totals.grossDeductions}</td>
         <td>${totals.gross}</td>
         <td>${totals.net}</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>
+  `;
+}
+
+/**
+ * GET /api/exports/salary-changes?year=YYYY&format=pdf
+ * Export salary changes report as PDF
+ */
+exportsRouter.get('/salary-changes', async (req, res) => {
+  try {
+    const format = (req.query.format as string) || 'pdf';
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    
+    if (format !== 'pdf') {
+      return res.status(400).json({ error: 'Only PDF format is supported for salary changes report' });
+    }
+    
+    // Get salary changes data
+    const employees = await prisma.employee.findMany({
+      include: {
+        salaries: {
+          where: { year },
+          orderBy: { month: 'asc' }
+        }
+      }
+    });
+    
+    const changes: any[] = [];
+    
+    for (const employee of employees) {
+      const salaries = employee.salaries;
+      if (salaries.length < 2) continue;
+      
+      for (let i = 1; i < salaries.length; i++) {
+        const prev = salaries[i - 1];
+        const curr = salaries[i];
+        
+        if (prev.basicSalary !== curr.basicSalary) {
+          changes.push({
+            employee: {
+              name: employee.name,
+              category: employee.category
+            },
+            month: curr.month,
+            monthName: curr.monthName,
+            previousBasicSalary: prev.basicSalary,
+            newBasicSalary: curr.basicSalary,
+            change: curr.basicSalary - prev.basicSalary
+          });
+        }
+      }
+    }
+    
+    // Calculate totals
+    const totals = changes.reduce((acc, c) => ({
+      previousBasicSalary: acc.previousBasicSalary + (c.previousBasicSalary || 0),
+      newBasicSalary: acc.newBasicSalary + (c.newBasicSalary || 0),
+      change: acc.change + (c.change || 0)
+    }), {
+      previousBasicSalary: 0,
+      newBasicSalary: 0,
+      change: 0
+    });
+    
+    return exportSalaryChangesPDF(res, changes, totals, year);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function exportSalaryChangesPDF(res: any, changes: any[], totals: any, year: number) {
+  try {
+    const html = generateSalaryChangesHTML(changes, totals, year);
+    
+    const browser = await puppeteer.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdf = await page.pdf({ 
+      format: 'A4', 
+      printBackground: true,
+      margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' }
+    });
+    await browser.close();
+    
+    const filename = `Salary_Changes_${year}.pdf`;
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(pdf);
+  } catch (error: any) {
+    console.error('PDF export error:', error);
+    res.status(500).json({ error: `Failed to generate PDF: ${error.message}` });
+  }
+}
+
+function generateSalaryChangesHTML(changes: any[], totals: any, year: number): string {
+  const logoBase64 = getLogoBase64();
+  const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 40px; margin-bottom: 10px;" />` : '';
+  
+  return `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>Salary Changes Report - ${year}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+    .totals-row { background-color: #f0f0f0; font-weight: bold; }
+    .positive { color: #059669; }
+    .negative { color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    ${logoImg}
+    <h1>تقرير تغييرات الرواتب - ${year}</h1>
+    <h1 style="margin-right: 20px;">Salary Changes Report - ${year}</h1>
+  </div>
+  <p style="margin-bottom: 10px;"><strong>Total Changes:</strong> ${changes.length}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>الاسم / Name</th>
+        <th>الشهر / Month</th>
+        <th>الراتب السابق / Previous Basic Salary</th>
+        <th>الراتب الجديد / New Basic Salary</th>
+        <th>التغيير / Change</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${changes.map(c => `
+        <tr>
+          <td>${c.employee?.name || 'N/A'}</td>
+          <td>${c.monthName || 'N/A'}</td>
+          <td>${(c.previousBasicSalary || 0).toLocaleString()}</td>
+          <td>${(c.newBasicSalary || 0).toLocaleString()}</td>
+          <td class="${c.change > 0 ? 'positive' : c.change < 0 ? 'negative' : ''}">
+            ${c.change > 0 ? '+' : ''}${(c.change || 0).toLocaleString()}
+          </td>
+        </tr>
+      `).join('')}
+      <tr class="totals-row">
+        <td colspan="2"><strong>المجموع / GRAND TOTAL</strong></td>
+        <td><strong>${(totals.previousBasicSalary || 0).toLocaleString()}</strong></td>
+        <td><strong>${(totals.newBasicSalary || 0).toLocaleString()}</strong></td>
+        <td class="${totals.change > 0 ? 'positive' : totals.change < 0 ? 'negative' : ''}">
+          <strong>${totals.change > 0 ? '+' : ''}${(totals.change || 0).toLocaleString()}</strong>
+        </td>
       </tr>
     </tbody>
   </table>

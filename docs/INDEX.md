@@ -61,11 +61,16 @@ This directory contains comprehensive documentation for the Salaries Summary app
 
 - ✅ Excel workbook import (12 months)
 - ✅ Employee categorization (Partners, Lawyers, Admins, Consultants)
-- ✅ Annual reports per employee
+- ✅ Annual reports per employee with multiple tabs (Summary, Details, Charts, Multi-Year, Month-to-Month)
 - ✅ Joiners/Leavers tracking
 - ✅ Salary changes monitoring
+- ✅ Category totals report with charts
+- ✅ Multi-year comparison for employees
+- ✅ Month-to-month comparison (any two months)
+- ✅ Duplicate employee detection and merging
 - ✅ Multiple export formats (PDF, CSV, XLSX)
 - ✅ Bilingual UI (Arabic/English with RTL)
+- ✅ Interactive charts (Bar, Pie, Line) with print support
 
 ### Important Notes
 
@@ -75,6 +80,16 @@ This directory contains comprehensive documentation for the Salaries Summary app
 - Employee categories are determined by position in workbook
 
 ## Version History
+
+- **v1.1.0** (2025-12-26): Enhanced features
+  - Multi-year comparison for employees
+  - Month-to-month comparison feature
+  - Category totals page with charts
+  - Improved employee name normalization
+  - Duplicate employee detection and merging
+  - Enhanced Employee Annual Report with multiple tabs
+  - Interactive charts (Bar, Pie, Line) with print support
+  - Improved comparison modes (Selectable Metric vs Show All Metrics)
 
 - **v1.0.0** (2025-12-26): Initial complete implementation
   - Employee categorization
@@ -87,5 +102,10 @@ When adding new features:
 1. Update relevant documentation
 2. Add API documentation if new endpoints
 3. Update USER_GUIDE.md for user-facing features
-4. Update this index if new docs are created
+4. Update CHANGELOG.md with version and changes
+5. Update this index if new docs are created
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history and changes.
 

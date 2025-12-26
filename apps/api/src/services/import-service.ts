@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { parseWorkbook } from './excel-parser.js';
-import { parseMonthYearFromFilename, getMonthName } from '../utils/normalize.js';
+import { parseMonthYearFromFilename, getMonthName, normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
 
 const prisma = new PrismaClient();
 
@@ -32,6 +32,11 @@ export interface ImportResult {
   filesProcessed: number;
   recordsImported: number;
   errors: string[];
+  similarNameMatches?: Array<{
+    newName: string;
+    existingName: string;
+    recordsLinked: number;
+  }>;
 }
 
 /**
@@ -99,14 +104,87 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
           console.log(`  ⚠️  WARNING: No records found! This might indicate a parsing issue.`);
         }
         
+        // Load all employees once for similarity checking (cached for this import batch)
+        let allEmployeesCache: any[] = [];
+        let cacheInitialized = false;
+        const getAllEmployees = async () => {
+          if (!cacheInitialized) {
+            allEmployeesCache = await prisma.employee.findMany();
+            cacheInitialized = true;
+          }
+          return allEmployeesCache;
+        };
+        
         // Import records
         let imported = 0;
         for (const record of parsed.records) {
           try {
             // Find or create employee
+            // First try exact normalized name match
             let employee = await prisma.employee.findUnique({
               where: { normalizedName: record.normalizedName }
             });
+            
+            // If not found, check for similar names (handles variations like "أميرة محمد على شريف" vs "اميره شريف")
+            if (!employee) {
+              // Ensure cache is loaded before checking for similar names
+              const allEmployees = await getAllEmployees();
+              const similarEmployee = allEmployees.find(emp => 
+                areNamesSimilar(emp.name, record.employeeName)
+              );
+              
+              if (similarEmployee) {
+                console.log(`  🔗 Found similar employee: "${similarEmployee.name}" matches "${record.employeeName}"`);
+                employee = similarEmployee;
+                
+                // Track this match for the report (only add once per unique pair)
+                if (!result.similarNameMatches) {
+                  result.similarNameMatches = [];
+                }
+                const matchKey = `${similarEmployee.name}|||${record.employeeName}`;
+                const existingMatch = result.similarNameMatches.find(m => 
+                  `${m.existingName}|||${m.newName}` === matchKey
+                );
+                if (!existingMatch) {
+                  result.similarNameMatches.push({
+                    newName: record.employeeName,
+                    existingName: similarEmployee.name,
+                    recordsLinked: 1
+                  });
+                } else {
+                  existingMatch.recordsLinked++;
+                }
+                
+                // Determine which name is better (longer/more complete)
+                const currentNormLength = normalizeEmployeeName(similarEmployee.name).length;
+                const newNormLength = record.normalizedName.length;
+                const currentWordCount = normalizeEmployeeName(similarEmployee.name).split(/\s+/).length;
+                const newWordCount = record.normalizedName.split(/\s+/).length;
+                
+                // Update to the longer/more complete name
+                const shouldUpdate = newNormLength > currentNormLength || 
+                                    (newNormLength === currentNormLength && newWordCount > currentWordCount);
+                
+                if (shouldUpdate) {
+                  await prisma.employee.update({
+                    where: { id: employee.id },
+                    data: { 
+                      normalizedName: record.normalizedName,
+                      name: record.employeeName // Update to more complete name
+                    }
+                  });
+                  employee.normalizedName = record.normalizedName;
+                  employee.name = record.employeeName;
+                  // Update cache (it should exist since we called getAllEmployees)
+                  if (cacheInitialized) {
+                    const cacheIndex = allEmployeesCache.findIndex(e => e.id === employee.id);
+                    if (cacheIndex >= 0) {
+                      allEmployeesCache[cacheIndex] = employee;
+                    }
+                  }
+                }
+              }
+            }
             
             if (!employee) {
               employee = await prisma.employee.create({
@@ -116,12 +194,24 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
                   category: record.category
                 }
               });
+              // Ensure cache is loaded and add new employee to it
+              if (!cacheInitialized) {
+                await getAllEmployees();
+              }
+              allEmployeesCache.push(employee);
             } else if (record.category && employee.category !== record.category) {
               // Update category if it changed (in case employee moved between categories)
               employee = await prisma.employee.update({
                 where: { id: employee.id },
                 data: { category: record.category }
               });
+              // Update cache if it exists (only if we've loaded it)
+              if (cacheInitialized) {
+                const cacheIndex = allEmployeesCache.findIndex(e => e.id === employee.id);
+                if (cacheIndex >= 0) {
+                  allEmployeesCache[cacheIndex] = employee;
+                }
+              }
             }
             
             // Create or update salary record
@@ -183,6 +273,17 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
             }
             
             imported++;
+            
+            // Update record count for similar name matches
+            if (employee && result.similarNameMatches) {
+              const match = result.similarNameMatches.find(m => 
+                (m.existingName === employee.name || m.newName === record.employeeName) &&
+                (m.existingName === employee.name || m.newName === record.employeeName)
+              );
+              if (match) {
+                match.recordsLinked++;
+              }
+            }
           } catch (error: any) {
             const errorMsg = error.message || 'Unknown error';
             console.error(`Error importing record for ${record.employeeName}:`, errorMsg);

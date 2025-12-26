@@ -21,3 +21,53 @@ body {
   text-align: left;
 }
 
+/* Print Styles */
+@media print {
+  .print-container {
+    width: 100%;
+  }
+  
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+  
+  /* Ensure charts are visible in print */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+  }
+  
+  /* Page breaks */
+  table {
+    page-break-inside: auto;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tfoot {
+    display: table-footer-group;
+  }
+  
+  /* Remove background colors for better printing */
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-white {
+    background: white !important;
+  }
+  
+  /* Ensure borders are visible */
+  table, th, td {
+    border: 1px solid #000 !important;
+  }
+}
+

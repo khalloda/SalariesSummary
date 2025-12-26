@@ -5,7 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 
 export default function JoinersLeavers() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
   const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
   const [data, setData] = useState<any>(null);
@@ -13,7 +13,14 @@ export default function JoinersLeavers() {
   
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/joiners-leavers?year=${year}`)
-      .then(res => setData(res.data))
+      .then(res => {
+        // Map the response to match expected structure
+        setData({
+          ...res.data,
+          joinersCount: res.data.summary?.totalJoiners || res.data.joiners?.length || 0,
+          leaversCount: res.data.summary?.totalLeavers || res.data.leavers?.length || 0
+        });
+      })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, [year]);
@@ -23,7 +30,22 @@ export default function JoinersLeavers() {
   
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">{t('joinersLeavers')} - {year}</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">{t('joinersLeavers')} - {year}</h2>
+        <select
+          value={year}
+          onChange={(e) => {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.set('year', e.target.value);
+            setSearchParams(newSearchParams);
+          }}
+          className="border rounded px-3 py-2"
+        >
+          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+      </div>
       
       {/* Summary Totals */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

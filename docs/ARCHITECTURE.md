@@ -62,6 +62,8 @@ SalariesSummary/
 │   │   │   ├── services/       # Business logic
 │   │   │   │   ├── excel-parser.ts    # Excel parsing logic
 │   │   │   │   └── import-service.ts  # Import orchestration
+│   │   │   ├── scripts/       # Utility scripts
+│   │   │   │   └── merge-duplicate-employees.ts
 │   │   │   └── utils/         # Utility functions
 │   │   │       └── normalize.ts
 │   │   └── prisma/            # Database schema and migrations
@@ -188,7 +190,10 @@ model SalaryRecord {
 
 - Normalized names for matching
 - Handles Arabic/English variations
+- Removes common prefixes (أ/, د/, etc.) with Unicode-aware regex
+- Normalizes whitespace (multiple spaces to single space)
 - Stores original name for display
+- Merge duplicates feature to consolidate duplicate employees
 
 ### 5. Internationalization
 
@@ -229,6 +234,25 @@ For larger scale:
 - Detailed error logging to console
 - User-friendly error messages in UI
 - Import errors stored in ImportLog table
+- Duplicate employee detection and merging
+
+## Data Quality Features
+
+### Employee Name Normalization
+
+The system uses advanced normalization to prevent duplicate employees:
+
+- Removes Arabic prefixes: `أ/`, `أ/ `, `أ.`, `د/`, `د/ `, `د.`
+- Removes Latin prefixes: `A/`, `A.`, `D/`, `D.`
+- Normalizes whitespace (multiple spaces/tabs to single space)
+- Uses Unicode-aware regex for proper Arabic character handling
+
+### Duplicate Detection and Merging
+
+- Automatic detection of duplicate employees based on normalized names
+- Merge script keeps oldest employee and moves all salary records
+- Handles conflicts when salary records already exist
+- Safe to run multiple times
 
 ## Testing Strategy
 

@@ -72,6 +72,28 @@ Clear all imported data (employees, salary records, import logs).
 }
 ```
 
+#### Merge Duplicate Employees
+
+**POST** `/api/import/merge-duplicates`
+
+Merge duplicate employees based on normalized names. This is useful when the same employee was imported multiple times due to name variations (e.g., "أ/ أحمد" vs "أ/أحمد").
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Duplicate employees merged successfully",
+  "merged": 2,
+  "duplicates": 2
+}
+```
+
+**Response Fields:**
+- `merged`: Number of duplicate employees that were merged
+- `duplicates`: Total number of duplicates found
+
+**Note:** The script keeps the oldest employee (first created) and moves all salary records from duplicates to the kept employee.
+
 ---
 
 ### Employees
@@ -137,6 +159,40 @@ Get annual report data for a specific employee and year.
 
 **Query Parameters:**
 - `year` (optional): Year (defaults to current year)
+
+#### Get All Years Data for Employee
+
+**GET** `/api/employees/:id/all-years`
+
+Get all salary records for an employee across all years. Used for multi-year comparison.
+
+**Response:**
+```json
+{
+  "employee": {
+    "id": "...",
+    "name": "...",
+    "category": "Lawyers/محامين"
+  },
+  "years": [2024, 2025],
+  "byYear": {
+    "2024": [...],
+    "2025": [...]
+  },
+  "yearTotals": {
+    "2024": {
+      "basicSalary": 6000000,
+      "gross": 7925712,
+      "net": 5949816,
+      ...
+    },
+    "2025": {...}
+  },
+  "allRecords": [...]
+}
+```
+
+---
 
 **Response:**
 ```json
@@ -266,6 +322,41 @@ Get a report of salary changes (Basic Salary only) across months.
     "previousBasicSalary": 5000000,
     "newBasicSalary": 5500000,
     "change": 500000
+  }
+}
+```
+
+#### Category Totals Report
+
+**GET** `/api/reports/category-totals?year=2025`
+
+Get aggregated totals by employee category (Partners, Lawyers, Admins, Consultants) for a given year.
+
+**Query Parameters:**
+- `year` (optional): Year (defaults to current year)
+
+**Response:**
+```json
+{
+  "year": 2025,
+  "categoryTotals": {
+    "Partners/شركاء": {
+      "employeeCount": 5,
+      "totals": {
+        "basicSalary": 10000000,
+        "directAdditions": 50000,
+        "indirectAdditions": 2000000,
+        "yearlyIncrease": 0,
+        "bonuses": 0,
+        "salaryDeductions": 100000,
+        "grossDeductions": 0,
+        "gross": 12050000,
+        "net": 11950000
+      }
+    },
+    "Lawyers/محامين": {...},
+    "Admins/عاملين": {...},
+    "Consultants/مستشارين": {...}
   }
 }
 ```

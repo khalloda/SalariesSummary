@@ -169,6 +169,35 @@ function parseMonthYearFromFilename(filename: string): { month: number; year: nu
 }
 ```
 
+## Employee Name Normalization
+
+Employee names are normalized to prevent duplicate entries:
+
+### Normalization Process
+
+1. **Remove Arabic Prefixes**:
+   - `أ/`, `أ/ `, `أ.`, `أ. `` (with or without spaces)
+   - `د/`, `د/ `, `د.`, `د. ` (with or without spaces)
+   - Uses Unicode-aware regex (`/u` flag) for proper Arabic character handling
+
+2. **Remove Latin Prefixes**:
+   - `A/`, `A.`, `D/`, `D.` (case-insensitive)
+
+3. **Normalize Whitespace**:
+   - Multiple spaces, tabs, or other whitespace characters are collapsed to a single space
+   - Leading and trailing whitespace is removed
+
+### Example Normalizations
+
+- `"أ/ أحمد محمد"` → `"أحمد محمد"`
+- `"أ/  أحمد محمد"` → `"أحمد محمد"` (multiple spaces normalized)
+- `"أ. أحمد محمد"` → `"أحمد محمد"`
+- `"د/ دكتور أحمد"` → `"دكتور أحمد"`
+
+### Duplicate Detection
+
+The normalized name is used as a unique identifier in the database. If two employees have the same normalized name, they are considered duplicates and can be merged using the "Merge Duplicates" feature.
+
 ## Error Handling
 
 - Missing sheets: Logs error, continues with available data

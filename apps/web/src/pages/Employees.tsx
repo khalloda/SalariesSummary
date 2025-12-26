@@ -13,6 +13,31 @@ interface Employee {
   };
 }
 
+/**
+ * Normalize text for search comparison
+ * Handles Arabic character variations to ensure "امي" matches "أمي"
+ */
+function normalizeForSearch(text: string): string {
+  if (!text || typeof text !== 'string') return '';
+  
+  let normalized = text.trim();
+  
+  // Normalize Arabic character variations
+  // Normalize all alif variations (أ, ا, إ, آ) to ا
+  normalized = normalized.replace(/[أإآ]/g, 'ا');
+  
+  // ة (ta marbuta) -> ه (ha)
+  normalized = normalized.replace(/ة/g, 'ه');
+  
+  // Remove special characters
+  normalized = normalized.replace(/[ـ_]/g, '');
+  
+  // Normalize whitespace
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  return normalized.toLowerCase();
+}
+
 export default function Employees() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -32,7 +57,9 @@ export default function Employees() {
   const categories = Array.from(new Set(employees.map(e => e.category).filter(Boolean))) as string[];
   
   const filtered = employees.filter(e => {
-    const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase());
+    const normalizedSearch = normalizeForSearch(search);
+    const normalizedName = normalizeForSearch(e.name);
+    const matchesSearch = normalizedName.includes(normalizedSearch);
     const matchesCategory = categoryFilter === 'all' || e.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });

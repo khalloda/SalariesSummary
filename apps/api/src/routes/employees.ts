@@ -55,6 +55,80 @@ employeesRouter.get('/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/employees/:id/all-years
+ * Get all salary records for an employee across all years
+ */
+employeesRouter.get('/:id/all-years', async (req, res) => {
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: req.params.id }
+    });
+    
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    
+    const salaries = await prisma.salaryRecord.findMany({
+      where: {
+        employeeId: employee.id
+      },
+      orderBy: [
+        { year: 'asc' },
+        { month: 'asc' }
+      ]
+    });
+    
+    // Group by year
+    const byYear: Record<number, any[]> = {};
+    salaries.forEach(s => {
+      if (!byYear[s.year]) {
+        byYear[s.year] = [];
+      }
+      byYear[s.year].push(s);
+    });
+    
+    // Calculate totals per year
+    const yearTotals: Record<number, any> = {};
+    Object.keys(byYear).forEach(yearStr => {
+      const year = parseInt(yearStr);
+      const yearSalaries = byYear[year];
+      yearTotals[year] = yearSalaries.reduce((acc, s) => ({
+        basicSalary: acc.basicSalary + s.basicSalary,
+        gross: acc.gross + s.gross,
+        net: acc.net + s.net,
+        directAdditions: acc.directAdditions + s.directAdditions,
+        indirectAdditions: acc.indirectAdditions + s.indirectAdditions,
+        bonuses: acc.bonuses + s.bonuses,
+        salaryDeductions: acc.salaryDeductions + s.salaryDeductions,
+        grossDeductions: acc.grossDeductions + s.grossDeductions
+      }), {
+        basicSalary: 0,
+        gross: 0,
+        net: 0,
+        directAdditions: 0,
+        indirectAdditions: 0,
+        bonuses: 0,
+        salaryDeductions: 0,
+        grossDeductions: 0
+      });
+    });
+    
+    // Get available years
+    const years = Object.keys(byYear).map(y => parseInt(y)).sort();
+    
+    res.json({
+      employee,
+      years,
+      byYear,
+      yearTotals,
+      allRecords: salaries
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/employees/:id/annual?year=YYYY
  * Get employee annual report
  */

@@ -7,6 +7,7 @@ import Employees from './pages/Employees';
 import EmployeeAnnual from './pages/EmployeeAnnual';
 import JoinersLeavers from './pages/JoinersLeavers';
 import SalaryChanges from './pages/SalaryChanges';
+import CategoryTotals from './pages/CategoryTotals';
 
 function App() {
   const { i18n } = useTranslation();
@@ -25,6 +26,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/employees" element={<Employees />} />
           <Route path="/employees/:id/annual" element={<EmployeeAnnual />} />
+          <Route path="/reports/category-totals" element={<CategoryTotals />} />
           <Route path="/reports/joiners-leavers" element={<JoinersLeavers />} />
           <Route path="/reports/salary-changes" element={<SalaryChanges />} />
         </Routes>

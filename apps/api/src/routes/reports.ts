@@ -5,6 +5,69 @@ const prisma = new PrismaClient();
 export const reportsRouter = Router();
 
 /**
+ * GET /api/reports/category-totals?year=YYYY
+ * Get totals by category (Partners, Lawyers, Admins, Consultants)
+ */
+reportsRouter.get('/category-totals', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    
+    const categories = ['Partners/شركاء', 'Lawyers/محامين', 'Admins/عاملين', 'Consultants/مستشارين'];
+    const categoryTotals: Record<string, any> = {};
+    
+    for (const category of categories) {
+      const employees = await prisma.employee.findMany({
+        where: { category },
+        include: {
+          salaries: {
+            where: { year },
+            orderBy: { month: 'asc' }
+          }
+        }
+      });
+      
+      // Calculate totals for this category
+      const totals = employees.reduce((acc, emp) => {
+        emp.salaries.forEach(s => {
+          acc.basicSalary += s.basicSalary;
+          acc.directAdditions += s.directAdditions;
+          acc.indirectAdditions += s.indirectAdditions;
+          acc.yearlyIncrease += s.yearlyIncrease;
+          acc.bonuses += s.bonuses;
+          acc.salaryDeductions += s.salaryDeductions;
+          acc.grossDeductions += s.grossDeductions;
+          acc.gross += s.gross;
+          acc.net += s.net;
+        });
+        return acc;
+      }, {
+        basicSalary: 0,
+        directAdditions: 0,
+        indirectAdditions: 0,
+        yearlyIncrease: 0,
+        bonuses: 0,
+        salaryDeductions: 0,
+        grossDeductions: 0,
+        gross: 0,
+        net: 0
+      });
+      
+      categoryTotals[category] = {
+        employeeCount: employees.length,
+        totals
+      };
+    }
+    
+    res.json({
+      year,
+      categoryTotals
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/reports/joiners-leavers?year=YYYY
  * Get joiners and leavers report
  */
@@ -12,13 +75,23 @@ reportsRouter.get('/joiners-leavers', async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
-    // Get all employees with their first and last appearance
+    // Get all employees with their salary records for current year, previous year, and next year
     const employees = await prisma.employee.findMany({
       include: {
         salaries: {
-          where: { year },
-          orderBy: { month: 'asc' },
-          select: { month: true }
+          where: {
+            year: {
+              in: [year - 1, year, year + 1]
+            }
+          },
+          orderBy: [
+            { year: 'asc' },
+            { month: 'asc' }
+          ],
+          select: { 
+            year: true,
+            month: true 
+          }
         }
       }
     });
@@ -27,30 +100,59 @@ reportsRouter.get('/joiners-leavers', async (req, res) => {
     const leavers: any[] = [];
     
     for (const employee of employees) {
-      const months = employee.salaries.map(s => s.month);
-      if (months.length === 0) continue;
+      // Separate salaries by year
+      const currentYearSalaries = employee.salaries.filter(s => s.year === year);
+      const previousYearSalaries = employee.salaries.filter(s => s.year === year - 1);
+      const nextYearSalaries = employee.salaries.filter(s => s.year === year + 1);
       
-      const firstMonth = Math.min(...months);
-      const lastMonth = Math.max(...months);
+      if (currentYearSalaries.length === 0) continue;
       
-      if (firstMonth > 1) {
-        // Joined after January
+      const currentYearMonths = currentYearSalaries.map(s => s.month);
+      const firstMonth = Math.min(...currentYearMonths);
+      const lastMonth = Math.max(...currentYearMonths);
+      
+      // Check if employee is a joiner
+      // They're a joiner if:
+      // 1. First month in current year > 1 (didn't start in January)
+      // 2. AND they didn't have records in the previous year (or had records but ended before December)
+      const hadPreviousYearRecords = previousYearSalaries.length > 0;
+      const previousYearLastMonth = hadPreviousYearRecords 
+        ? Math.max(...previousYearSalaries.map(s => s.month))
+        : 0;
+      
+      // True joiner: First month > 1 AND (no previous year records OR previous year ended before December)
+      const isTrueJoiner = firstMonth > 1 && (!hadPreviousYearRecords || previousYearLastMonth < 12);
+      
+      if (isTrueJoiner) {
         joiners.push({
           employee: {
             id: employee.id,
-            name: employee.name
+            name: employee.name,
+            category: employee.category
           },
           firstMonth,
           firstMonthName: getMonthName(firstMonth)
         });
       }
       
-      if (lastMonth < 12) {
-        // Left before December
+      // Check if employee is a leaver
+      // They're a leaver if:
+      // 1. Last month in current year < 12 (didn't work until December)
+      // 2. AND they don't have records in the next year (or next year starts after January)
+      const hasNextYearRecords = nextYearSalaries.length > 0;
+      const nextYearFirstMonth = hasNextYearRecords 
+        ? Math.min(...nextYearSalaries.map(s => s.month))
+        : 13; // Set to 13 if no next year records (meaning they left)
+      
+      // True leaver: Last month < 12 AND (no next year records OR next year starts after January)
+      const isTrueLeaver = lastMonth < 12 && (!hasNextYearRecords || nextYearFirstMonth > 1);
+      
+      if (isTrueLeaver) {
         leavers.push({
           employee: {
             id: employee.id,
-            name: employee.name
+            name: employee.name,
+            category: employee.category
           },
           lastMonth,
           lastMonthName: getMonthName(lastMonth)
@@ -62,8 +164,11 @@ reportsRouter.get('/joiners-leavers', async (req, res) => {
       year,
       joiners,
       leavers,
-      joinersCount: joiners.length,
-      leaversCount: leavers.length
+      summary: {
+        totalJoiners: joiners.length,
+        totalLeavers: leavers.length,
+        netChange: joiners.length - leavers.length
+      }
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -102,13 +207,14 @@ reportsRouter.get('/salary-changes', async (req, res) => {
           changes.push({
             employee: {
               id: employee.id,
-              name: employee.name
+              name: employee.name,
+              category: employee.category
             },
             month: curr.month,
             monthName: getMonthName(curr.month),
-            previousValue: prev.basicSalary,
-            newValue: curr.basicSalary,
-            delta: curr.basicSalary - prev.basicSalary
+            previousBasicSalary: prev.basicSalary,
+            newBasicSalary: curr.basicSalary,
+            change: curr.basicSalary - prev.basicSalary
           });
         }
       }
@@ -116,19 +222,18 @@ reportsRouter.get('/salary-changes', async (req, res) => {
     
     // Calculate totals
     const totals = changes.reduce((acc, change) => ({
-      previousValue: acc.previousValue + (change.previousValue || 0),
-      newValue: acc.newValue + (change.newValue || 0),
-      delta: acc.delta + (change.delta || 0)
+      previousBasicSalary: acc.previousBasicSalary + (change.previousBasicSalary || 0),
+      newBasicSalary: acc.newBasicSalary + (change.newBasicSalary || 0),
+      change: acc.change + (change.change || 0)
     }), {
-      previousValue: 0,
-      newValue: 0,
-      delta: 0
+      previousBasicSalary: 0,
+      newBasicSalary: 0,
+      change: 0
     });
     
     res.json({
       year,
       changes,
-      totalChanges: changes.length,
       totals
     });
   } catch (error: any) {
@@ -143,4 +248,3 @@ function getMonthName(month: number): string {
   ];
   return months[month - 1] || 'Unknown';
 }
-

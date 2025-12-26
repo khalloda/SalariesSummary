@@ -7,13 +7,21 @@ A comprehensive web application for analyzing monthly salary workbooks, generati
 - 📊 **Excel Workbook Import**: Automatically imports 12 monthly salary workbooks
 - 👥 **Employee Management**: Track employees across months with identity resolution and categorization
 - 📈 **Annual Reports**: Detailed month-by-month and consolidated annual reports per employee
+  - Summary tab with monthly overview
+  - Details tab with full breakdown
+  - Charts tab with interactive visualizations (Bar, Pie, Line)
+  - Multi-Year Comparison tab for year-over-year analysis
+  - Month-to-Month Comparison tab for comparing any two months
 - 📋 **Management Reports**:
   - Joiners/Leavers report
   - Salary changes tracking (based on Basic Salary)
+  - Category Totals report with charts
 - 🌐 **Bilingual UI**: Arabic/English with RTL support
 - 📤 **Multiple Export Formats**: PDF, CSV, and XLSX
 - 🏷️ **Employee Categories**: Automatic categorization (Partners, Lawyers, Admins, Consultants)
 - 🔍 **Advanced Filtering**: Filter employees by category and search by name
+- 🔄 **Duplicate Detection**: Automatic detection and merging of duplicate employees
+- 📊 **Interactive Charts**: Bar, Pie, and Line charts with print support
 
 ## Project Structure
 
@@ -74,14 +82,26 @@ This will start:
 4. The system will:
    - Parse all workbooks
    - Categorize employees automatically (Partners, Lawyers, Admins, Consultants)
+   - Normalize employee names to prevent duplicates
    - Skip rows with "Spare" or "اجمالي" in column B
    - Store all data in the database
+
+5. **Merge Duplicates** (if needed):
+   - If you notice duplicate employees (e.g., "أ/ أحمد" and "أ/أحمد"), click "Merge Duplicates"
+   - The system will automatically merge duplicates based on normalized names
 
 ### 2. View Reports
 
 - **Employees**: Browse all employees, filter by category, and view their annual reports
+  - **Annual Report Tabs**:
+    - Summary: Quick monthly overview
+    - Details: Full breakdown with additions and deductions
+    - Charts: Interactive visualizations (Bar, Pie, Line charts)
+    - Multi-Year Comparison: Compare data across multiple years with trends and percentage changes
+    - Month-to-Month Comparison: Compare any two specific months (same or different years)
 - **Joiners/Leavers**: See employees who joined or left during the year
 - **Salary Changes**: Track salary changes across months (Basic Salary only)
+- **Category Totals**: View aggregated totals by category (Partners, Lawyers, Admins, Consultants) with charts
 
 ### 3. Export Reports
 
@@ -230,14 +250,16 @@ If you encounter password-protected file errors:
 
 ## Documentation
 
+- [Documentation Index](docs/INDEX.md) - Start here for navigation
 - [Architecture Documentation](docs/ARCHITECTURE.md)
 - [API Documentation](docs/API.md)
+- [User Guide](docs/USER_GUIDE.md)
 - [Employee Categorization](docs/EMPLOYEE_CATEGORIZATION.md)
 - [Data Parsing Logic](docs/DATA_PARSING.md)
 - [Deployment Guide](docs/DEPLOYMENT.md)
-- [User Guide](docs/USER_GUIDE.md)
 - [XAMPP Setup](docs/XAMPP_SETUP.md)
 - [Complete Schema Mapping](docs/COMPLETE_SCHEMA_MAPPING.md)
+- [Changelog](docs/CHANGELOG.md)
 
 ## Contributing
 
@@ -252,8 +274,9 @@ MIT
 
 ## Notes
 
-- Employee identity is resolved by name normalization. If duplicate names exist, manual resolution may be needed.
+- Employee identity is resolved by name normalization. Duplicate employees can be automatically merged using the "Merge Duplicates" feature in the Dashboard.
 - The application handles Arabic text and RTL layout throughout.
+- Employee names are normalized to handle variations like "أ/ " vs "أ/" to prevent duplicates.
 - Logo placement automatically switches based on language direction (LTR/RTL).
 - Net values are read directly from column K in the "مرتبات" sheet, not calculated.
 - "Gross Deductions" is displayed as "Total Deduction" in exports.

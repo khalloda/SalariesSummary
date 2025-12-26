@@ -62,3 +62,28 @@ importRouter.delete('/clear', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/import/merge-duplicates
+ * Merge duplicate employees based on normalized names
+ */
+importRouter.post('/merge-duplicates', async (req, res) => {
+  try {
+    console.log('Merge duplicates request received');
+    const { mergeDuplicateEmployees } = await import('../scripts/merge-duplicate-employees.js');
+    const result = await mergeDuplicateEmployees();
+    res.json({ 
+      success: true, 
+      message: 'Duplicate employees merged successfully',
+      merged: result.merged,
+      duplicates: result.duplicates,
+      report: result.report || []
+    });
+  } catch (error: any) {
+    console.error('Merge duplicates error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message
+    });
+  }
+});
+
