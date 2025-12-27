@@ -230,6 +230,57 @@ export default function EmployeeAnnual() {
         </nav>
       </div>
 
+      {/* Category Changes Section - Show on all tabs */}
+      {data.categoryChanges && data.categoryChanges.length > 0 && (
+        <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+          <h3 className="text-lg font-semibold text-yellow-800 mb-3">Category Changes / تغييرات الفئة</h3>
+          <div className="space-y-3">
+            {data.categoryChanges.map((change: any, index: number) => {
+              // Format the message based on whether there was a previous category
+              const getCategoryName = (cat: string | null) => {
+                if (!cat) return null;
+                // Extract Arabic part if available (format: "English/Arabic")
+                const parts = cat.split('/');
+                return parts.length > 1 ? parts[1] : parts[0];
+              };
+              
+              const fromCategoryName = getCategoryName(change.fromCategory);
+              const toCategoryName = getCategoryName(change.toCategory);
+              
+              return (
+                <div key={index} className="text-sm text-yellow-800 bg-white p-3 rounded border border-yellow-200">
+                  {change.fromCategory ? (
+                    <div>
+                      <div className="font-medium">
+                        {data.employee.name} was in <strong>{change.fromCategory}</strong> until {change.monthName} {change.year}
+                      </div>
+                      <div className="mt-1 text-yellow-700">
+                        {data.employee.name} كان في <strong>{fromCategoryName || change.fromCategory}</strong> حتى {change.monthName} {change.year}
+                      </div>
+                      <div className="font-medium mt-2">
+                        Changed to <strong>{change.toCategory}</strong> in {change.monthName} {change.year}
+                      </div>
+                      <div className="mt-1 text-yellow-700">
+                        تغير إلى <strong>{toCategoryName || change.toCategory}</strong> في {change.monthName} {change.year}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="font-medium">
+                        Assigned to <strong>{change.toCategory}</strong> in {change.monthName} {change.year}
+                      </div>
+                      <div className="mt-1 text-yellow-700">
+                        تم تعيينه إلى <strong>{toCategoryName || change.toCategory}</strong> في {change.monthName} {change.year}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
       {/* Summary Tab */}
       {activeTab === 'summary' && (
         <div className="bg-white rounded-lg shadow overflow-hidden print:shadow-none">

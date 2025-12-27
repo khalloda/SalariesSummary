@@ -47,7 +47,7 @@ export default function Dashboard() {
     setImportReport(null);
     setShowImportReport(false);
     try {
-      const response = await axios.post(`${API_BASE_URL}/import`);
+      const response = await axios.post(`${API_BASE_URL}/import/salaries`);
       if (response.data.success) {
         setLastImport(new Date().toISOString());
         setImportReport(response.data);
@@ -217,7 +217,14 @@ export default function Dashboard() {
               disabled={importing || clearing || merging}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {importing ? 'Importing...' : t('importNow')}
+              {importing ? 'Importing...' : 'Import Salaries'}
+            </button>
+            <button
+              onClick={() => navigate('/import/bonus')}
+              disabled={importing || clearing || merging}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              Import Bonuses
             </button>
             <button
               onClick={handlePreviewDuplicates}

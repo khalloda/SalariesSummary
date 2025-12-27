@@ -10,15 +10,32 @@ export const reportsRouter = Router();
  */
 reportsRouter.get('/available-years', async (req, res) => {
   try {
-    const years = await prisma.salaryRecord.findMany({
-      select: { year: true },
-      distinct: ['year'],
-      orderBy: { year: 'desc' }
+    // Use groupBy for SQLite compatibility (distinct doesn't work well with SQLite)
+    const salaryYearsData = await prisma.salaryRecord.groupBy({
+      by: ['year']
     });
+    const salaryYears = salaryYearsData.map(r => r.year);
     
-    const yearList = years.map(r => r.year).sort((a, b) => b - a);
+    // Also get years from bonus records if they exist
+    let bonusYears: number[] = [];
+    try {
+      const bonusYearsData = await prisma.annualBonus.groupBy({
+        by: ['year']
+      });
+      bonusYears = bonusYearsData.map(r => r.year);
+    } catch (e) {
+      // AnnualBonus table might not exist in older databases, ignore
+    }
+    
+    // Combine and deduplicate
+    const allYears = new Set<number>();
+    salaryYears.forEach(year => allYears.add(year));
+    bonusYears.forEach(year => allYears.add(year));
+    
+    const yearList = Array.from(allYears).sort((a, b) => b - a);
     res.json({ years: yearList });
   } catch (error: any) {
+    console.error('Error fetching available years:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -257,6 +274,194 @@ reportsRouter.get('/salary-changes', async (req, res) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/reports/annual-bonus?year=YYYY&includeConsultants=true|false
+ * Get annual bonus report data
+ */
+reportsRouter.get('/annual-bonus', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const includeConsultants = req.query.includeConsultants === 'true' || req.query.includeConsultants === undefined;
+    
+    // Fetch annual bonus records for the year
+    let bonuses = [];
+    try {
+      bonuses = await prisma.annualBonus.findMany({
+        where: { year },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          }
+        },
+        orderBy: {
+          employee: {
+            name: 'asc'
+          }
+        }
+      });
+    } catch (queryError: any) {
+      console.error('Error querying annual bonuses with orderBy, trying without:', queryError);
+      // Fallback: try without orderBy if it fails
+      bonuses = await prisma.annualBonus.findMany({
+        where: { year },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          }
+        }
+      });
+    }
+    
+    // Filter out bonuses where employee is null or category is missing
+    const validBonuses = bonuses.filter(b => b.employee && b.employee.category);
+    
+    if (validBonuses.length === 0) {
+      return res.json({
+        year,
+        grandTotal: {
+          totalBonus: 0,
+          totalFirstHalf: 0,
+          totalSecondHalf: 0,
+          totalPreviousYear: 0,
+          employeeCount: 0,
+          averageBonus: 0
+        },
+        totalsWithoutConsultants: {
+          totalBonus: 0,
+          totalFirstHalf: 0,
+          totalSecondHalf: 0,
+          totalPreviousYear: 0,
+          employeeCount: 0,
+          averageBonus: 0
+        },
+        categoryTotals: {},
+        growthRatios: { netSalary: null, grossSalary: null }
+      });
+    }
+    
+    // Filter consultants if needed
+    const bonusesToInclude = includeConsultants 
+      ? validBonuses 
+      : validBonuses.filter(b => b.employee.category !== 'Consultants/مستشارين');
+    
+    // Calculate grand totals
+    const grandTotal = bonusesToInclude.reduce((acc, b) => {
+      acc.totalBonus += b.bonusAmount || 0;
+      acc.totalFirstHalf += b.bonusFirstHalf || 0;
+      acc.totalSecondHalf += b.bonusSecondHalf || 0;
+      acc.totalPreviousYear += b.previousYearBonus || 0;
+      return acc;
+    }, {
+      totalBonus: 0,
+      totalFirstHalf: 0,
+      totalSecondHalf: 0,
+      totalPreviousYear: 0,
+      employeeCount: 0,
+      averageBonus: 0
+    });
+    grandTotal.employeeCount = bonusesToInclude.length;
+    grandTotal.averageBonus = grandTotal.employeeCount > 0 ? grandTotal.totalBonus / grandTotal.employeeCount : 0;
+    
+    // Calculate totals without consultants
+    const bonusesWithoutConsultants = validBonuses.filter(b => b.employee.category !== 'Consultants/مستشارين');
+    const totalsWithoutConsultants = bonusesWithoutConsultants.reduce((acc, b) => {
+      acc.totalBonus += b.bonusAmount || 0;
+      acc.totalFirstHalf += b.bonusFirstHalf || 0;
+      acc.totalSecondHalf += b.bonusSecondHalf || 0;
+      acc.totalPreviousYear += b.previousYearBonus || 0;
+      return acc;
+    }, {
+      totalBonus: 0,
+      totalFirstHalf: 0,
+      totalSecondHalf: 0,
+      totalPreviousYear: 0,
+      employeeCount: 0,
+      averageBonus: 0
+    });
+    totalsWithoutConsultants.employeeCount = bonusesWithoutConsultants.length;
+    totalsWithoutConsultants.averageBonus = totalsWithoutConsultants.employeeCount > 0 
+      ? totalsWithoutConsultants.totalBonus / totalsWithoutConsultants.employeeCount 
+      : 0;
+    
+    // Calculate category totals
+    const categoryTotals: Record<string, any> = {};
+    const categoryGroups = bonusesToInclude.reduce((acc, b) => {
+      const category = b.employee.category || 'Unknown';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(b);
+      return acc;
+    }, {} as Record<string, typeof bonusesToInclude>);
+    
+    Object.entries(categoryGroups).forEach(([category, categoryBonuses]) => {
+      const totals = categoryBonuses.reduce((acc, b) => {
+        acc.totalBonus += b.bonusAmount || 0;
+        acc.totalFirstHalf += b.bonusFirstHalf || 0;
+        acc.totalSecondHalf += b.bonusSecondHalf || 0;
+        acc.totalPreviousYear += b.previousYearBonus || 0;
+        return acc;
+      }, {
+        totalBonus: 0,
+        totalFirstHalf: 0,
+        totalSecondHalf: 0,
+        totalPreviousYear: 0,
+        employeeCount: 0,
+        averageBonus: 0
+      });
+      totals.employeeCount = categoryBonuses.length;
+      totals.averageBonus = totals.employeeCount > 0 ? totals.totalBonus / totals.employeeCount : 0;
+      categoryTotals[category] = totals;
+    });
+    
+    // Calculate growth ratios (using annual increase data)
+    const growthRatios = {
+      netSalary: null as number | null,
+      grossSalary: null as number | null
+    };
+    
+    const bonusesWithSalaryData = bonusesToInclude.filter(b => 
+      (b.currentYearNet && b.previousYearNet) || (b.currentYearGross && b.previousYearGross)
+    );
+    
+    if (bonusesWithSalaryData.length > 0) {
+      const totalPreviousNet = bonusesWithSalaryData.reduce((sum, b) => sum + (b.previousYearNet || 0), 0);
+      const totalCurrentNet = bonusesWithSalaryData.reduce((sum, b) => sum + (b.currentYearNet || 0), 0);
+      const totalPreviousGross = bonusesWithSalaryData.reduce((sum, b) => sum + (b.previousYearGross || 0), 0);
+      const totalCurrentGross = bonusesWithSalaryData.reduce((sum, b) => sum + (b.currentYearGross || 0), 0);
+      
+      if (totalPreviousNet > 0) {
+        growthRatios.netSalary = ((totalCurrentNet - totalPreviousNet) / totalPreviousNet) * 100;
+      }
+      if (totalPreviousGross > 0) {
+        growthRatios.grossSalary = ((totalCurrentGross - totalPreviousGross) / totalPreviousGross) * 100;
+      }
+    }
+    
+    res.json({
+      year,
+      grandTotal,
+      totalsWithoutConsultants,
+      categoryTotals,
+      growthRatios
+    });
+  } catch (error: any) {
+    console.error('Error fetching annual bonus report:', error);
+    res.status(500).json({ 
+      error: error.message, 
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    });
   }
 });
 

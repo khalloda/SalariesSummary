@@ -102,12 +102,34 @@ export default function Employees() {
   // Get unique categories
   const categories = Array.from(new Set(employees.map(e => e.category).filter(Boolean))) as string[];
   
+  // Define category display order: Partners, Lawyers, Admins, Consultants, then others
+  const categoryOrder = [
+    'Partners/شركاء',
+    'Lawyers/محامين', // Lawyers under Partners
+    'Admins/عاملين',
+    'Consultants/مستشارين'
+  ];
+  
+  // Sort categories according to the specified order
+  const sortedCategories = categoryOrder.filter(cat => categories.includes(cat))
+    .concat(categories.filter(cat => !categoryOrder.includes(cat)));
+  
   const filtered = employees.filter(e => {
     const normalizedSearch = normalizeForSearch(search);
     const normalizedName = normalizeForSearch(e.name);
     const matchesSearch = normalizedName.includes(normalizedSearch);
     const matchesCategory = categoryFilter === 'all' || e.category === categoryFilter;
     return matchesSearch && matchesCategory;
+  });
+  
+  // Group employees by category
+  const employeesByCategory: Record<string, Employee[]> = {};
+  filtered.forEach(emp => {
+    const category = emp.category || 'Uncategorized';
+    if (!employeesByCategory[category]) {
+      employeesByCategory[category] = [];
+    }
+    employeesByCategory[category].push(emp);
   });
   
   if (loading) return <div>Loading...</div>;
@@ -215,71 +237,188 @@ export default function Employees() {
           ))}
         </select>
       </div>
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
-                <input
-                  type="checkbox"
-                  checked={filtered.length > 0 && filtered.every(e => selectedEmployees.has(e.id))}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedEmployees(new Set(filtered.map(e => e.id)));
-                    } else {
-                      const newSet = new Set(selectedEmployees);
-                      filtered.forEach(e => newSet.delete(e.id));
-                      setSelectedEmployees(newSet);
-                    }
-                  }}
-                />
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filtered.map(employee => (
-              <tr 
-                key={employee.id} 
-                className={`hover:bg-gray-50 ${selectedEmployees.has(employee.id) ? 'bg-blue-50' : ''}`}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={selectedEmployees.has(employee.id)}
-                    onChange={(e) => {
-                      const newSet = new Set(selectedEmployees);
-                      if (e.target.checked) {
-                        newSet.add(employee.id);
-                      } else {
-                        newSet.delete(employee.id);
-                        if (targetEmployeeId === employee.id) {
-                          setTargetEmployeeId('');
-                        }
-                      }
-                      setSelectedEmployees(newSet);
-                    }}
-                    className="cursor-pointer"
-                  />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">{employee.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{employee.category || '-'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{employee._count.salaries}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <button
-                    onClick={() => navigate(`/employees/${employee.id}/annual?year=${new Date().getFullYear()}`)}
-                    className="text-blue-600 hover:text-blue-800"
+      <div className="space-y-6">
+        {sortedCategories.map(category => {
+          const categoryEmployees = employeesByCategory[category] || [];
+          if (categoryFilter !== 'all' && categoryFilter !== category) return null;
+          if (categoryEmployees.length === 0) return null;
+          
+          return (
+            <div key={category} className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {category} ({categoryEmployees.length})
+                </h3>
+              </div>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
+                      <input
+                        type="checkbox"
+                        checked={categoryEmployees.length > 0 && categoryEmployees.every(e => selectedEmployees.has(e.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const newSet = new Set(selectedEmployees);
+                            categoryEmployees.forEach(emp => newSet.add(emp.id));
+                            setSelectedEmployees(newSet);
+                          } else {
+                            const newSet = new Set(selectedEmployees);
+                            categoryEmployees.forEach(emp => newSet.delete(emp.id));
+                            setSelectedEmployees(newSet);
+                          }
+                        }}
+                      />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {categoryEmployees.map(employee => (
+                    <tr 
+                      key={employee.id} 
+                      className={`hover:bg-gray-50 ${selectedEmployees.has(employee.id) ? 'bg-blue-50' : ''}`}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedEmployees.has(employee.id)}
+                          onChange={(e) => {
+                            const newSet = new Set(selectedEmployees);
+                            if (e.target.checked) {
+                              newSet.add(employee.id);
+                            } else {
+                              newSet.delete(employee.id);
+                              if (targetEmployeeId === employee.id) {
+                                setTargetEmployeeId('');
+                              }
+                            }
+                            setSelectedEmployees(newSet);
+                          }}
+                          className="cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">{employee.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{employee.category || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{employee._count.salaries}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/employees/${employee.id}/annual?year=${new Date().getFullYear()}`)}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                          >
+                            Annual
+                          </button>
+                          <button
+                            onClick={() => navigate(`/employees/${employee.id}/bonus?year=${new Date().getFullYear()}`)}
+                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                          >
+                            Bonus
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+        
+        {/* Show uncategorized employees if any */}
+        {(() => {
+          const uncategorized = employeesByCategory['Uncategorized'];
+          if (!uncategorized || uncategorized.length === 0) return null;
+          if (categoryFilter !== 'all' && categoryFilter !== 'Uncategorized') return null;
+          
+          return (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Uncategorized ({uncategorized.length})
+                </h3>
+              </div>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
+                      <input
+                        type="checkbox"
+                        checked={uncategorized.length > 0 && 
+                                 uncategorized.every(e => selectedEmployees.has(e.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const newSet = new Set(selectedEmployees);
+                            uncategorized.forEach(emp => newSet.add(emp.id));
+                            setSelectedEmployees(newSet);
+                          } else {
+                            const newSet = new Set(selectedEmployees);
+                            uncategorized.forEach(emp => newSet.delete(emp.id));
+                            setSelectedEmployees(newSet);
+                          }
+                        }}
+                      />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {uncategorized.map(employee => (
+                  <tr 
+                    key={employee.id} 
+                    className={`hover:bg-gray-50 ${selectedEmployees.has(employee.id) ? 'bg-blue-50' : ''}`}
                   >
-                    {t('viewAnnualReport')}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedEmployees.has(employee.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedEmployees);
+                          if (e.target.checked) {
+                            newSet.add(employee.id);
+                          } else {
+                            newSet.delete(employee.id);
+                            if (targetEmployeeId === employee.id) {
+                              setTargetEmployeeId('');
+                            }
+                          }
+                          setSelectedEmployees(newSet);
+                        }}
+                        className="cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{employee.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{employee.category || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{employee._count.salaries}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/employees/${employee.id}/annual?year=${new Date().getFullYear()}`)}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                          >
+                            Annual
+                          </button>
+                          <button
+                            onClick={() => navigate(`/employees/${employee.id}/bonus?year=${new Date().getFullYear()}`)}
+                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                          >
+                            Bonus
+                          </button>
+                        </div>
+                      </td>
+                  </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

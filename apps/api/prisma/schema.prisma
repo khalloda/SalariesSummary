@@ -21,6 +21,7 @@ model Employee {
   updatedAt  DateTime @updatedAt
   
   salaries    SalaryRecord[]
+  annualBonuses AnnualBonus[]
   
   @@index([normalizedName])
   @@index([category])
@@ -66,6 +67,7 @@ model SalaryRecord {
   paymentMethod     String?
   accountNumber     String?
   notes             String?
+  category          String?  // Category from the sheet (Partners/شركاء, Lawyers/محامين, Admins/عاملين, Consultants/مستشارين)
   
   // Source file info
   sourceFile        String
@@ -87,5 +89,47 @@ model ImportLog {
   importedAt  DateTime @default(now())
   
   @@index([year, month])
+}
+
+model AnnualBonus {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  year              Int      // 2023, 2024, etc.
+  
+  // Base salary reference - unified annual increase data (year-agnostic)
+  previousYearNet    Float    @default(0) // Net salary for previous year (e.g., 2024 if year=2025)
+  previousYearGross  Float    @default(0) // Gross salary for previous year
+  currentYearNet     Float    @default(0) // Net salary for current year (e.g., 2025 if year=2025)
+  currentYearGross   Float    @default(0) // Gross salary for current year
+  annualIncreaseNet  Float    @default(0) // Annual increase amount (Net) - currentYearNet - previousYearNet
+  annualIncreaseGross Float   @default(0) // Annual increase amount (Gross) - currentYearGross - previousYearGross
+  
+  // Legacy fields (kept for backward compatibility)
+  netSalary          Float    @default(0) // Net salary for the year (use currentYearNet)
+  grossSalary        Float    @default(0) // Gross salary for the year (use currentYearGross)
+  
+  // Bonus amounts
+  bonusAmount       Float    @default(0)  // Total bonus for the year
+  bonusFirstHalf    Float?   // Bonus for first half (if split)
+  bonusSecondHalf   Float?   // Bonus for second half (if split)
+  previousYearBonus Float?   // Bonus from previous year (for comparison)
+  
+  // Calculated metrics
+  reflectedInMonths Float?   // Bonus as multiple of monthly salary
+  reflectedInPercent Float?  // Bonus as percentage of annual salary
+  remainingFromPrevious Float? // Difference from previous year (bonusFirstHalf - previousYearBonus)
+  yearComparison    Float?   // Total change from previous year ((bonusFirstHalf + bonusSecondHalf) - previousYearBonus)
+  
+  // Metadata
+  notes             String?
+  sourceFile        String?
+  importedAt        DateTime @default(now())
+  
+  @@unique([employeeId, year])
+  @@index([year])
+  @@index([employeeId])
+  @@index([year, employeeId])
 }
 

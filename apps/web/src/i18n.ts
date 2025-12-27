@@ -26,7 +26,8 @@ const resources = {
       export: 'Export',
       exportPDF: 'Export PDF',
       exportCSV: 'Export CSV',
-      exportXLSX: 'Export XLSX'
+      exportXLSX: 'Export XLSX',
+      print: 'Print'
     }
   },
   ar: {
@@ -53,7 +54,8 @@ const resources = {
       export: 'تصدير',
       exportPDF: 'تصدير PDF',
       exportCSV: 'تصدير CSV',
-      exportXLSX: 'تصدير XLSX'
+      exportXLSX: 'تصدير XLSX',
+      print: 'طباعة'
     }
   }
 };

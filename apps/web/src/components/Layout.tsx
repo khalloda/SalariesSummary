@@ -17,9 +17,7 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { path: '/', label: i18n.t('dashboard') },
     { path: '/employees', label: i18n.t('employees') },
-    { path: '/reports/category-totals', label: i18n.t('categoryTotals') },
-    { path: '/reports/joiners-leavers', label: i18n.t('joinersLeavers') },
-    { path: '/reports/salary-changes', label: i18n.t('salaryChanges') }
+    { path: '/reports', label: i18n.t('reports') }
   ];
   
   return (

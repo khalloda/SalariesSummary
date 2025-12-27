@@ -217,6 +217,7 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
                   paymentMethod: record.paymentMethod,
                   accountNumber: record.accountNumber,
                   notes: record.notes,
+                  category: record.category, // Save category from the sheet
                   sourceFile: fileName
                 }
               });
@@ -241,6 +242,7 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
                   paymentMethod: record.paymentMethod,
                   accountNumber: record.accountNumber,
                   notes: record.notes,
+                  category: record.category, // Save category from the sheet
                   sourceFile: fileName
                 }
               });
