@@ -507,14 +507,37 @@ reportsRouter.get('/quick-stats', async (req, res) => {
     
     const totalBonus = bonusRecords.reduce((sum, r) => sum + r.bonusAmount, 0);
     
+    // Calculate average salary
+    const averageSalary = salaryRecords.length > 0 ? totalNet / salaryRecords.length : 0;
+    
+    // Get category distribution
+    const employees = await prisma.employee.findMany({
+      where: {
+        salaries: {
+          some: { year }
+        }
+      },
+      select: { category: true }
+    });
+    
+    const categoryDistribution: Record<string, number> = {};
+    employees.forEach(emp => {
+      if (emp.category) {
+        categoryDistribution[emp.category] = (categoryDistribution[emp.category] || 0) + 1;
+      }
+    });
+    
     res.json({
       year,
       totalEmployees: totalEmployees.length,
+      totalPayroll: totalNet, // Frontend expects totalPayroll
       totalNet,
       totalGross,
       totalBonus,
+      averageSalary, // Frontend expects averageSalary
       salaryRecordsCount: salaryRecords.length,
-      bonusRecordsCount: bonusRecords.length
+      bonusRecordsCount: bonusRecords.length,
+      categoryDistribution
     });
   } catch (error: any) {
     console.error('Error fetching quick stats:', error);

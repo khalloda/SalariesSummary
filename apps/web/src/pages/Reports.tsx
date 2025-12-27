@@ -207,14 +207,14 @@ export default function Reports() {
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm text-gray-600 mb-1">Total Payroll</div>
             <div className="text-3xl font-bold text-green-600">
-              {quickStats.totalPayroll.toLocaleString()}
+              {(quickStats.totalPayroll || quickStats.totalNet || 0).toLocaleString()}
             </div>
             <div className="text-xs text-gray-500 mt-1">Net total for {year}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm text-gray-600 mb-1">Average Salary</div>
             <div className="text-3xl font-bold text-blue-600">
-              {Math.round(quickStats.averageSalary).toLocaleString()}
+              {quickStats.averageSalary ? Math.round(quickStats.averageSalary).toLocaleString() : 'N/A'}
             </div>
             <div className="text-xs text-gray-500 mt-1">Per month average</div>
           </div>
