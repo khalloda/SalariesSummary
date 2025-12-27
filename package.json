@@ -7,6 +7,7 @@
     "schema-discovery": "node scripts/schema-discovery.js",
     "deep-analysis": "node scripts/deep-schema-analysis.js",
     "decrypt-excel": "node scripts/decrypt-all-excel.js",
+    "analyze-bonus": "node scripts/analyze-bonus-workbook.js",
     "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"cd apps/api && npm run dev\" \"cd apps/web && npm run dev\"",
     "dev:api": "cd apps/api && npm run dev",
     "dev:web": "cd apps/web && npm run dev",
