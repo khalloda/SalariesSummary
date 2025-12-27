@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 /**
  * Special case matching for known duplicate patterns
  */
-function isSpecialCaseMatch(name1: string, name2: string): boolean {
+export function isSpecialCaseMatch(name1: string, name2: string): boolean {
   const norm1 = normalizeEmployeeName(name1).toLowerCase();
   const norm2 = normalizeEmployeeName(name2).toLowerCase();
   

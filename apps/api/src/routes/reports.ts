@@ -5,6 +5,25 @@ const prisma = new PrismaClient();
 export const reportsRouter = Router();
 
 /**
+ * GET /api/reports/available-years
+ * Get all available years from salary records
+ */
+reportsRouter.get('/available-years', async (req, res) => {
+  try {
+    const years = await prisma.salaryRecord.findMany({
+      select: { year: true },
+      distinct: ['year'],
+      orderBy: { year: 'desc' }
+    });
+    
+    const yearList = years.map(r => r.year).sort((a, b) => b - a);
+    res.json({ years: yearList });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/reports/category-totals?year=YYYY
  * Get totals by category (Partners, Lawyers, Admins, Consultants)
  */

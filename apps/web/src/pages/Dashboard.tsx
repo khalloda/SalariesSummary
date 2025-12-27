@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -12,10 +12,35 @@ export default function Dashboard() {
   const [merging, setMerging] = useState(false);
   const [lastImport, setLastImport] = useState<string | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [importReport, setImportReport] = useState<any>(null);
   const [mergeReport, setMergeReport] = useState<any>(null);
   const [showImportReport, setShowImportReport] = useState(false);
   const [showMergeReport, setShowMergeReport] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [selectedPairs, setSelectedPairs] = useState<Set<number>>(new Set());
+  
+  useEffect(() => {
+    // Fetch available years from database
+    axios.get(`${API_BASE_URL}/reports/available-years`)
+      .then(res => {
+        const years = res.data.years || [];
+        if (years.length > 0) {
+          setAvailableYears(years);
+          setYear(years[0]); // Set to most recent year
+        } else {
+          // Fallback to last 10 years if no data
+          const currentYear = new Date().getFullYear();
+          setAvailableYears(Array.from({ length: 10 }, (_, i) => currentYear - i));
+        }
+      })
+      .catch(() => {
+        // Fallback on error
+        const currentYear = new Date().getFullYear();
+        setAvailableYears(Array.from({ length: 10 }, (_, i) => currentYear - i));
+      });
+  }, [lastImport]); // Refresh when import completes
   
   const handleImport = async () => {
     setImporting(true);
@@ -72,6 +97,26 @@ export default function Dashboard() {
     }
   };
   
+  const handlePreviewDuplicates = async () => {
+    setMerging(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/import/preview-duplicates`);
+      if (response.data.success) {
+        setPreviewData(response.data);
+        setSelectedPairs(new Set());
+        setShowPreview(true);
+      } else {
+        alert(`Failed to preview duplicates: ${response.data.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      alert(`Failed to preview duplicates: ${errorMsg}`);
+      console.error('Preview duplicates error:', error);
+    } finally {
+      setMerging(false);
+    }
+  };
+
   const handleMergeDuplicates = async () => {
     if (!confirm('This will merge duplicate employees based on normalized names. Continue?')) {
       return;
@@ -80,6 +125,7 @@ export default function Dashboard() {
     setMerging(true);
     setMergeReport(null);
     setShowMergeReport(false);
+    setShowPreview(false);
     try {
       const response = await axios.post(`${API_BASE_URL}/import/merge-duplicates`);
       if (response.data.success) {
@@ -98,6 +144,47 @@ export default function Dashboard() {
     }
   };
   
+  const handleConfirmSelectedMerges = async () => {
+    if (selectedPairs.size === 0) {
+      alert('Please select at least one pair to merge');
+      return;
+    }
+    
+    if (!confirm(`Merge ${selectedPairs.size} selected pair(s)?`)) {
+      return;
+    }
+    
+    setMerging(true);
+    try {
+      // Build the selected pairs array
+      const selectedPairsArray = Array.from(selectedPairs).map(idx => ({
+        employee1Id: previewData.pairs[idx].employee1.id,
+        employee2Id: previewData.pairs[idx].employee2.id
+      }));
+      
+      const response = await axios.post(`${API_BASE_URL}/import/merge-duplicates`, {
+        selectedPairs: selectedPairsArray
+      });
+      
+      if (response.data.success) {
+        setMergeReport(response.data);
+        setShowMergeReport(true);
+        setShowPreview(false);
+        setSelectedPairs(new Set());
+        alert(`Merge completed!\n\n- ${response.data.merged} pairs merged\n- ${response.data.recordsMoved} records moved\n- ${response.data.recordsSkipped} records skipped`);
+        // Refresh the page or reload data
+        window.location.reload();
+      } else {
+        alert(`Failed to merge: ${response.data.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      alert(`Failed to merge: ${error.response?.data?.error || error.message}`);
+      console.error('Merge error:', error);
+    } finally {
+      setMerging(false);
+    }
+  };
+  
   return (
     <div>
       <div className="mb-6">
@@ -110,9 +197,15 @@ export default function Dashboard() {
               onChange={(e) => setYear(parseInt(e.target.value))}
               className="border rounded px-3 py-2"
             >
-              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
+              {availableYears.length > 0 ? (
+                availableYears.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))
+              ) : (
+                Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))
+              )}
             </select>
           </div>
           <div className="mb-4">
@@ -127,11 +220,18 @@ export default function Dashboard() {
               {importing ? 'Importing...' : t('importNow')}
             </button>
             <button
-              onClick={handleMergeDuplicates}
+              onClick={handlePreviewDuplicates}
               disabled={importing || clearing || merging}
               className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
             >
-              {merging ? 'Merging...' : 'Merge Duplicates'}
+              {merging ? 'Loading...' : 'Preview Duplicates'}
+            </button>
+            <button
+              onClick={handleMergeDuplicates}
+              disabled={importing || clearing || merging}
+              className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+            >
+              {merging ? 'Merging...' : 'Auto Merge All'}
             </button>
             <button
               onClick={handleClearDatabase}
@@ -181,6 +281,12 @@ export default function Dashboard() {
           
           {importReport.similarNameMatches && importReport.similarNameMatches.length > 0 && (
             <div className="mt-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-3">
+                <p className="text-sm text-yellow-800">
+                  <strong>⚠️ Note:</strong> {importReport.similarNameMatches.length} similar name match(es) were found but NOT automatically merged.
+                  Please review these in the Employees page and merge manually if they are the same person.
+                </p>
+              </div>
               <h4 className="font-semibold mb-2">Similar Name Matches ({importReport.similarNameMatches.length}):</h4>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -188,7 +294,7 @@ export default function Dashboard() {
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Existing Name</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">New Name</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Records Linked</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -204,6 +310,94 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Preview Duplicates */}
+      {showPreview && previewData && previewData.pairs && previewData.pairs.length > 0 && (
+        <div className="mb-6 bg-white p-6 rounded-lg shadow">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold">Preview Duplicates ({previewData.totalPairs} pairs found)</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedPairs(new Set(previewData.pairs.map((_: any, idx: number) => idx)))}
+                className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
+              >
+                Select All
+              </button>
+              <button
+                onClick={() => setSelectedPairs(new Set())}
+                className="px-3 py-1 bg-gray-500 text-white rounded text-sm"
+              >
+                Deselect All
+              </button>
+              <button
+                onClick={handleConfirmSelectedMerges}
+                disabled={selectedPairs.size === 0 || merging}
+                className="px-3 py-1 bg-green-600 text-white rounded text-sm disabled:opacity-50"
+              >
+                Merge Selected ({selectedPairs.size})
+              </button>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="px-3 py-1 bg-gray-500 text-white rounded text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedPairs.size === previewData.pairs.length && previewData.pairs.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPairs(new Set(previewData.pairs.map((_: any, idx: number) => idx)));
+                        } else {
+                          setSelectedPairs(new Set());
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Employee 1</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Employee 2</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Match Reason</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {previewData.pairs.map((pair: any, idx: number) => (
+                  <tr key={idx} className={selectedPairs.has(idx) ? 'bg-blue-50' : ''}>
+                    <td className="px-4 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedPairs.has(idx)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedPairs);
+                          if (e.target.checked) {
+                            newSet.add(idx);
+                          } else {
+                            newSet.delete(idx);
+                          }
+                          setSelectedPairs(newSet);
+                        }}
+                      />
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">{pair.employee1.name}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{pair.employee1.recordCount}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{pair.employee2.name}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{pair.employee2.recordCount}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{pair.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       
@@ -265,4 +459,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
 

@@ -125,7 +125,8 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
               where: { normalizedName: record.normalizedName }
             });
             
-            // If not found, check for similar names (handles variations like "أميرة محمد على شريف" vs "اميره شريف")
+            // If not found, check for similar names but DO NOT auto-merge
+            // Just track them for the report so user can review and merge manually
             if (!employee) {
               // Ensure cache is loaded before checking for similar names
               const allEmployees = await getAllEmployees();
@@ -134,8 +135,7 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
               );
               
               if (similarEmployee) {
-                console.log(`  🔗 Found similar employee: "${similarEmployee.name}" matches "${record.employeeName}"`);
-                employee = similarEmployee;
+                console.log(`  ⚠️  Found similar employee (NOT auto-merged): "${similarEmployee.name}" matches "${record.employeeName}"`);
                 
                 // Track this match for the report (only add once per unique pair)
                 if (!result.similarNameMatches) {
@@ -155,34 +155,8 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
                   existingMatch.recordsLinked++;
                 }
                 
-                // Determine which name is better (longer/more complete)
-                const currentNormLength = normalizeEmployeeName(similarEmployee.name).length;
-                const newNormLength = record.normalizedName.length;
-                const currentWordCount = normalizeEmployeeName(similarEmployee.name).split(/\s+/).length;
-                const newWordCount = record.normalizedName.split(/\s+/).length;
-                
-                // Update to the longer/more complete name
-                const shouldUpdate = newNormLength > currentNormLength || 
-                                    (newNormLength === currentNormLength && newWordCount > currentWordCount);
-                
-                if (shouldUpdate) {
-                  await prisma.employee.update({
-                    where: { id: employee.id },
-                    data: { 
-                      normalizedName: record.normalizedName,
-                      name: record.employeeName // Update to more complete name
-                    }
-                  });
-                  employee.normalizedName = record.normalizedName;
-                  employee.name = record.employeeName;
-                  // Update cache (it should exist since we called getAllEmployees)
-                  if (cacheInitialized) {
-                    const cacheIndex = allEmployeesCache.findIndex(e => e.id === employee.id);
-                    if (cacheIndex >= 0) {
-                      allEmployeesCache[cacheIndex] = employee;
-                    }
-                  }
-                }
+                // DO NOT auto-link - create a new employee instead
+                // User will need to merge manually later
               }
             }
             

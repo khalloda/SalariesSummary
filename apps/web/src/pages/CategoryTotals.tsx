@@ -15,6 +15,25 @@ export default function CategoryTotals() {
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<'bar' | 'pie' | 'line'>('bar');
   const [chartMetric, setChartMetric] = useState<string>('gross');
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+
+  useEffect(() => {
+    // Fetch available years
+    axios.get(`${API_BASE_URL}/reports/available-years`)
+      .then(res => {
+        const years = res.data.years || [];
+        if (years.length > 0) {
+          setAvailableYears(years);
+        } else {
+          const currentYear = new Date().getFullYear();
+          setAvailableYears(Array.from({ length: 10 }, (_, i) => currentYear - i));
+        }
+      })
+      .catch(() => {
+        const currentYear = new Date().getFullYear();
+        setAvailableYears(Array.from({ length: 10 }, (_, i) => currentYear - i));
+      });
+  }, []);
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/category-totals?year=${year}`)
@@ -52,9 +71,15 @@ export default function CategoryTotals() {
             onChange={(e) => setSearchParams({ year: e.target.value })}
             className="border rounded px-3 py-2"
           >
-            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
+            {availableYears.length > 0 ? (
+              availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))
+            ) : (
+              Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))
+            )}
           </select>
           <button
             onClick={handlePrint}

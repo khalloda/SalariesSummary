@@ -10,6 +10,25 @@ export default function SalaryChanges() {
   const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  
+  useEffect(() => {
+    // Fetch available years
+    axios.get(`${API_BASE_URL}/reports/available-years`)
+      .then(res => {
+        const years = res.data.years || [];
+        if (years.length > 0) {
+          setAvailableYears(years);
+        } else {
+          const currentYear = new Date().getFullYear();
+          setAvailableYears(Array.from({ length: 10 }, (_, i) => currentYear - i));
+        }
+      })
+      .catch(() => {
+        const currentYear = new Date().getFullYear();
+        setAvailableYears(Array.from({ length: 10 }, (_, i) => currentYear - i));
+      });
+  }, []);
   
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/salary-changes?year=${year}`)
@@ -78,9 +97,15 @@ export default function SalaryChanges() {
             }}
             className="border rounded px-3 py-2"
           >
-            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
+            {availableYears.length > 0 ? (
+              availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))
+            ) : (
+              Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))
+            )}
           </select>
           <button
             onClick={handlePrint}
