@@ -159,21 +159,23 @@ export default function AnnualBonusReport() {
       </div>
 
       {/* Category Comparison Chart */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h3 className="text-xl font-semibold mb-4">Bonus by Category</h3>
-        <div style={{ width: '100%', height: '400px' }}>
-          <ResponsiveContainer>
-            <BarChart data={categoryChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value: number) => value.toLocaleString()} />
-              <Legend />
-              <Bar dataKey="totalBonus" fill="#8884d8" name="Total Bonus" />
-            </BarChart>
-          </ResponsiveContainer>
+      {categoryChartData.length > 0 && (
+        <div className="bg-white p-6 rounded-lg shadow mb-6">
+          <h3 className="text-xl font-semibold mb-4">Bonus by Category</h3>
+          <div style={{ width: '100%', height: '400px', minWidth: 300, minHeight: 400 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={categoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                <Legend />
+                <Bar dataKey="totalBonus" fill="#8884d8" name="Total Bonus" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Category Totals Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
@@ -244,10 +246,10 @@ export default function AnnualBonusReport() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {totals.employees.map((emp: any, idx: number) => (
+                      {(totals.employees || []).map((emp: any, idx: number) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">{emp.employee.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap font-semibold">{emp.bonus.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{emp.employee?.name || 'Unknown'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap font-semibold">{emp.bonus?.toLocaleString() || '0'}</td>
                           <td className="px-6 py-4 whitespace-nowrap">{emp.bonusFirstHalf?.toLocaleString() || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap">{emp.bonusSecondHalf?.toLocaleString() || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap">{emp.reflectedInMonths?.toFixed(2) || '-'}</td>

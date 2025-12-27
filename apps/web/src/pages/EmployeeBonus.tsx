@@ -206,13 +206,13 @@ export default function EmployeeBonus() {
             <div className="bg-blue-50 p-6 rounded-lg shadow border-2 border-blue-200">
               <h3 className="text-lg font-semibold mb-2 text-blue-800">Reflected in Months</h3>
               <p className="text-3xl font-bold text-blue-600">
-                {bonus.calculatedMetrics?.reflectedInMonths?.toFixed(2) || bonus.reflectedInMonths?.toFixed(2) || 'N/A'}
+                {bonus.reflectedInMonths?.toFixed(2) || 'N/A'}
               </p>
             </div>
             <div className="bg-purple-50 p-6 rounded-lg shadow border-2 border-purple-200">
               <h3 className="text-lg font-semibold mb-2 text-purple-800">Reflected in %</h3>
               <p className="text-3xl font-bold text-purple-600">
-                {bonus.calculatedMetrics?.reflectedInPercent?.toFixed(2) || bonus.reflectedInPercent?.toFixed(2) || 'N/A'}%
+                {bonus.reflectedInPercent?.toFixed(2) || 'N/A'}%
               </p>
             </div>
             <div className="bg-orange-50 p-6 rounded-lg shadow border-2 border-orange-200">
@@ -260,13 +260,13 @@ export default function EmployeeBonus() {
                       <tr>
                         <td className="py-2 text-gray-600">In Months:</td>
                         <td className="py-2 font-semibold text-right">
-                          {bonus.calculatedMetrics?.reflectedInMonths?.toFixed(2) || bonus.reflectedInMonths?.toFixed(2) || 'N/A'} Months
+                          {bonus.reflectedInMonths?.toFixed(2) || 'N/A'} Months
                         </td>
                       </tr>
                       <tr>
                         <td className="py-2 text-gray-600">In Percentage:</td>
                         <td className="py-2 font-semibold text-right">
-                          {bonus.calculatedMetrics?.reflectedInPercent?.toFixed(2) || bonus.reflectedInPercent?.toFixed(2) || 'N/A'}%
+                          {bonus.reflectedInPercent?.toFixed(2) || 'N/A'}%
                         </td>
                       </tr>
                     </tbody>
@@ -331,17 +331,17 @@ export default function EmployeeBonus() {
                         </tr>
                         <tr>
                           <td className="py-2 text-gray-600">Remaining from Previous:</td>
-                          <td className={`py-2 font-semibold text-right ${bonus.calculatedMetrics?.remainingFromPrevious && bonus.calculatedMetrics.remainingFromPrevious >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {bonus.calculatedMetrics?.remainingFromPrevious !== null && bonus.calculatedMetrics.remainingFromPrevious !== undefined
-                              ? `${bonus.calculatedMetrics.remainingFromPrevious >= 0 ? '+' : ''}${bonus.calculatedMetrics.remainingFromPrevious.toLocaleString()}`
+                          <td className={`py-2 font-semibold text-right ${bonus.remainingFromPrevious !== null && bonus.remainingFromPrevious !== undefined && bonus.remainingFromPrevious >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {bonus.remainingFromPrevious !== null && bonus.remainingFromPrevious !== undefined
+                              ? `${bonus.remainingFromPrevious >= 0 ? '+' : ''}${bonus.remainingFromPrevious.toLocaleString()}`
                               : 'N/A'}
                           </td>
                         </tr>
                         <tr>
                           <td className="py-2 text-gray-600">Year Comparison:</td>
-                          <td className={`py-2 font-semibold text-right ${bonus.calculatedMetrics?.yearComparison && bonus.calculatedMetrics.yearComparison >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {bonus.calculatedMetrics?.yearComparison !== null && bonus.calculatedMetrics.yearComparison !== undefined
-                              ? `${bonus.calculatedMetrics.yearComparison >= 0 ? '+' : ''}${bonus.calculatedMetrics.yearComparison.toLocaleString()}`
+                          <td className={`py-2 font-semibold text-right ${bonus.yearComparison !== null && bonus.yearComparison !== undefined && bonus.yearComparison >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {bonus.yearComparison !== null && bonus.yearComparison !== undefined
+                              ? `${bonus.yearComparison >= 0 ? '+' : ''}${bonus.yearComparison.toLocaleString()}`
                               : 'N/A'}
                           </td>
                         </tr>

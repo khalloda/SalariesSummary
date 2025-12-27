@@ -422,6 +422,18 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
       });
       totals.employeeCount = categoryBonuses.length;
       totals.averageBonus = totals.employeeCount > 0 ? totals.totalBonus / totals.employeeCount : 0;
+      
+      // Include individual employee records for the frontend
+      totals.employees = categoryBonuses.map(b => ({
+        employee: b.employee,
+        bonus: b.bonusAmount || 0,
+        bonusFirstHalf: b.bonusFirstHalf || 0,
+        bonusSecondHalf: b.bonusSecondHalf || 0,
+        previousYearBonus: b.previousYearBonus || 0,
+        reflectedInMonths: b.reflectedInMonths || 0,
+        reflectedInPercent: b.reflectedInPercent || 0
+      }));
+      
       categoryTotals[category] = totals;
     });
     
@@ -462,6 +474,120 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
       error: error.message, 
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
     });
+  }
+});
+
+/**
+ * GET /api/reports/quick-stats?year=YYYY
+ * Get quick statistics for the dashboard
+ */
+reportsRouter.get('/quick-stats', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    
+    // Get total employees
+    const totalEmployees = await prisma.employee.groupBy({
+      by: ['id']
+    });
+    
+    // Get total salary records for the year
+    const salaryRecords = await prisma.salaryRecord.findMany({
+      where: { year },
+      select: { net: true, gross: true }
+    });
+    
+    const totalNet = salaryRecords.reduce((sum, r) => sum + r.net, 0);
+    const totalGross = salaryRecords.reduce((sum, r) => sum + r.gross, 0);
+    
+    // Get bonus records for the year
+    const bonusRecords = await prisma.annualBonus.findMany({
+      where: { year },
+      select: { bonusAmount: true }
+    });
+    
+    const totalBonus = bonusRecords.reduce((sum, r) => sum + r.bonusAmount, 0);
+    
+    res.json({
+      year,
+      totalEmployees: totalEmployees.length,
+      totalNet,
+      totalGross,
+      totalBonus,
+      salaryRecordsCount: salaryRecords.length,
+      bonusRecordsCount: bonusRecords.length
+    });
+  } catch (error: any) {
+    console.error('Error fetching quick stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/reports/bonus-incentive-analysis?year=YYYY
+ * Get bonus and incentive analysis report
+ */
+reportsRouter.get('/bonus-incentive-analysis', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    
+    // Get all bonus records for the year
+    const bonuses = await prisma.annualBonus.findMany({
+      where: { year },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            category: true
+          }
+        }
+      }
+    });
+    
+    // Calculate statistics
+    const totalBonus = bonuses.reduce((sum, b) => sum + b.bonusAmount, 0);
+    const averageBonus = bonuses.length > 0 ? totalBonus / bonuses.length : 0;
+    const maxBonus = bonuses.length > 0 ? Math.max(...bonuses.map(b => b.bonusAmount)) : 0;
+    const minBonus = bonuses.length > 0 ? Math.min(...bonuses.map(b => b.bonusAmount)) : 0;
+    
+    // Group by category
+    const byCategory: Record<string, any> = {};
+    bonuses.forEach(b => {
+      const category = b.employee.category || 'Unknown';
+      if (!byCategory[category]) {
+        byCategory[category] = {
+          count: 0,
+          total: 0,
+          average: 0,
+          max: 0,
+          min: Infinity
+        };
+      }
+      byCategory[category].count++;
+      byCategory[category].total += b.bonusAmount;
+      byCategory[category].max = Math.max(byCategory[category].max, b.bonusAmount);
+      byCategory[category].min = Math.min(byCategory[category].min, b.bonusAmount);
+    });
+    
+    Object.keys(byCategory).forEach(cat => {
+      byCategory[cat].average = byCategory[cat].total / byCategory[cat].count;
+      if (byCategory[cat].min === Infinity) byCategory[cat].min = 0;
+    });
+    
+    res.json({
+      year,
+      summary: {
+        totalEmployees: bonuses.length,
+        totalBonus,
+        averageBonus,
+        maxBonus,
+        minBonus
+      },
+      byCategory
+    });
+  } catch (error: any) {
+    console.error('Error fetching bonus incentive analysis:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

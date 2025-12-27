@@ -376,7 +376,7 @@ employeesRouter.get('/:id/bonus', async (req, res) => {
     const growth = previousYearBonus && currentYearBonus
       ? {
           absolute: currentYearBonus.bonusAmount - previousYearBonus.bonusAmount,
-          percentage: previousYearBonus.bonusAmount > 0
+          percent: previousYearBonus.bonusAmount > 0
             ? ((currentYearBonus.bonusAmount - previousYearBonus.bonusAmount) / previousYearBonus.bonusAmount) * 100
             : 0
         }
