@@ -69,5 +69,41 @@ body {
   table, th, td {
     border: 1px solid #000 !important;
   }
+  
+  /* Print mode controls */
+  body[data-print-mode="table-only"] .print-chart-section {
+    display: none !important;
+  }
+  
+  body[data-print-mode="table-only"] .print-category-section {
+    display: none !important;
+  }
+  
+  /* Ensure table section is always visible for table-only and table-with-charts */
+  body[data-print-mode="table-only"] .print-table-section,
+  body[data-print-mode="table-with-charts"] .print-table-section {
+    display: block !important;
+  }
+  
+  body[data-print-mode="by-category"] .print-summary-cards {
+    display: none !important;
+  }
+  
+  body[data-print-mode="by-category"] .print-chart-section {
+    display: none !important;
+  }
+  
+  body[data-print-mode="by-category"] .print-table-section {
+    display: none !important;
+  }
+  
+  body[data-print-mode="table-with-charts"] .print-category-section {
+    display: none !important;
+  }
+  
+  /* Ensure charts are visible when needed */
+  body[data-print-mode="table-with-charts"] .print-chart-section {
+    display: block !important;
+  }
 }
 

@@ -323,8 +323,8 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
       });
     }
     
-    // Filter out bonuses where employee is null or category is missing
-    const validBonuses = bonuses.filter(b => b.employee && b.employee.category);
+    // Filter out bonuses where employee is null (but include uncategorized employees)
+    const validBonuses = bonuses.filter(b => b.employee);
     
     if (validBonuses.length === 0) {
       return res.json({
@@ -350,10 +350,10 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
       });
     }
     
-    // Filter consultants if needed
+    // Filter consultants if needed (include uncategorized employees)
     const bonusesToInclude = includeConsultants 
       ? validBonuses 
-      : validBonuses.filter(b => b.employee.category !== 'Consultants/مستشارين');
+      : validBonuses.filter(b => !b.employee.category || b.employee.category !== 'Consultants/مستشارين');
     
     // Calculate grand totals
     const grandTotal = bonusesToInclude.reduce((acc, b) => {
@@ -373,8 +373,8 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
     grandTotal.employeeCount = bonusesToInclude.length;
     grandTotal.averageBonus = grandTotal.employeeCount > 0 ? grandTotal.totalBonus / grandTotal.employeeCount : 0;
     
-    // Calculate totals without consultants
-    const bonusesWithoutConsultants = validBonuses.filter(b => b.employee.category !== 'Consultants/مستشارين');
+    // Calculate totals without consultants (include uncategorized employees)
+    const bonusesWithoutConsultants = validBonuses.filter(b => !b.employee.category || b.employee.category !== 'Consultants/مستشارين');
     const totalsWithoutConsultants = bonusesWithoutConsultants.reduce((acc, b) => {
       acc.totalBonus += b.bonusAmount || 0;
       acc.totalFirstHalf += b.bonusFirstHalf || 0;
@@ -394,16 +394,21 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
       ? totalsWithoutConsultants.totalBonus / totalsWithoutConsultants.employeeCount 
       : 0;
     
-    // Calculate category totals
+    // Calculate category totals (include uncategorized employees as "Uncategorized")
+    // This includes ALL bonuses in bonusesToInclude, which already respects includeConsultants flag
     const categoryTotals: Record<string, any> = {};
     const categoryGroups = bonusesToInclude.reduce((acc, b) => {
-      const category = b.employee.category || 'Unknown';
+      const category = b.employee.category || 'Uncategorized';
       if (!acc[category]) {
         acc[category] = [];
       }
       acc[category].push(b);
       return acc;
     }, {} as Record<string, typeof bonusesToInclude>);
+    
+    // Debug: Log categories found
+    console.log(`Annual Bonus Report for ${year}: Found ${bonusesToInclude.length} bonuses, ${Object.keys(categoryGroups).length} categories`);
+    console.log('Categories:', Object.keys(categoryGroups));
     
     Object.entries(categoryGroups).forEach(([category, categoryBonuses]) => {
       const totals = categoryBonuses.reduce((acc, b) => {

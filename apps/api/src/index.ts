@@ -9,6 +9,7 @@ import { importRouter } from './routes/import.js';
 import { employeesRouter } from './routes/employees.js';
 import { reportsRouter } from './routes/reports.js';
 import { exportsRouter } from './routes/exports.js';
+import { annualBonusExportRouter } from './routes/annual-bonus-export.js';
 
 console.log('📦 Routes loaded successfully');
 
@@ -38,6 +39,7 @@ app.use('/api/import', importRouter);
 app.use('/api/employees', employeesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/exports', exportsRouter);
+app.use('/api/exports', annualBonusExportRouter);
 
 // Global error handlers
 process.on('uncaughtException', (error) => {
