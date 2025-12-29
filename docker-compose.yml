@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # API Service
+  salaries-api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: salaries-api
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=file:./prisma/dev.db
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    volumes:
+      # Persist database
+      - salaries-db:/app/prisma
+      # Mount Sheets directory for Excel file access
+      - ./Sheets:/app/Sheets:ro
+      # Mount uploads directory (if needed for file uploads)
+      - salaries-uploads:/app/uploads
+    restart: unless-stopped
+    networks:
+      - salaries-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Web Service
+  salaries-web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: salaries-web
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:3001
+    depends_on:
+      salaries-api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - salaries-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  # Database volume - persists SQLite database
+  salaries-db:
+    driver: local
+  # Uploads volume - for temporary file uploads
+  salaries-uploads:
+    driver: local
+
+networks:
+  salaries-network:
+    driver: bridge
+
