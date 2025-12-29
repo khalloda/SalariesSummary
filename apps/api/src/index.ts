@@ -10,6 +10,8 @@ import { employeesRouter } from './routes/employees.js';
 import { reportsRouter } from './routes/reports.js';
 import { exportsRouter } from './routes/exports.js';
 import { annualBonusExportRouter } from './routes/annual-bonus-export.js';
+import { monthlySummaryExportRouter } from './routes/monthly-summary-export.js';
+import { additionsDeductionsExportRouter } from './routes/additions-deductions-export.js';
 
 console.log('📦 Routes loaded successfully');
 
@@ -27,7 +29,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -40,6 +43,8 @@ app.use('/api/employees', employeesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/exports', exportsRouter);
 app.use('/api/exports', annualBonusExportRouter);
+app.use('/api/exports', monthlySummaryExportRouter);
+app.use('/api/exports', additionsDeductionsExportRouter);
 
 // Global error handlers
 process.on('uncaughtException', (error) => {

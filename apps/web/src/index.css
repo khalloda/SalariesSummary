@@ -105,5 +105,38 @@ body {
   body[data-print-mode="table-with-charts"] .print-chart-section {
     display: block !important;
   }
+  
+  /* Ensure print sections are visible */
+  .print-container {
+    width: 100%;
+  }
+  
+  .print-section {
+    display: block !important;
+  }
+  
+  .print-chart-section {
+    display: block !important;
+    page-break-inside: avoid;
+  }
+  
+  .print-table-section {
+    display: block !important;
+  }
+  
+  /* Ensure charts render in print */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+  }
+  
+  /* Ensure tables are visible */
+  table {
+    border-collapse: collapse !important;
+  }
+  
+  th, td {
+    border: 1px solid #000 !important;
+    padding: 8px !important;
+  }
 }
 

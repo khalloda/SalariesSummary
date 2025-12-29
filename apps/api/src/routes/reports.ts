@@ -619,6 +619,265 @@ reportsRouter.get('/bonus-incentive-analysis', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reports/monthly-summary?year=YYYY
+ * Get monthly summary report
+ */
+reportsRouter.get('/monthly-summary', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    
+    // Get all salary records for the year, grouped by month
+    const salaryRecords = await prisma.salaryRecord.findMany({
+      where: { year },
+      orderBy: { month: 'asc' }
+    });
+    
+    // Group by month and calculate totals
+    const monthlyData: any[] = [];
+    const monthTotals: Record<number, any> = {};
+    
+    salaryRecords.forEach(record => {
+      if (!monthTotals[record.month]) {
+        monthTotals[record.month] = {
+          month: record.month,
+          monthName: getMonthName(record.month),
+          basicSalary: 0,
+          gross: 0,
+          net: 0,
+          directAdditions: 0,
+          indirectAdditions: 0,
+          bonuses: 0,
+          salaryDeductions: 0,
+          grossDeductions: 0,
+          employeeCount: new Set<string>()
+        };
+      }
+      
+      const monthData = monthTotals[record.month];
+      monthData.basicSalary += record.basicSalary || 0;
+      monthData.gross += record.gross || 0;
+      monthData.net += record.net || 0;
+      monthData.directAdditions += record.directAdditions || 0;
+      monthData.indirectAdditions += record.indirectAdditions || 0;
+      monthData.bonuses += record.bonuses || 0;
+      monthData.salaryDeductions += record.salaryDeductions || 0;
+      monthData.grossDeductions += record.grossDeductions || 0;
+      monthData.employeeCount.add(record.employeeId);
+    });
+    
+    // Convert to array and calculate employee counts
+    for (let month = 1; month <= 12; month++) {
+      if (monthTotals[month]) {
+        monthTotals[month].employeeCount = monthTotals[month].employeeCount.size;
+        monthlyData.push(monthTotals[month]);
+      } else {
+        monthlyData.push({
+          month,
+          monthName: getMonthName(month),
+          basicSalary: 0,
+          gross: 0,
+          net: 0,
+          directAdditions: 0,
+          indirectAdditions: 0,
+          bonuses: 0,
+          salaryDeductions: 0,
+          grossDeductions: 0,
+          employeeCount: 0
+        });
+      }
+    }
+    
+    // Calculate grand totals
+    const totals = monthlyData.reduce((acc, month) => ({
+      basicSalary: acc.basicSalary + month.basicSalary,
+      gross: acc.gross + month.gross,
+      net: acc.net + month.net,
+      directAdditions: acc.directAdditions + month.directAdditions,
+      indirectAdditions: acc.indirectAdditions + month.indirectAdditions,
+      bonuses: acc.bonuses + month.bonuses,
+      salaryDeductions: acc.salaryDeductions + month.salaryDeductions,
+      grossDeductions: acc.grossDeductions + month.grossDeductions
+    }), {
+      basicSalary: 0,
+      gross: 0,
+      net: 0,
+      directAdditions: 0,
+      indirectAdditions: 0,
+      bonuses: 0,
+      salaryDeductions: 0,
+      grossDeductions: 0
+    });
+    
+    res.json({
+      year,
+      monthlyData,
+      totals
+    });
+  } catch (error: any) {
+    console.error('Error fetching monthly summary:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/reports/additions-deductions-breakdown?year=YYYY
+ * Get additions and deductions breakdown report
+ */
+reportsRouter.get('/additions-deductions-breakdown', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    
+    // Get all salary records for the year with employee info
+    const salaryRecords = await prisma.salaryRecord.findMany({
+      where: { year },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            category: true
+          }
+        }
+      }
+    });
+    
+    // Calculate consolidated additions breakdown
+    const additionsBreakdown: Record<string, number> = {
+      'Direct Additions': 0,
+      'Indirect Additions': 0,
+      'Bonuses': 0,
+      'Yearly Increase': 0
+    };
+    
+    // Calculate consolidated deductions breakdown
+    const deductionsBreakdown: Record<string, number> = {
+      'Salary Deductions': 0,
+      'Gross Deductions': 0
+    };
+    
+    // Detailed breakdowns (by specific category from JSON)
+    const additionsDetails: Record<string, number> = {};
+    const deductionsDetails: Record<string, number> = {};
+    const additionsByEmployee: any[] = [];
+    const deductionsByEmployee: any[] = [];
+    
+    salaryRecords.forEach(record => {
+      // Consolidated totals
+      additionsBreakdown['Direct Additions'] += record.directAdditions || 0;
+      additionsBreakdown['Indirect Additions'] += record.indirectAdditions || 0;
+      additionsBreakdown['Bonuses'] += record.bonuses || 0;
+      additionsBreakdown['Yearly Increase'] += record.yearlyIncrease || 0;
+      
+      deductionsBreakdown['Salary Deductions'] += record.salaryDeductions || 0;
+      deductionsBreakdown['Gross Deductions'] += record.grossDeductions || 0;
+      
+      // Detailed breakdown from JSON fields
+      if (record.additionsBreakdown) {
+        try {
+          const breakdown = JSON.parse(record.additionsBreakdown);
+          Object.entries(breakdown).forEach(([category, amount]: [string, any]) => {
+            additionsDetails[category] = (additionsDetails[category] || 0) + (amount || 0);
+          });
+        } catch (e) {
+          // Ignore invalid JSON
+        }
+      }
+      
+      if (record.deductionsBreakdown) {
+        try {
+          const breakdown = JSON.parse(record.deductionsBreakdown);
+          Object.entries(breakdown).forEach(([category, amount]: [string, any]) => {
+            deductionsDetails[category] = (deductionsDetails[category] || 0) + (amount || 0);
+          });
+        } catch (e) {
+          // Ignore invalid JSON
+        }
+      }
+      
+      // Employee-level details
+      if (record.employee) {
+        const totalAdditions = (record.directAdditions || 0) + (record.indirectAdditions || 0) + (record.bonuses || 0) + (record.yearlyIncrease || 0);
+        const totalDeductions = (record.salaryDeductions || 0) + (record.grossDeductions || 0);
+        
+        if (totalAdditions > 0) {
+          additionsByEmployee.push({
+            employee: {
+              id: record.employee.id,
+              name: record.employee.name,
+              category: record.employee.category
+            },
+            month: record.month,
+            monthName: record.monthName,
+            directAdditions: record.directAdditions || 0,
+            indirectAdditions: record.indirectAdditions || 0,
+            bonuses: record.bonuses || 0,
+            yearlyIncrease: record.yearlyIncrease || 0,
+            total: totalAdditions
+          });
+        }
+        
+        if (totalDeductions > 0) {
+          deductionsByEmployee.push({
+            employee: {
+              id: record.employee.id,
+              name: record.employee.name,
+              category: record.employee.category
+            },
+            month: record.month,
+            monthName: record.monthName,
+            salaryDeductions: record.salaryDeductions || 0,
+            grossDeductions: record.grossDeductions || 0,
+            total: totalDeductions
+          });
+        }
+      }
+    });
+    
+    // Convert to arrays and calculate totals
+    const additionsArray = Object.entries(additionsBreakdown)
+      .filter(([_, amount]) => amount > 0)
+      .map(([category, amount]) => ({ category, amount }));
+    
+    const deductionsArray = Object.entries(deductionsBreakdown)
+      .filter(([_, amount]) => amount > 0)
+      .map(([category, amount]) => ({ category, amount }));
+    
+    // Detailed breakdown arrays
+    const additionsDetailsArray = Object.entries(additionsDetails)
+      .filter(([_, amount]) => amount > 0)
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount);
+    
+    const deductionsDetailsArray = Object.entries(deductionsDetails)
+      .filter(([_, amount]) => amount > 0)
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount);
+    
+    const additionsTotal = additionsArray.reduce((sum, item) => sum + item.amount, 0);
+    const deductionsTotal = deductionsArray.reduce((sum, item) => sum + item.amount, 0);
+    
+    res.json({
+      year,
+      additions: {
+        total: additionsTotal,
+        breakdown: additionsArray,
+        details: additionsDetailsArray,
+        byEmployee: additionsByEmployee
+      },
+      deductions: {
+        total: deductionsTotal,
+        breakdown: deductionsArray,
+        details: deductionsDetailsArray,
+        byEmployee: deductionsByEmployee
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching additions-deductions breakdown:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 function getMonthName(month: number): string {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
