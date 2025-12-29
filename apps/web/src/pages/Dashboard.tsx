@@ -20,6 +20,8 @@ export default function Dashboard() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [selectedPairs, setSelectedPairs] = useState<Set<number>>(new Set());
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [useFileUpload, setUseFileUpload] = useState(true);
   
   useEffect(() => {
     // Fetch available years from database
@@ -42,12 +44,40 @@ export default function Dashboard() {
       });
   }, [lastImport]); // Refresh when import completes
   
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const excelFiles = Array.from(files).filter(file => 
+        file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+      );
+      setSelectedFiles(excelFiles);
+    }
+  };
+
   const handleImport = async () => {
     setImporting(true);
     setImportReport(null);
     setShowImportReport(false);
     try {
-      const response = await axios.post(`${API_BASE_URL}/import/salaries`);
+      let response;
+      
+      if (useFileUpload && selectedFiles.length > 0) {
+        // Upload files from client
+        const formData = new FormData();
+        selectedFiles.forEach((file) => {
+          formData.append('files', file);
+        });
+        
+        response = await axios.post(`${API_BASE_URL}/import/salaries/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        // Use server-side Sheets directory (legacy method)
+        response = await axios.post(`${API_BASE_URL}/import/salaries`);
+      }
+      
       if (response.data.success) {
         setLastImport(new Date().toISOString());
         setImportReport(response.data);
@@ -56,6 +86,11 @@ export default function Dashboard() {
           ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}`
           : '';
         alert(`Import successful! ${response.data.recordsImported} records imported from ${response.data.filesProcessed} files.${errorMsg}\n\nClick "View Import Report" to see detailed information.`);
+        // Clear selected files after successful import
+        setSelectedFiles([]);
+        // Reset file input
+        const fileInput = document.getElementById('file-input') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
       } else {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
@@ -211,10 +246,65 @@ export default function Dashboard() {
           <div className="mb-4">
             <p className="text-sm text-gray-600">{t('lastImported')}: {lastImport || 'Never'}</p>
           </div>
+          
+          {/* File Upload Section */}
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="mb-3">
+              <label className="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={useFileUpload}
+                  onChange={(e) => setUseFileUpload(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium">Upload files from my computer</span>
+              </label>
+              <p className="text-xs text-gray-500 ml-6">
+                {useFileUpload 
+                  ? 'Select Excel files (.xlsx) from your computer to import'
+                  : 'Use files from server Sheets directory (legacy method)'}
+              </p>
+            </div>
+            
+            {useFileUpload && (
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Select Excel Files (.xlsx)
+                </label>
+                <input
+                  id="file-input"
+                  type="file"
+                  multiple
+                  accept=".xlsx,.xls"
+                  onChange={handleFileSelect}
+                  disabled={importing || clearing || merging}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                />
+                {selectedFiles.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600 mb-1">
+                      <strong>{selectedFiles.length}</strong> file(s) selected:
+                    </p>
+                    <ul className="text-xs text-gray-500 list-disc list-inside max-h-32 overflow-y-auto">
+                      {selectedFiles.map((file, idx) => (
+                        <li key={idx}>{file.name} ({(file.size / 1024).toFixed(1)} KB)</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {useFileUpload && selectedFiles.length === 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    ⚠️ Please select at least one Excel file to import
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={handleImport}
-              disabled={importing || clearing || merging}
+              disabled={importing || clearing || merging || (useFileUpload && selectedFiles.length === 0)}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
               {importing ? 'Importing...' : 'Import Salaries'}

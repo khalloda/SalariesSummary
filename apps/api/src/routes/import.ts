@@ -23,13 +23,85 @@ const upload = multer({
   }
 });
 
+// For multiple file uploads
+const uploadMultiple = multer({
+  dest: uploadDir,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB per file
+    files: 50 // Maximum 50 files
+  }
+});
+
+/**
+ * POST /api/import/salaries/upload
+ * Import salary workbooks from uploaded files
+ */
+importRouter.post('/salaries/upload', uploadMultiple.array('files', 50), async (req, res) => {
+  try {
+    if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        error: 'No files uploaded'
+      });
+    }
+
+    const files = Array.isArray(req.files) ? req.files : [req.files];
+    console.log(`Salary import request received with ${files.length} file(s)`);
+
+    // Import uploaded files
+    const { importUploadedFiles } = await import('../services/import-service.js');
+    const result = await importUploadedFiles(files.map(f => ({
+      path: f.path,
+      originalName: f.originalname
+    })));
+
+    // Clean up uploaded files
+    files.forEach(file => {
+      try {
+        if (existsSync(file.path)) {
+          unlinkSync(file.path);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${file.path}:`, cleanupError);
+      }
+    });
+
+    console.log(`Import completed: ${result.recordsImported} records, ${result.errors.length} errors`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Import error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Clean up files on error
+    if (req.files) {
+      const files = Array.isArray(req.files) ? req.files : [req.files];
+      files.forEach(file => {
+        try {
+          if (existsSync(file.path)) {
+            unlinkSync(file.path);
+          }
+        } catch (cleanupError) {
+          console.warn(`Could not delete temporary file ${file.path}:`, cleanupError);
+        }
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 /**
  * POST /api/import/salaries
- * Import all salary workbooks from the Sheets directory
+ * Import all salary workbooks from the Sheets directory (legacy method)
  */
 importRouter.post('/salaries', async (req, res) => {
   try {
-    console.log('Salary import request received');
+    console.log('Salary import request received (server-side Sheets directory)');
     const result = await importAllWorkbooks();
     console.log(`Import completed: ${result.recordsImported} records, ${result.errors.length} errors`);
     res.json(result);
