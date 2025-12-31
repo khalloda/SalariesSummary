@@ -86,6 +86,40 @@ employeesRouter.get('/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/employees/:id/details
+ * Get employee full details with contract records
+ */
+employeesRouter.get('/:id/details', async (req, res) => {
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: req.params.id },
+      include: {
+        contractRecords: {
+          orderBy: {
+            contractDate: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            salaries: true,
+            contractRecords: true
+          }
+        }
+      }
+    });
+    
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    
+    res.json(employee);
+  } catch (error: any) {
+    console.error('Error fetching employee details:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/employees/:id/card
  * Get employee details for Employee Card report
  */
@@ -422,6 +456,39 @@ employeesRouter.get('/:id/bonus', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error fetching employee bonus:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/employees/all/details
+ * Get all employees with full details and contract records
+ */
+employeesRouter.get('/all/details', async (req, res) => {
+  try {
+    const employees = await prisma.employee.findMany({
+      include: {
+        contractRecords: {
+          orderBy: {
+            contractDate: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            salaries: true,
+            contractRecords: true
+          }
+        }
+      },
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' }
+      ]
+    });
+    
+    res.json(employees);
+  } catch (error: any) {
+    console.error('Error fetching employees with details:', error);
     res.status(500).json({ error: error.message });
   }
 });

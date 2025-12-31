@@ -119,7 +119,58 @@ function parseString(value: any): string | null {
     const trimmed = value.trim();
     return trimmed === '' || trimmed === '-' || trimmed === 'N/A' ? null : trimmed;
   }
+  // If it's a number, convert to string without scientific notation
+  if (typeof value === 'number') {
+    // For very large numbers, use toLocaleString with useGrouping: false to avoid scientific notation
+    if (Math.abs(value) >= 1e15 || value.toString().includes('e') || value.toString().includes('E')) {
+      return value.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+    }
+    return value.toString();
+  }
   return String(value).trim() || null;
+}
+
+/**
+ * Parse National ID number - preserves full number without scientific notation
+ */
+function parseNationalId(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  
+  // If it's already a string, check if it's in scientific notation
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '' || trimmed === '-' || trimmed === 'N/A') return null;
+    
+    // Check if it's in scientific notation (e.g., "2.87072E+13")
+    if (trimmed.includes('e+') || trimmed.includes('E+') || trimmed.includes('e-') || trimmed.includes('E-')) {
+      const num = parseFloat(trimmed);
+      if (!isNaN(num)) {
+        // Convert to full number string without scientific notation
+        return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+      }
+    }
+    return trimmed;
+  }
+  
+  // If it's a number, convert to string without scientific notation
+  if (typeof value === 'number') {
+    // Always use toLocaleString with useGrouping: false to preserve full number
+    return value.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+  }
+  
+  // For other types, convert to string
+  const str = String(value).trim();
+  if (str === '' || str === '-' || str === 'N/A') return null;
+  
+  // Check if the string representation is in scientific notation
+  if (str.includes('e+') || str.includes('E+') || str.includes('e-') || str.includes('E-')) {
+    const num = parseFloat(str);
+    if (!isNaN(num)) {
+      return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+    }
+  }
+  
+  return str;
 }
 
 /**
@@ -173,7 +224,7 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
     // Get raw data
     const rawData = XLSX.utils.sheet_to_json(worksheet, {
       header: 1,
-      raw: false,
+      raw: false, // Keep false for normal parsing, but use getRawCellValue for National ID
       defval: null
     });
 
@@ -297,6 +348,23 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
 
     console.log(`Found ${Object.keys(columnMap).length} main headers`);
     console.log(`Processing ${rawData.length - 2} data rows...\n`);
+
+    // Helper function to get raw cell value from worksheet to preserve large numbers
+    const getRawCellValue = (rowIndex: number, colIndex: number): any => {
+      const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+      const cell = worksheet[cellAddress];
+      if (!cell) return null;
+      // If cell has formatted text (w property) and it's a number string, use it
+      if (cell.w && typeof cell.w === 'string') {
+        const wStr = cell.w.trim();
+        // If it's a pure number string (no commas, no scientific notation), use it
+        if (/^\d+$/.test(wStr)) {
+          return wStr;
+        }
+      }
+      // Otherwise use the raw value (v property)
+      return cell.v;
+    };
 
     // Process data rows (starting from row 2, index 2)
     for (let i = 2; i < rawData.length; i++) {
@@ -429,10 +497,13 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
           
           // Check if sub-header at column M is "Number" (under NationalID)
           if (subHeaders[nationalIdMainCol] && String(subHeaders[nationalIdMainCol]).trim() === 'Number') {
-            nationalIdNumber = parseString(row[nationalIdMainCol]);
+            // Use raw cell value to preserve full number
+            const rawValue = getRawCellValue(i, nationalIdMainCol);
+            nationalIdNumber = parseNationalId(rawValue);
           } else {
             // Try column M directly (index 12) - this is the known position
-            nationalIdNumber = parseString(row[12]);
+            const rawValue = getRawCellValue(i, 12);
+            nationalIdNumber = parseNationalId(rawValue);
           }
           
           // Check if sub-header at column N is "Valid Till" (under NationalID)
@@ -446,7 +517,8 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
           // NationalID main header not found - use direct column indices as fallback
           // Column M (index 12) = NationalID/Number
           // Column N (index 13) = NationalID/Valid Till
-          nationalIdNumber = parseString(row[12]);
+          const rawValue = getRawCellValue(i, 12);
+          nationalIdNumber = parseNationalId(rawValue);
           nationalIdValidTill = parseDate(row[13]);
         }
         

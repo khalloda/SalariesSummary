@@ -122,23 +122,25 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
     
     // Helper function to format large numbers
     const formatLargeNumberXLSX = (value: string | number | null | undefined) => {
+      // Format ID numbers without commas
       if (!value && value !== 0) return 'N/A';
-      let numStr: string;
+      
+      // Convert to number if it's a string
+      let num: number;
       if (typeof value === 'number') {
-        if (Math.abs(value) >= 1e15) {
-          return value.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
-        }
-        numStr = value.toString();
+        num = value;
       } else {
-        numStr = String(value);
-      }
-      if (numStr.includes('E+') || numStr.includes('e+') || numStr.includes('E-') || numStr.includes('e-')) {
-        const num = parseFloat(numStr);
-        if (!isNaN(num)) {
-          return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+        // Remove any existing commas from string
+        const cleanStr = String(value).replace(/,/g, '');
+        num = parseFloat(cleanStr);
+        if (isNaN(num)) {
+          // If it's not a valid number, return the original string without commas
+          return cleanStr;
         }
       }
-      return numStr;
+      
+      // Always format without commas (useGrouping: false)
+      return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
     };
     
     // Helper function to calculate work duration
@@ -421,26 +423,25 @@ function generateEmployeeCardHTML(employee: any): string {
   };
   
   const formatLargeNumber = (value: string | number | null | undefined) => {
+    // Format ID numbers without commas
     if (!value && value !== 0) return 'N/A';
-    // Convert to string and remove scientific notation
-    let numStr: string;
+    
+    // Convert to number if it's a string
+    let num: number;
     if (typeof value === 'number') {
-      // For very large numbers, use toLocaleString to avoid scientific notation
-      if (Math.abs(value) >= 1e15) {
-        return value.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
-      }
-      numStr = value.toString();
+      num = value;
     } else {
-      numStr = String(value);
-    }
-    // If it's in scientific notation, convert it
-    if (numStr.includes('E+') || numStr.includes('e+') || numStr.includes('E-') || numStr.includes('e-')) {
-      const num = parseFloat(numStr);
-      if (!isNaN(num)) {
-        return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+      // Remove any existing commas from string
+      const cleanStr = String(value).replace(/,/g, '');
+      num = parseFloat(cleanStr);
+      if (isNaN(num)) {
+        // If it's not a valid number, return the original string without commas
+        return cleanStr;
       }
     }
-    return numStr;
+    
+    // Always format without commas (useGrouping: false)
+    return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
   };
   
   const calculateWorkDuration = (joiningDate: Date | string | null) => {

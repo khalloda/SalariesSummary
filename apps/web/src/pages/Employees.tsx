@@ -149,6 +149,12 @@ export default function Employees() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">{t('employees')}</h2>
         <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/employees/details')}
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            View All Details
+          </button>
           {selectedEmployees.size > 0 && (
             <>
               <button
@@ -301,11 +307,24 @@ export default function Employees() {
                           className="cursor-pointer"
                         />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">{employee.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => navigate(`/employees/${employee.id}`)}
+                          className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                        >
+                          {employee.name}
+                        </button>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">{employee.category || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{employee._count.salaries}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/employees/${employee.id}`)}
+                            className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+                          >
+                            Details
+                          </button>
                           <button
                             onClick={() => navigate(`/employees/${employee.id}/annual?year=${new Date().getFullYear()}`)}
                             className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
@@ -393,11 +412,24 @@ export default function Employees() {
                         className="cursor-pointer"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{employee.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => navigate(`/employees/${employee.id}`)}
+                        className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                      >
+                        {employee.name}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">{employee.category || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{employee._count.salaries}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/employees/${employee.id}`)}
+                            className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+                          >
+                            Details
+                          </button>
                           <button
                             onClick={() => navigate(`/employees/${employee.id}/annual?year=${new Date().getFullYear()}`)}
                             className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
