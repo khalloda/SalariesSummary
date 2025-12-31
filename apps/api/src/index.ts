@@ -12,6 +12,7 @@ import { exportsRouter } from './routes/exports.js';
 import { annualBonusExportRouter } from './routes/annual-bonus-export.js';
 import { monthlySummaryExportRouter } from './routes/monthly-summary-export.js';
 import { additionsDeductionsExportRouter } from './routes/additions-deductions-export.js';
+import { configRouter } from './routes/config.js';
 
 console.log('📦 Routes loaded successfully');
 
@@ -45,6 +46,7 @@ app.use('/api/exports', exportsRouter);
 app.use('/api/exports', annualBonusExportRouter);
 app.use('/api/exports', monthlySummaryExportRouter);
 app.use('/api/exports', additionsDeductionsExportRouter);
+app.use('/api/config', configRouter);
 
 // Global error handlers
 process.on('uncaughtException', (error) => {

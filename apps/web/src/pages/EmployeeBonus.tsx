@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Area, AreaChart } from 'recharts';
+import { useBonusHalfSwitch } from '../hooks/useBonusHalfSwitch';
 
 export default function EmployeeBonus() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +21,7 @@ export default function EmployeeBonus() {
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [fromYear, setFromYear] = useState(new Date().getFullYear() - 4);
   const [toYear, setToYear] = useState(new Date().getFullYear());
+  const showHalves = useBonusHalfSwitch();
 
   useEffect(() => {
     // Get available years from bonus records
@@ -127,8 +129,8 @@ export default function EmployeeBonus() {
     .map((b: any) => ({
       year: b.year.toString(),
       bonus: b.bonusAmount,
-      firstHalf: b.bonusFirstHalf || 0,
-      secondHalf: b.bonusSecondHalf || 0
+      firstHalf: showHalves ? (b.bonusFirstHalf || 0) : 0,
+      secondHalf: showHalves ? (b.bonusSecondHalf || 0) : 0
     }));
 
   return (
@@ -232,18 +234,22 @@ export default function EmployeeBonus() {
                   <h4 className="font-semibold mb-2">Bonus Details</h4>
                   <table className="w-full">
                     <tbody className="space-y-2">
-                      <tr>
-                        <td className="py-2 text-gray-600">First Half:</td>
-                        <td className="py-2 font-semibold text-right">
-                          {bonus.bonusFirstHalf?.toLocaleString() || 'N/A'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 text-gray-600">Second Half:</td>
-                        <td className="py-2 font-semibold text-right">
-                          {bonus.bonusSecondHalf?.toLocaleString() || 'N/A'}
-                        </td>
-                      </tr>
+                      {showHalves && (
+                        <>
+                          <tr>
+                            <td className="py-2 text-gray-600">First Half:</td>
+                            <td className="py-2 font-semibold text-right">
+                              {bonus.bonusFirstHalf?.toLocaleString() || 'N/A'}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 text-gray-600">Second Half:</td>
+                            <td className="py-2 font-semibold text-right">
+                              {bonus.bonusSecondHalf?.toLocaleString() || 'N/A'}
+                            </td>
+                          </tr>
+                        </>
+                      )}
                       <tr className="border-t">
                         <td className="py-2 font-semibold">Total Bonus:</td>
                         <td className="py-2 font-bold text-right text-green-600">
@@ -294,18 +300,22 @@ export default function EmployeeBonus() {
                             {previousBonus.bonusAmount.toLocaleString()}
                           </td>
                         </tr>
-                        <tr>
-                          <td className="py-2 text-gray-600">First Half:</td>
-                          <td className="py-2 text-right">
-                            {previousBonus.bonusFirstHalf?.toLocaleString() || 'N/A'}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 text-gray-600">Second Half:</td>
-                          <td className="py-2 text-right">
-                            {previousBonus.bonusSecondHalf?.toLocaleString() || 'N/A'}
-                          </td>
-                        </tr>
+                        {showHalves && (
+                          <>
+                            <tr>
+                              <td className="py-2 text-gray-600">First Half:</td>
+                              <td className="py-2 text-right">
+                                {previousBonus.bonusFirstHalf?.toLocaleString() || 'N/A'}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="py-2 text-gray-600">Second Half:</td>
+                              <td className="py-2 text-right">
+                                {previousBonus.bonusSecondHalf?.toLocaleString() || 'N/A'}
+                              </td>
+                            </tr>
+                          </>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -366,10 +376,10 @@ export default function EmployeeBonus() {
                     <Tooltip formatter={(value: number) => value.toLocaleString()} />
                     <Legend />
                     <Line type="monotone" dataKey="bonus" stroke="#8884d8" strokeWidth={2} name="Total Bonus" />
-                    {bonus.bonusFirstHalf && (
+                    {showHalves && bonus.bonusFirstHalf && (
                       <Line type="monotone" dataKey="firstHalf" stroke="#82ca9d" strokeWidth={2} name="First Half" />
                     )}
-                    {bonus.bonusSecondHalf && (
+                    {showHalves && bonus.bonusSecondHalf && (
                       <Line type="monotone" dataKey="secondHalf" stroke="#ffc658" strokeWidth={2} name="Second Half" />
                     )}
                   </LineChart>
@@ -390,8 +400,12 @@ export default function EmployeeBonus() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Year</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bonus</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                      {showHalves && (
+                        <>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                        </>
+                      )}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reflected (Months)</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reflected (%)</th>
                     </tr>
@@ -401,8 +415,12 @@ export default function EmployeeBonus() {
                       <tr key={b.year} className={b.year === year ? 'bg-blue-50' : ''}>
                         <td className="px-6 py-4 whitespace-nowrap font-semibold">{b.year}</td>
                         <td className="px-6 py-4 whitespace-nowrap">{b.bonusAmount.toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{b.bonusFirstHalf?.toLocaleString() || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{b.bonusSecondHalf?.toLocaleString() || '-'}</td>
+                        {showHalves && (
+                          <>
+                            <td className="px-6 py-4 whitespace-nowrap">{b.bonusFirstHalf?.toLocaleString() || '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">{b.bonusSecondHalf?.toLocaleString() || '-'}</td>
+                          </>
+                        )}
                         <td className="px-6 py-4 whitespace-nowrap">{b.reflectedInMonths?.toFixed(2) || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap">{b.reflectedInPercent?.toFixed(2) || '-'}%</td>
                       </tr>
@@ -468,8 +486,12 @@ export default function EmployeeBonus() {
                     <Tooltip formatter={(value: number) => value.toLocaleString()} />
                     <Legend />
                     <Bar yAxisId="left" dataKey="bonus" fill="#8884d8" name="Total Bonus" />
-                    <Bar yAxisId="left" dataKey="bonusFirstHalf" fill="#82ca9d" name="First Half" />
-                    <Bar yAxisId="left" dataKey="bonusSecondHalf" fill="#ffc658" name="Second Half" />
+                    {showHalves && (
+                      <>
+                        <Bar yAxisId="left" dataKey="bonusFirstHalf" fill="#82ca9d" name="First Half" />
+                        <Bar yAxisId="left" dataKey="bonusSecondHalf" fill="#ffc658" name="Second Half" />
+                      </>
+                    )}
                     <Line yAxisId="right" type="monotone" dataKey="reflectedInMonths" stroke="#ff7300" strokeWidth={2} name="Reflected (Months)" />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -496,8 +518,12 @@ export default function EmployeeBonus() {
                     <Tooltip formatter={(value: number) => value.toLocaleString()} />
                     <Legend />
                     <Area type="monotone" dataKey="bonus" stroke="#8884d8" fillOpacity={1} fill="url(#colorBonus)" name="Total Bonus" />
-                    <Line type="monotone" dataKey="bonusFirstHalf" stroke="#82ca9d" strokeWidth={2} name="First Half" />
-                    <Line type="monotone" dataKey="bonusSecondHalf" stroke="#ffc658" strokeWidth={2} name="Second Half" />
+                    {showHalves && (
+                      <>
+                        <Line type="monotone" dataKey="bonusFirstHalf" stroke="#82ca9d" strokeWidth={2} name="First Half" />
+                        <Line type="monotone" dataKey="bonusSecondHalf" stroke="#ffc658" strokeWidth={2} name="Second Half" />
+                      </>
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -516,8 +542,12 @@ export default function EmployeeBonus() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Year</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bonus</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                      {showHalves && (
+                        <>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                        </>
+                      )}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reflected (Months)</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reflected (%)</th>
                     </tr>
@@ -527,8 +557,12 @@ export default function EmployeeBonus() {
                       <tr key={d.year} className={d.bonus > 0 ? '' : 'opacity-50'}>
                         <td className="px-6 py-4 whitespace-nowrap font-semibold">{d.year}</td>
                         <td className="px-6 py-4 whitespace-nowrap">{d.bonus.toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{d.bonusFirstHalf > 0 ? d.bonusFirstHalf.toLocaleString() : '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{d.bonusSecondHalf > 0 ? d.bonusSecondHalf.toLocaleString() : '-'}</td>
+                        {showHalves && (
+                          <>
+                            <td className="px-6 py-4 whitespace-nowrap">{d.bonusFirstHalf > 0 ? d.bonusFirstHalf.toLocaleString() : '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">{d.bonusSecondHalf > 0 ? d.bonusSecondHalf.toLocaleString() : '-'}</td>
+                          </>
+                        )}
                         <td className="px-6 py-4 whitespace-nowrap">{d.reflectedInMonths > 0 ? d.reflectedInMonths.toFixed(2) : '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap">{d.reflectedInPercent > 0 ? d.reflectedInPercent.toFixed(2) + '%' : '-'}</td>
                       </tr>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useBonusHalfSwitch } from '../hooks/useBonusHalfSwitch';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -19,6 +20,7 @@ export default function AnnualBonusReport() {
   const [printMode, setPrintMode] = useState<'by-category' | 'table-only' | 'table-with-charts'>('table-only');
   const [exportMode, setExportMode] = useState<'by-category' | 'table-only' | 'table-with-charts'>('table-only');
   const [exporting, setExporting] = useState(false);
+  const showHalves = useBonusHalfSwitch();
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/available-years`)
@@ -65,6 +67,7 @@ export default function AnnualBonusReport() {
           includeConsultants,
           viewMode,
           exportMode,
+          showHalves,
           data: {
             grandTotal: totalsToShow,
             categoryTotals,
@@ -324,8 +327,12 @@ export default function AnnualBonusReport() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employees</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bonus</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                  {showHalves && (
+                    <>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                    </>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Average Bonus</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Previous Year</th>
                 </tr>
@@ -362,8 +369,12 @@ export default function AnnualBonusReport() {
                       <td className="px-6 py-4 whitespace-nowrap font-medium">{category}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{totals.employeeCount}</td>
                       <td className="px-6 py-4 whitespace-nowrap font-semibold">{totals.totalBonus.toLocaleString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{totals.totalFirstHalf.toLocaleString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{totals.totalSecondHalf.toLocaleString()}</td>
+                      {showHalves && (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap">{totals.totalFirstHalf.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{totals.totalSecondHalf.toLocaleString()}</td>
+                        </>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap">{Math.round(totals.averageBonus).toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{totals.totalPreviousYear.toLocaleString()}</td>
                     </tr>
@@ -373,8 +384,12 @@ export default function AnnualBonusReport() {
                   <td className="px-6 py-4 whitespace-nowrap">Total</td>
                   <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.employeeCount}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalBonus.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalFirstHalf.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalSecondHalf.toLocaleString()}</td>
+                  {showHalves && (
+                    <>
+                      <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalFirstHalf.toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalSecondHalf.toLocaleString()}</td>
+                    </>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap">{Math.round(totalsToShow.averageBonus).toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalPreviousYear.toLocaleString()}</td>
                 </tr>
@@ -420,8 +435,12 @@ export default function AnnualBonusReport() {
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bonus</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                          {showHalves && (
+                            <>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Half</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Second Half</th>
+                            </>
+                          )}
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reflected (Months)</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reflected (%)</th>
                         </tr>
@@ -431,8 +450,12 @@ export default function AnnualBonusReport() {
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">{emp.employee?.name || 'Unknown'}</td>
                             <td className="px-6 py-4 whitespace-nowrap font-semibold">{emp.bonus?.toLocaleString() || '0'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">{emp.bonusFirstHalf?.toLocaleString() || '-'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">{emp.bonusSecondHalf?.toLocaleString() || '-'}</td>
+                            {showHalves && (
+                              <>
+                                <td className="px-6 py-4 whitespace-nowrap">{emp.bonusFirstHalf?.toLocaleString() || '-'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">{emp.bonusSecondHalf?.toLocaleString() || '-'}</td>
+                              </>
+                            )}
                             <td className="px-6 py-4 whitespace-nowrap">{emp.reflectedInMonths?.toFixed(2) || '-'}</td>
                             <td className="px-6 py-4 whitespace-nowrap">{emp.reflectedInPercent?.toFixed(2) || '-'}%</td>
                           </tr>
@@ -441,8 +464,12 @@ export default function AnnualBonusReport() {
                         <tr className="bg-blue-50 font-semibold border-t-2 border-blue-200">
                           <td className="px-6 py-4 whitespace-nowrap">Total - {category}</td>
                           <td className="px-6 py-4 whitespace-nowrap">{totals.totalBonus.toLocaleString()}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{totals.totalFirstHalf.toLocaleString()}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{totals.totalSecondHalf.toLocaleString()}</td>
+                          {showHalves && (
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap">{totals.totalFirstHalf.toLocaleString()}</td>
+                              <td className="px-6 py-4 whitespace-nowrap">{totals.totalSecondHalf.toLocaleString()}</td>
+                            </>
+                          )}
                           <td className="px-6 py-4 whitespace-nowrap">-</td>
                           <td className="px-6 py-4 whitespace-nowrap">-</td>
                         </tr>
@@ -462,8 +489,12 @@ export default function AnnualBonusReport() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Metric</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Total Bonus</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">First Half</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Second Half</th>
+                      {showHalves && (
+                        <>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">First Half</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Second Half</th>
+                        </>
+                      )}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Average Bonus</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Previous Year</th>
                     </tr>
@@ -472,14 +503,18 @@ export default function AnnualBonusReport() {
                     <tr className="font-bold">
                       <td className="px-6 py-4 whitespace-nowrap">All Categories</td>
                       <td className="px-6 py-4 whitespace-nowrap text-green-600">{totalsToShow.totalBonus.toLocaleString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalFirstHalf.toLocaleString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalSecondHalf.toLocaleString()}</td>
+                      {showHalves && (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalFirstHalf.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalSecondHalf.toLocaleString()}</td>
+                        </>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap">{Math.round(totalsToShow.averageBonus).toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalPreviousYear.toLocaleString()}</td>
                     </tr>
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-600">Total Employees</td>
-                      <td colSpan={5} className="px-6 py-4 whitespace-nowrap font-semibold">{totalsToShow.employeeCount}</td>
+                      <td colSpan={showHalves ? 5 : 3} className="px-6 py-4 whitespace-nowrap font-semibold">{totalsToShow.employeeCount}</td>
                     </tr>
                   </tbody>
                 </table>

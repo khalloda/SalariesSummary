@@ -4,6 +4,7 @@ import puppeteer from 'puppeteer';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { shouldShowBonusHalves } from '../utils/config.js';
 
 export const annualBonusExportRouter = Router();
 
@@ -27,14 +28,16 @@ function getLogoBase64(): string {
  */
 annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
   try {
-    const { year, includeConsultants, viewMode, exportMode, data } = req.body;
+    const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
+    // Use server config if client doesn't specify, otherwise use client value
+    const showHalves = clientShowHalves !== undefined ? clientShowHalves : shouldShowBonusHalves();
     
     if (!data || !data.categoryTotals) {
       return res.status(400).json({ error: 'Invalid report data' });
     }
     
     // Generate HTML based on export mode
-    const html = generateAnnualBonusReportHTML(year, includeConsultants, viewMode, exportMode, data);
+    const html = generateAnnualBonusReportHTML(year, includeConsultants, viewMode, exportMode, data, showHalves);
     
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ 
@@ -66,7 +69,9 @@ annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
  */
 annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
   try {
-    const { year, includeConsultants, viewMode, exportMode, data } = req.body;
+    const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
+    // Use server config if client doesn't specify, otherwise use client value
+    const showHalves = clientShowHalves !== undefined ? clientShowHalves : shouldShowBonusHalves();
     
     if (!data || !data.categoryTotals) {
       return res.status(400).json({ error: 'Invalid report data' });
@@ -95,38 +100,51 @@ annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
     if (exportMode === 'by-category' || exportMode === 'table-only') {
       // Create summary sheet
       const summarySheet = workbook.addWorksheet('Summary');
-      summarySheet.columns = [
+      const columns: any[] = [
         { header: 'Category', key: 'category', width: 25 },
         { header: 'Employees', key: 'employees', width: 12 },
-        { header: 'Total Bonus', key: 'totalBonus', width: 15 },
-        { header: 'First Half', key: 'firstHalf', width: 15 },
-        { header: 'Second Half', key: 'secondHalf', width: 15 },
+        { header: 'Total Bonus', key: 'totalBonus', width: 15 }
+      ];
+      if (showHalves) {
+        columns.push(
+          { header: 'First Half', key: 'firstHalf', width: 15 },
+          { header: 'Second Half', key: 'secondHalf', width: 15 }
+        );
+      }
+      columns.push(
         { header: 'Average Bonus', key: 'averageBonus', width: 15 },
         { header: 'Previous Year', key: 'previousYear', width: 15 }
-      ];
+      );
+      summarySheet.columns = columns;
       
       sortedCategories.forEach(([category, totals]: [string, any]) => {
-        summarySheet.addRow({
+        const row: any = {
           category,
           employees: totals.employeeCount,
           totalBonus: totals.totalBonus,
-          firstHalf: totals.totalFirstHalf,
-          secondHalf: totals.totalSecondHalf,
           averageBonus: Math.round(totals.averageBonus),
           previousYear: totals.totalPreviousYear
-        });
+        };
+        if (showHalves) {
+          row.firstHalf = totals.totalFirstHalf;
+          row.secondHalf = totals.totalSecondHalf;
+        }
+        summarySheet.addRow(row);
       });
       
       // Add grand total row
-      summarySheet.addRow({
+      const grandTotalRow: any = {
         category: 'GRAND TOTAL',
         employees: data.grandTotal.employeeCount,
         totalBonus: data.grandTotal.totalBonus,
-        firstHalf: data.grandTotal.totalFirstHalf,
-        secondHalf: data.grandTotal.totalSecondHalf,
         averageBonus: Math.round(data.grandTotal.averageBonus),
         previousYear: data.grandTotal.totalPreviousYear
-      });
+      };
+      if (showHalves) {
+        grandTotalRow.firstHalf = data.grandTotal.totalFirstHalf;
+        grandTotalRow.secondHalf = data.grandTotal.totalSecondHalf;
+      }
+      summarySheet.addRow(grandTotalRow);
       
       // Format header row
       summarySheet.getRow(1).font = { bold: true };
@@ -134,8 +152,10 @@ annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
       
       // Format numbers
       summarySheet.getColumn('totalBonus').numFmt = '#,##0';
-      summarySheet.getColumn('firstHalf').numFmt = '#,##0';
-      summarySheet.getColumn('secondHalf').numFmt = '#,##0';
+      if (showHalves) {
+        summarySheet.getColumn('firstHalf').numFmt = '#,##0';
+        summarySheet.getColumn('secondHalf').numFmt = '#,##0';
+      }
       summarySheet.getColumn('averageBonus').numFmt = '#,##0';
       summarySheet.getColumn('previousYear').numFmt = '#,##0';
       
@@ -143,35 +163,48 @@ annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
       if (exportMode === 'by-category') {
         sortedCategories.forEach(([category, totals]: [string, any]) => {
           const categorySheet = workbook.addWorksheet(category.split('/')[0].substring(0, 31)); // Excel sheet name limit
-          categorySheet.columns = [
+          const categoryColumns: any[] = [
             { header: 'Employee', key: 'employee', width: 30 },
-            { header: 'Total Bonus', key: 'bonus', width: 15 },
-            { header: 'First Half', key: 'firstHalf', width: 15 },
-            { header: 'Second Half', key: 'secondHalf', width: 15 },
+            { header: 'Total Bonus', key: 'bonus', width: 15 }
+          ];
+          if (showHalves) {
+            categoryColumns.push(
+              { header: 'First Half', key: 'firstHalf', width: 15 },
+              { header: 'Second Half', key: 'secondHalf', width: 15 }
+            );
+          }
+          categoryColumns.push(
             { header: 'Reflected (Months)', key: 'months', width: 18 },
             { header: 'Reflected (%)', key: 'percent', width: 15 }
-          ];
+          );
+          categorySheet.columns = categoryColumns;
           
           (totals.employees || []).forEach((emp: any) => {
-            categorySheet.addRow({
+            const empRow: any = {
               employee: emp.employee?.name || 'Unknown',
               bonus: emp.bonus || 0,
-              firstHalf: emp.bonusFirstHalf || 0,
-              secondHalf: emp.bonusSecondHalf || 0,
               months: emp.reflectedInMonths ? emp.reflectedInMonths.toFixed(2) : '-',
               percent: emp.reflectedInPercent ? `${emp.reflectedInPercent.toFixed(2)}%` : '-'
-            });
+            };
+            if (showHalves) {
+              empRow.firstHalf = emp.bonusFirstHalf || 0;
+              empRow.secondHalf = emp.bonusSecondHalf || 0;
+            }
+            categorySheet.addRow(empRow);
           });
           
           // Add category total row
-          categorySheet.addRow({
+          const totalRow: any = {
             employee: `Total - ${category}`,
             bonus: totals.totalBonus,
-            firstHalf: totals.totalFirstHalf,
-            secondHalf: totals.totalSecondHalf,
             months: '-',
             percent: '-'
-          });
+          };
+          if (showHalves) {
+            totalRow.firstHalf = totals.totalFirstHalf;
+            totalRow.secondHalf = totals.totalSecondHalf;
+          }
+          categorySheet.addRow(totalRow);
           
           // Format header and total rows
           categorySheet.getRow(1).font = { bold: true };
@@ -179,8 +212,10 @@ annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
           
           // Format numbers
           categorySheet.getColumn('bonus').numFmt = '#,##0';
-          categorySheet.getColumn('firstHalf').numFmt = '#,##0';
-          categorySheet.getColumn('secondHalf').numFmt = '#,##0';
+          if (showHalves) {
+            categorySheet.getColumn('firstHalf').numFmt = '#,##0';
+            categorySheet.getColumn('secondHalf').numFmt = '#,##0';
+          }
         });
       }
     }
@@ -202,7 +237,8 @@ function generateAnnualBonusReportHTML(
   includeConsultants: boolean,
   viewMode: string,
   exportMode: string,
-  data: any
+  data: any,
+  showHalves: boolean = false
 ): string {
   const logoBase64 = getLogoBase64();
   const { grandTotal, categoryTotals, growthRatios, categoryChartData } = data;
@@ -321,8 +357,10 @@ function generateAnnualBonusReportHTML(
                 <th style="border: 1px solid #000; padding: 8px; text-align: left;">Category</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Employees</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Total Bonus</th>
+                ${showHalves ? `
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">First Half</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Second Half</th>
+                ` : ''}
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Average Bonus</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Previous Year</th>
               </tr>
@@ -333,8 +371,10 @@ function generateAnnualBonusReportHTML(
                   <td style="border: 1px solid #000; padding: 8px;">${category}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.employeeCount}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${totals.totalBonus.toLocaleString()}</td>
+                  ${showHalves ? `
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalFirstHalf.toLocaleString()}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalSecondHalf.toLocaleString()}</td>
+                  ` : ''}
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${Math.round(totals.averageBonus).toLocaleString()}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalPreviousYear.toLocaleString()}</td>
                 </tr>
@@ -343,8 +383,10 @@ function generateAnnualBonusReportHTML(
                 <td style="border: 1px solid #000; padding: 8px;">Total</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.employeeCount}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalBonus.toLocaleString()}</td>
+                ${showHalves ? `
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalFirstHalf.toLocaleString()}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalSecondHalf.toLocaleString()}</td>
+                ` : ''}
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${Math.round(grandTotal.averageBonus).toLocaleString()}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalPreviousYear.toLocaleString()}</td>
               </tr>
@@ -365,8 +407,10 @@ function generateAnnualBonusReportHTML(
                 <tr style="background-color: #f3f4f6;">
                   <th style="border: 1px solid #000; padding: 8px; text-align: left;">Employee</th>
                   <th style="border: 1px solid #000; padding: 8px; text-align: right;">Total Bonus</th>
+                  ${showHalves ? `
                   <th style="border: 1px solid #000; padding: 8px; text-align: right;">First Half</th>
                   <th style="border: 1px solid #000; padding: 8px; text-align: right;">Second Half</th>
+                  ` : ''}
                   <th style="border: 1px solid #000; padding: 8px; text-align: right;">Reflected (Months)</th>
                   <th style="border: 1px solid #000; padding: 8px; text-align: right;">Reflected (%)</th>
                 </tr>
@@ -376,8 +420,10 @@ function generateAnnualBonusReportHTML(
                   <tr>
                     <td style="border: 1px solid #000; padding: 8px;">${emp.employee?.name || 'Unknown'}</td>
                     <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${(emp.bonus || 0).toLocaleString()}</td>
+                    ${showHalves ? `
                     <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.bonusFirstHalf?.toLocaleString() || '-'}</td>
                     <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.bonusSecondHalf?.toLocaleString() || '-'}</td>
+                    ` : ''}
                     <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.reflectedInMonths?.toFixed(2) || '-'}</td>
                     <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.reflectedInPercent?.toFixed(2) || '-'}%</td>
                   </tr>
@@ -385,8 +431,10 @@ function generateAnnualBonusReportHTML(
                 <tr style="background-color: #dbeafe; font-weight: bold;">
                   <td style="border: 1px solid #000; padding: 8px;">Total - ${category}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalBonus.toLocaleString()}</td>
+                  ${showHalves ? `
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalFirstHalf.toLocaleString()}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalSecondHalf.toLocaleString()}</td>
+                  ` : ''}
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">-</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">-</td>
                 </tr>
@@ -405,8 +453,10 @@ function generateAnnualBonusReportHTML(
               <tr style="background-color: #e5e7eb;">
                 <th style="border: 1px solid #000; padding: 8px; text-align: left;">Metric</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Total Bonus</th>
+                ${showHalves ? `
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">First Half</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Second Half</th>
+                ` : ''}
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Average Bonus</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Previous Year</th>
               </tr>
@@ -415,14 +465,16 @@ function generateAnnualBonusReportHTML(
               <tr style="font-weight: bold;">
                 <td style="border: 1px solid #000; padding: 8px;">All Categories</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right; color: #059669;">${grandTotal.totalBonus.toLocaleString()}</td>
+                ${showHalves ? `
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalFirstHalf.toLocaleString()}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalSecondHalf.toLocaleString()}</td>
+                ` : ''}
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${Math.round(grandTotal.averageBonus).toLocaleString()}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalPreviousYear.toLocaleString()}</td>
               </tr>
               <tr>
                 <td style="border: 1px solid #000; padding: 8px;">Total Employees</td>
-                <td colSpan="5" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${grandTotal.employeeCount}</td>
+                <td colSpan="${showHalves ? 5 : 3}" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${grandTotal.employeeCount}</td>
               </tr>
             </tbody>
           </table>
@@ -444,8 +496,10 @@ function generateAnnualBonusReportHTML(
               <tr style="background-color: #f3f4f6;">
                 <th style="border: 1px solid #000; padding: 8px; text-align: left;">Employee</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Total Bonus</th>
+                ${showHalves ? `
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">First Half</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Second Half</th>
+                ` : ''}
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Reflected (Months)</th>
                 <th style="border: 1px solid #000; padding: 8px; text-align: right;">Reflected (%)</th>
               </tr>
@@ -455,8 +509,10 @@ function generateAnnualBonusReportHTML(
                 <tr>
                   <td style="border: 1px solid #000; padding: 8px;">${emp.employee?.name || 'Unknown'}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${(emp.bonus || 0).toLocaleString()}</td>
+                  ${showHalves ? `
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.bonusFirstHalf?.toLocaleString() || '-'}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.bonusSecondHalf?.toLocaleString() || '-'}</td>
+                  ` : ''}
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.reflectedInMonths?.toFixed(2) || '-'}</td>
                   <td style="border: 1px solid #000; padding: 8px; text-align: right;">${emp.reflectedInPercent?.toFixed(2) || '-'}%</td>
                 </tr>
@@ -464,8 +520,10 @@ function generateAnnualBonusReportHTML(
               <tr style="background-color: #dbeafe; font-weight: bold;">
                 <td style="border: 1px solid #000; padding: 8px;">Total - ${category}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalBonus.toLocaleString()}</td>
+                ${showHalves ? `
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalFirstHalf.toLocaleString()}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${totals.totalSecondHalf.toLocaleString()}</td>
+                ` : ''}
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">-</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">-</td>
               </tr>
@@ -484,8 +542,10 @@ function generateAnnualBonusReportHTML(
             <tr style="background-color: #e5e7eb;">
               <th style="border: 1px solid #000; padding: 8px; text-align: left;">Metric</th>
               <th style="border: 1px solid #000; padding: 8px; text-align: right;">Total Bonus</th>
+              ${showHalves ? `
               <th style="border: 1px solid #000; padding: 8px; text-align: right;">First Half</th>
               <th style="border: 1px solid #000; padding: 8px; text-align: right;">Second Half</th>
+              ` : ''}
               <th style="border: 1px solid #000; padding: 8px; text-align: right;">Average Bonus</th>
               <th style="border: 1px solid #000; padding: 8px; text-align: right;">Previous Year</th>
             </tr>
@@ -500,8 +560,8 @@ function generateAnnualBonusReportHTML(
               <td style="border: 1px solid #000; padding: 8px; text-align: right;">${grandTotal.totalPreviousYear.toLocaleString()}</td>
             </tr>
             <tr>
-              <td style="border: 1px solid #000; padding: 8px;">Total Employees</td>
-              <td colSpan="5" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${grandTotal.employeeCount}</td>
+                <td style="border: 1px solid #000; padding: 8px;">Total Employees</td>
+                <td colSpan="${showHalves ? 5 : 3}" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${grandTotal.employeeCount}</td>
             </tr>
           </tbody>
         </table>
