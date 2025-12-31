@@ -6,6 +6,9 @@ import { join } from 'path';
 import { importAllWorkbooks } from '../services/import-service.js';
 import { parseBonusSheet, importBonusRecords } from '../services/bonus-import-service.js';
 import { importSEPEmployees } from '../services/sep-employees-import-service.js';
+import { importContracts } from '../services/contracts-import-service.js';
+import { importPersonnel } from '../services/personnel-import-service.js';
+import { importResigned } from '../services/resigned-import-service.js';
 import XLSX from 'xlsx';
 
 export const importRouter = Router();
@@ -367,6 +370,231 @@ importRouter.post('/employees', async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error('SEP Employees import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/import/contracts
+ * Import contracts from SEPEmployees.xlsx (from server Sheets directory)
+ */
+importRouter.post('/contracts', async (req, res) => {
+  try {
+    console.log('Contracts import request received (server-side Sheets directory)');
+    const result = await importContracts();
+    console.log(`Import completed: ${result.recordsImported} created, ${result.recordsLinked} linked, ${result.errors.length} errors`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Contracts import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/import/contracts/upload
+ * Import contracts from uploaded SEPEmployees.xlsx file
+ */
+importRouter.post('/contracts/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    const filePath = req.file.path;
+    const fileName = req.file.originalname;
+
+    console.log(`Contracts import request received with file: ${fileName}`);
+
+    try {
+      const result = await importContracts(filePath);
+
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+
+      console.log(`Import completed: ${result.recordsImported} created, ${result.recordsLinked} linked, ${result.errors.length} errors`);
+      res.json(result);
+    } catch (error: any) {
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('Contracts import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/import/personnel
+ * Import personnel data from SEPEmployees.xlsx (from server Sheets directory)
+ */
+importRouter.post('/personnel', async (req, res) => {
+  try {
+    console.log('Personnel import request received (server-side Sheets directory)');
+    const result = await importPersonnel();
+    console.log(`Import completed: ${result.recordsUpdated} updated, ${result.errors.length} errors`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Personnel import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/import/personnel/upload
+ * Import personnel data from uploaded SEPEmployees.xlsx file
+ */
+importRouter.post('/personnel/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    const filePath = req.file.path;
+    const fileName = req.file.originalname;
+
+    console.log(`Personnel import request received with file: ${fileName}`);
+
+    try {
+      const result = await importPersonnel(filePath);
+
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+
+      console.log(`Import completed: ${result.recordsUpdated} updated, ${result.errors.length} errors`);
+      res.json(result);
+    } catch (error: any) {
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('Personnel import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/import/resigned
+ * Import resigned employees from SEPEmployees.xlsx (from server Sheets directory)
+ */
+importRouter.post('/resigned', async (req, res) => {
+  try {
+    console.log('Resigned import request received (server-side Sheets directory)');
+    const result = await importResigned();
+    console.log(`Import completed: ${result.recordsUpdated} updated, ${result.recordsNotFound} not found, ${result.errors.length} errors`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Resigned import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/import/resigned/upload
+ * Import resigned employees from uploaded SEPEmployees.xlsx file
+ */
+importRouter.post('/resigned/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    const filePath = req.file.path;
+    const fileName = req.file.originalname;
+
+    console.log(`Resigned import request received with file: ${fileName}`);
+
+    try {
+      const result = await importResigned(filePath);
+
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+
+      console.log(`Import completed: ${result.recordsUpdated} updated, ${result.recordsNotFound} not found, ${result.errors.length} errors`);
+      res.json(result);
+    } catch (error: any) {
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('Resigned import error:', error);
     console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false, 

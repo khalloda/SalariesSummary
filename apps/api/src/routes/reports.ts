@@ -88,9 +88,53 @@ reportsRouter.get('/category-totals', async (req, res) => {
         net: 0
       });
       
+      // Calculate department sub-totals within this category
+      const departmentGroups: Record<string, typeof employees> = {};
+      employees.forEach(emp => {
+        const dept = emp.department || 'No Department';
+        if (!departmentGroups[dept]) {
+          departmentGroups[dept] = [];
+        }
+        departmentGroups[dept].push(emp);
+      });
+      
+      const departmentTotals: Record<string, any> = {};
+      Object.entries(departmentGroups).forEach(([department, deptEmployees]) => {
+        const deptTotals = deptEmployees.reduce((acc, emp) => {
+          emp.salaries.forEach(s => {
+            acc.basicSalary += s.basicSalary;
+            acc.directAdditions += s.directAdditions;
+            acc.indirectAdditions += s.indirectAdditions;
+            acc.yearlyIncrease += s.yearlyIncrease;
+            acc.bonuses += s.bonuses;
+            acc.salaryDeductions += s.salaryDeductions;
+            acc.grossDeductions += s.grossDeductions;
+            acc.gross += s.gross;
+            acc.net += s.net;
+          });
+          return acc;
+        }, {
+          basicSalary: 0,
+          directAdditions: 0,
+          indirectAdditions: 0,
+          yearlyIncrease: 0,
+          bonuses: 0,
+          salaryDeductions: 0,
+          grossDeductions: 0,
+          gross: 0,
+          net: 0
+        });
+        
+        departmentTotals[department] = {
+          employeeCount: deptEmployees.length,
+          totals: deptTotals
+        };
+      });
+      
       categoryTotals[category] = {
         employeeCount: employees.length,
-        totals
+        totals,
+        departments: departmentTotals
       };
     }
     
@@ -394,23 +438,39 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
       ? totalsWithoutConsultants.totalBonus / totalsWithoutConsultants.employeeCount 
       : 0;
     
-    // Calculate category totals (include uncategorized employees as "Uncategorized")
-    // This includes ALL bonuses in bonusesToInclude, which already respects includeConsultants flag
+    // Calculate category totals with Department as sub-category
+    // Group by Category first, then by Department within each Category
     const categoryTotals: Record<string, any> = {};
     const categoryGroups = bonusesToInclude.reduce((acc, b) => {
       const category = b.employee.category || 'Uncategorized';
-      if (!acc[category]) {
-        acc[category] = [];
+      const categoryKey = category;
+      
+      if (!acc[categoryKey]) {
+        acc[categoryKey] = {
+          employees: [],
+          departments: {} as Record<string, typeof bonusesToInclude>
+        };
       }
-      acc[category].push(b);
+      
+      // Group by department within category
+      const department = b.employee.department || 'No Department';
+      if (!acc[categoryKey].departments[department]) {
+        acc[categoryKey].departments[department] = [];
+      }
+      acc[categoryKey].departments[department].push(b);
+      acc[categoryKey].employees.push(b);
+      
       return acc;
-    }, {} as Record<string, typeof bonusesToInclude>);
+    }, {} as Record<string, { employees: typeof bonusesToInclude, departments: Record<string, typeof bonusesToInclude> }>);
     
     // Debug: Log categories found
     console.log(`Annual Bonus Report for ${year}: Found ${bonusesToInclude.length} bonuses, ${Object.keys(categoryGroups).length} categories`);
     console.log('Categories:', Object.keys(categoryGroups));
     
-    Object.entries(categoryGroups).forEach(([category, categoryBonuses]) => {
+    Object.entries(categoryGroups).forEach(([category, categoryData]) => {
+      const { employees: categoryBonuses, departments } = categoryData;
+      
+      // Calculate totals for the entire category
       const totals = categoryBonuses.reduce((acc, b) => {
         acc.totalBonus += b.bonusAmount || 0;
         acc.totalFirstHalf += b.bonusFirstHalf || 0;
@@ -425,10 +485,44 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
         employeeCount: 0,
         averageBonus: 0
       });
+      
       totals.employeeCount = categoryBonuses.length;
       totals.averageBonus = totals.employeeCount > 0 ? totals.totalBonus / totals.employeeCount : 0;
       
-      // Include individual employee records for the frontend
+      // Calculate department sub-totals
+      const departmentTotals: Record<string, any> = {};
+      Object.entries(departments).forEach(([department, deptBonuses]) => {
+        const deptTotals = deptBonuses.reduce((acc, b) => {
+          acc.totalBonus += b.bonusAmount || 0;
+          acc.totalFirstHalf += b.bonusFirstHalf || 0;
+          acc.totalSecondHalf += b.bonusSecondHalf || 0;
+          acc.totalPreviousYear += b.previousYearBonus || 0;
+          return acc;
+        }, {
+          totalBonus: 0,
+          totalFirstHalf: 0,
+          totalSecondHalf: 0,
+          totalPreviousYear: 0,
+          employeeCount: 0,
+          averageBonus: 0
+        });
+        
+        deptTotals.employeeCount = deptBonuses.length;
+        deptTotals.averageBonus = deptTotals.employeeCount > 0 ? deptTotals.totalBonus / deptTotals.employeeCount : 0;
+        deptTotals.employees = deptBonuses.map(b => ({
+          employee: b.employee,
+          bonus: b.bonusAmount || 0,
+          bonusFirstHalf: b.bonusFirstHalf || 0,
+          bonusSecondHalf: b.bonusSecondHalf || 0,
+          previousYearBonus: b.previousYearBonus || 0,
+          reflectedInMonths: b.reflectedInMonths || 0,
+          reflectedInPercent: b.reflectedInPercent || 0
+        }));
+        
+        departmentTotals[department] = deptTotals;
+      });
+      
+      // Include individual employee records for the frontend (all employees in category)
       totals.employees = categoryBonuses.map(b => ({
         employee: b.employee,
         bonus: b.bonusAmount || 0,
@@ -439,6 +533,7 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
         reflectedInPercent: b.reflectedInPercent || 0
       }));
       
+      totals.departments = departmentTotals;
       categoryTotals[category] = totals;
     });
     

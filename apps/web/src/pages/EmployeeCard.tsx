@@ -1,0 +1,436 @@
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import { API_BASE_URL } from '../api/config';
+
+interface Employee {
+  id: string;
+  name: string;
+  nameArabic?: string;
+  category?: string;
+  employeeCode?: string;
+  jobTitle?: string;
+  department?: string;
+  dateOfBirth?: string;
+  joiningDate?: string;
+  mobileNumber?: string;
+  graduationCertificate?: string;
+  graduationSection?: string;
+  graduationUniversity?: string;
+  graduationYear?: number;
+  barAssociation?: string;
+  barAssociationDegree?: string;
+  taxCard?: string;
+  socialInsurance?: string;
+  nationalId?: string;
+  nationalIdValidTill?: string;
+  address?: string;
+  addressRegion?: string;
+  addressGovernorate?: string;
+  contractType?: string;
+  contractDuration?: string;
+  contractRenewalDate?: string;
+  salaries?: Array<{
+    year: number;
+    month: number;
+    monthName: string;
+    basicSalary: number;
+    gross: number;
+    net: number;
+  }>;
+}
+
+export default function EmployeeCard() {
+  const { t } = useTranslation();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredEmployees(employees);
+    } else {
+      const term = searchTerm.toLowerCase();
+      const filtered = employees.filter(emp => {
+        const name = (emp.name || '').toLowerCase();
+        const nameArabic = (emp.nameArabic || '').toLowerCase();
+        const employeeCode = (emp.employeeCode || '').toLowerCase();
+        const id = (emp.id || '').toLowerCase();
+        return name.includes(term) || 
+               nameArabic.includes(term) || 
+               employeeCode.includes(term) ||
+               id.includes(term);
+      });
+      setFilteredEmployees(filtered);
+    }
+  }, [searchTerm, employees]);
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/employees`);
+      setEmployees(response.data);
+      setFilteredEmployees(response.data);
+    } catch (error: any) {
+      console.error('Error fetching employees:', error);
+      alert('Failed to load employees: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEmployeeDetails = async (employeeId: string) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/employees/${employeeId}/card`);
+      setSelectedEmployee(response.data);
+    } catch (error: any) {
+      console.error('Error fetching employee details:', error);
+      alert('Failed to load employee details: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleEmployeeSelect = (employee: Employee) => {
+    setSelectedEmployee(null);
+    fetchEmployeeDetails(employee.id);
+  };
+
+  const handleExportPDF = async () => {
+    if (!selectedEmployee) return;
+    
+    setExporting(true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/exports/employee-card/pdf`,
+        { employeeId: selectedEmployee.id },
+        { responseType: 'blob' }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const safeName = (selectedEmployee.name || 'Employee').replace(/[^a-zA-Z0-9\u0600-\u06FF\s]/g, '_').substring(0, 50);
+      link.setAttribute('download', `Employee_Card_${safeName}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error: any) {
+      console.error('PDF export error:', error);
+      alert('Failed to export PDF: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportXLSX = async () => {
+    if (!selectedEmployee) return;
+    
+    setExporting(true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/exports/employee-card/xlsx`,
+        { employeeId: selectedEmployee.id },
+        { responseType: 'blob' }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const safeName = (selectedEmployee.name || 'Employee').replace(/[^a-zA-Z0-9\u0600-\u06FF\s]/g, '_').substring(0, 50);
+      link.setAttribute('download', `Employee_Card_${safeName}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error: any) {
+      console.error('XLSX export error:', error);
+      alert('Failed to export XLSX: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const formatDate = (date: string | null | undefined) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const formatDateOrNotSpecified = (date: string | null | undefined) => {
+    if (!date) return 'Not Specified';
+    const parsedDate = new Date(date);
+    // Reject placeholder dates like January 1, 2000
+    if (parsedDate.getFullYear() === 2000 && parsedDate.getMonth() === 0 && parsedDate.getDate() === 1) {
+      return 'Not Specified';
+    }
+    if (isNaN(parsedDate.getTime())) return 'Not Specified';
+    return parsedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '0.00';
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatLargeNumber = (value: string | number | null | undefined) => {
+    if (!value && value !== 0) return 'N/A';
+    // Convert to string and remove scientific notation
+    let numStr: string;
+    if (typeof value === 'number') {
+      // For very large numbers, use toLocaleString to avoid scientific notation
+      if (Math.abs(value) >= 1e15) {
+        return value.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+      }
+      numStr = value.toString();
+    } else {
+      numStr = String(value);
+    }
+    // If it's in scientific notation, convert it
+    if (numStr.includes('E+') || numStr.includes('e+') || numStr.includes('E-') || numStr.includes('e-')) {
+      const num = parseFloat(numStr);
+      if (!isNaN(num)) {
+        return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+      }
+    }
+    return numStr;
+  };
+
+  const calculateWorkDuration = (joiningDate: string | null | undefined) => {
+    if (!joiningDate) return 'N/A';
+    
+    const start = new Date(joiningDate);
+    const end = new Date();
+    
+    if (isNaN(start.getTime())) return 'N/A';
+    
+    let years = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth() - start.getMonth();
+    let days = end.getDate() - start.getDate();
+    
+    if (days < 0) {
+      months--;
+      const lastMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+      days += lastMonth.getDate();
+    }
+    
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    
+    const parts: string[] = [];
+    if (years > 0) parts.push(`${years} Year${years !== 1 ? 's' : ''}`);
+    if (months > 0) parts.push(`${months} Month${months !== 1 ? 's' : ''}`);
+    if (days > 0) parts.push(`${days} Day${days !== 1 ? 's' : ''}`);
+    
+    return parts.length > 0 ? parts.join(', ') : 'Less than 1 day';
+  };
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-4">Employee Card</h2>
+        
+        {/* Search/Filter Section */}
+        <div className="bg-white p-4 rounded-lg shadow mb-4">
+          <label className="block text-sm font-medium mb-2">
+            Search Employee (by Name, ID, or Employee Code)
+          </label>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Type to search..."
+            className="w-full border rounded px-3 py-2 mb-3"
+          />
+          
+          {loading ? (
+            <p className="text-gray-500">Loading employees...</p>
+          ) : (
+            <div className="max-h-60 overflow-y-auto border rounded">
+              {filteredEmployees.length === 0 ? (
+                <p className="p-3 text-gray-500 text-center">No employees found</p>
+              ) : (
+                <ul className="divide-y">
+                  {filteredEmployees.map(emp => (
+                    <li
+                      key={emp.id}
+                      onClick={() => handleEmployeeSelect(emp)}
+                      className={`p-3 cursor-pointer hover:bg-blue-50 ${
+                        selectedEmployee?.id === emp.id ? 'bg-blue-100' : ''
+                      }`}
+                    >
+                      <div className="font-medium">{emp.name}</div>
+                      <div className="text-sm text-gray-600">
+                        {emp.employeeCode && `ID: ${emp.employeeCode} | `}
+                        {emp.category && `Category: ${emp.category}`}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Export Buttons */}
+        {selectedEmployee && (
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              {exporting ? 'Exporting...' : 'Export PDF'}
+            </button>
+            <button
+              onClick={handleExportXLSX}
+              disabled={exporting}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              {exporting ? 'Exporting...' : 'Export XLSX'}
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Print
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Employee Card Display */}
+      {selectedEmployee ? (
+        <div className="bg-white p-6 rounded-lg shadow print-container">
+          {/* Top Box */}
+          <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 rounded-lg mb-6 flex justify-between items-center print-top-box">
+            <div>
+              <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">System ID No.</div>
+              <div className="text-lg font-bold">{selectedEmployee.employeeCode || 'N/A'}</div>
+            </div>
+            <div>
+              <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">Category</div>
+              <div className="text-lg font-bold">{selectedEmployee.category || 'N/A'}</div>
+            </div>
+          </div>
+
+          {/* Info Table */}
+          <table className="w-full border-collapse mb-4 print-table">
+            <tbody>
+              {/* Basic Info */}
+              <tr>
+                <td className="w-48 p-3 border bg-gray-50 font-bold text-sm align-top">Basic Info</td>
+                <td className="p-3 border">
+                  <div className="space-y-2">
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Name:</span> {selectedEmployee.name || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Name (Arabic):</span> {selectedEmployee.nameArabic || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Joining Date:</span> {formatDate(selectedEmployee.joiningDate)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Job Title:</span> {selectedEmployee.jobTitle || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Department:</span> {selectedEmployee.department || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Date of Birth:</span> {formatDate(selectedEmployee.dateOfBirth)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Mobile Number:</span> {selectedEmployee.mobileNumber || 'N/A'}</div>
+                  </div>
+                </td>
+              </tr>
+
+              {/* Education */}
+              <tr>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Education</td>
+                <td className="p-3 border">
+                  <div className="space-y-2">
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Certificate:</span> {selectedEmployee.graduationCertificate || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Section:</span> {selectedEmployee.graduationSection || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">University:</span> {selectedEmployee.graduationUniversity || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Graduation Year:</span> {selectedEmployee.graduationYear || 'N/A'}</div>
+                  </div>
+                </td>
+              </tr>
+
+              {/* IDs */}
+              <tr>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">IDs</td>
+                <td className="p-3 border">
+                  <div className="space-y-2">
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">National ID:</span> {formatLargeNumber(selectedEmployee.nationalId)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">National ID Valid Till:</span> {formatDateOrNotSpecified(selectedEmployee.nationalIdValidTill)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Bar Association No.:</span> {formatLargeNumber(selectedEmployee.barAssociation)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">درجة القيد:</span> {selectedEmployee.barAssociationDegree || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Tax Card No.:</span> {selectedEmployee.taxCard || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Social Insurance:</span> {formatLargeNumber(selectedEmployee.socialInsurance)}</div>
+                  </div>
+                </td>
+              </tr>
+
+              {/* Address */}
+              <tr>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Address</td>
+                <td className="p-3 border">
+                  <div className="space-y-2">
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Address Details:</span> {selectedEmployee.address || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Region / City:</span> {selectedEmployee.addressRegion || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Governorate:</span> {selectedEmployee.addressGovernorate || 'N/A'}</div>
+                  </div>
+                </td>
+              </tr>
+
+              {/* Contract */}
+              <tr>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Contract</td>
+                <td className="p-3 border">
+                  <div className="space-y-2">
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Contract Type:</span> {selectedEmployee.contractType || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Work Duration:</span> {calculateWorkDuration(selectedEmployee.joiningDate)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Next Renewal Date:</span> {formatDateOrNotSpecified(selectedEmployee.contractRenewalDate)}</div>
+                  </div>
+                </td>
+              </tr>
+
+              {/* Salary */}
+              <tr>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Salary</td>
+                <td className="p-3 border">
+                  {selectedEmployee.salaries && selectedEmployee.salaries.length > 0 ? (
+                    <table className="w-full border-collapse mt-2">
+                      <thead>
+                        <tr className="bg-purple-600 text-white">
+                          <th className="p-2 text-left text-xs border">Month</th>
+                          <th className="p-2 text-left text-xs border">Year</th>
+                          <th className="p-2 text-left text-xs border">Basic Salary</th>
+                          <th className="p-2 text-left text-xs border">Gross</th>
+                          <th className="p-2 text-left text-xs border">Net</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedEmployee.salaries.map((salary, idx) => (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                            <td className="p-2 text-xs border">{salary.monthName || `${salary.month}/${salary.year}`}</td>
+                            <td className="p-2 text-xs border">{salary.year}</td>
+                            <td className="p-2 text-xs border">{formatCurrency(salary.basicSalary)}</td>
+                            <td className="p-2 text-xs border">{formatCurrency(salary.gross)}</td>
+                            <td className="p-2 text-xs border">{formatCurrency(salary.net)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <span className="text-gray-500 italic">No salary records available</span>
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="bg-white p-6 rounded-lg shadow text-center text-gray-500">
+          Please select an employee from the list above
+        </div>
+      )}
+    </div>
+  );
+}
+

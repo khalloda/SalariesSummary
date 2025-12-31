@@ -153,6 +153,13 @@ export default function Reports() {
       path: '/reports/bonus-comparison',
       icon: '📊',
       color: 'teal'
+    },
+    {
+      title: 'Employee Card',
+      description: 'Comprehensive employee information card with all details',
+      path: '/reports/employee-card',
+      icon: '🆔',
+      color: 'purple'
     }
   ];
 

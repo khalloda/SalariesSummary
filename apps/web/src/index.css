@@ -138,5 +138,30 @@ body {
     border: 1px solid #000 !important;
     padding: 8px !important;
   }
+  
+  /* Employee Card Print Styles */
+  .print-top-box {
+    background: #667eea !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .print-table {
+    page-break-inside: avoid;
+  }
+  
+  /* Hide search and buttons when printing */
+  input[type="text"],
+  button {
+    display: none !important;
+  }
+  
+  /* Ensure employee card is full width */
+  .print-container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+  }
 }
 

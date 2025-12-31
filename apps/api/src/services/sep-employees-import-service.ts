@@ -34,18 +34,31 @@ function parseDate(value: any): Date | null {
   if (!value) return null;
   
   if (value instanceof Date) {
+    // Reject placeholder dates like January 1, 2000
+    if (value.getFullYear() === 2000 && value.getMonth() === 0 && value.getDate() === 1) {
+      return null;
+    }
     return value;
   }
   
   if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '-' || trimmed === 'N/A' || trimmed === '') {
+      return null;
+    }
+    
     // Try parsing various date formats
-    const parsed = new Date(value);
+    const parsed = new Date(trimmed);
     if (!isNaN(parsed.getTime())) {
+      // Reject placeholder dates like January 1, 2000
+      if (parsed.getFullYear() === 2000 && parsed.getMonth() === 0 && parsed.getDate() === 1) {
+        return null;
+      }
       return parsed;
     }
     
     // Try MM/DD/YY format
-    const parts = value.split('/');
+    const parts = trimmed.split('/');
     if (parts.length === 3) {
       const month = parseInt(parts[0], 10) - 1; // Month is 0-indexed
       const day = parseInt(parts[1], 10);
@@ -58,6 +71,10 @@ function parseDate(value: any): Date | null {
       
       const date = new Date(year, month, day);
       if (!isNaN(date.getTime())) {
+        // Reject placeholder dates like January 1, 2000
+        if (date.getFullYear() === 2000 && date.getMonth() === 0 && date.getDate() === 1) {
+          return null;
+        }
         return date;
       }
     }
@@ -67,7 +84,12 @@ function parseDate(value: any): Date | null {
     // Excel serial date
     const date = XLSX.SSF.parse_date_code(value);
     if (date) {
-      return new Date(date.y, date.m - 1, date.d);
+      const parsedDate = new Date(date.y, date.m - 1, date.d);
+      // Reject placeholder dates like January 1, 2000
+      if (parsedDate.getFullYear() === 2000 && parsedDate.getMonth() === 0 && parsedDate.getDate() === 1) {
+        return null;
+      }
+      return parsedDate;
     }
   }
   
@@ -176,6 +198,16 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
         columnMap[headerStr] = idx;
       }
     });
+    
+    // Also create a map for sub-headers to help identify specific columns
+    const subHeaderMap: Record<string, number> = {};
+    subHeaders.forEach((subHeader, idx) => {
+      if (!subHeader) return;
+      const subHeaderStr = String(subHeader).trim();
+      if (subHeaderStr) {
+        subHeaderMap[subHeaderStr] = idx;
+      }
+    });
 
     // Helper function to get value from a column by header name
     const getColumnValue = (headerName: string, row: any[]): any => {
@@ -193,11 +225,74 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
       return row[targetIdx] !== undefined ? row[targetIdx] : null;
     };
 
+    // Helper function to get value from a column by sub-header name
+    const getSubHeaderValue = (subHeaderName: string, row: any[]): any => {
+      const colIdx = subHeaderMap[subHeaderName];
+      if (colIdx === undefined || colIdx < 0 || colIdx >= row.length) return null;
+      return row[colIdx] !== undefined ? row[colIdx] : null;
+    };
+
     // Debug: Print column map
     console.log('Column mapping:');
     Object.entries(columnMap).forEach(([header, idx]) => {
-      console.log(`  ${header}: Column ${XLSX.utils.encode_col(idx)} (${idx})`);
+      const subHeader = subHeaders[idx] ? ` (sub: ${subHeaders[idx]})` : '';
+      console.log(`  ${header}: Column ${XLSX.utils.encode_col(idx)} (${idx})${subHeader}`);
     });
+    console.log('');
+    
+    // Debug: Check ID column position
+    if (columnMap['ID'] !== undefined) {
+      const idCol = columnMap['ID'];
+      console.log(`✅ ID column found at column ${XLSX.utils.encode_col(idCol)} (${idCol})`);
+      // Show sample value from first data row
+      if (rawData.length > 2) {
+        const sampleValue = rawData[2][idCol];
+        console.log(`   Sample ID value from row 3: "${sampleValue}"`);
+      }
+    } else {
+      console.log(`⚠️  WARNING: ID column NOT found in headers!`);
+      console.log(`   Available headers: ${Object.keys(columnMap).join(', ')}`);
+    }
+    console.log('');
+    
+    // Debug: Check NationalID column position
+    if (columnMap['NationalID'] !== undefined) {
+      const nationalIdCol = columnMap['NationalID'];
+      console.log(`✅ NationalID main header found at column ${XLSX.utils.encode_col(nationalIdCol)} (${nationalIdCol})`);
+    }
+    
+    // Debug: Check NationalID sub-headers
+    if (subHeaderMap['Number'] !== undefined) {
+      console.log(`✅ NationalID/Number sub-header found at column ${XLSX.utils.encode_col(subHeaderMap['Number'])} (${subHeaderMap['Number']})`);
+    } else {
+      console.log(`⚠️  NationalID/Number sub-header NOT found. Will try column M (index 12) directly.`);
+    }
+    
+    if (subHeaderMap['Valid Till'] !== undefined) {
+      console.log(`✅ NationalID/Valid Till sub-header found at column ${XLSX.utils.encode_col(subHeaderMap['Valid Till'])} (${subHeaderMap['Valid Till']})`);
+    } else {
+      console.log(`⚠️  NationalID/Valid Till sub-header NOT found. Will try column N (index 13) directly.`);
+    }
+    
+    // Debug: Check Contract Type and Date of Renewal
+    if (columnMap['Contract Type'] !== undefined) {
+      const contractTypeCol = columnMap['Contract Type'];
+      console.log(`✅ Contract Type main header found at column ${XLSX.utils.encode_col(contractTypeCol)} (${contractTypeCol})`);
+    }
+    
+    if (subHeaderMap['Date of Renewal'] !== undefined) {
+      console.log(`✅ Contract Type/Date of Renewal sub-header found at column ${XLSX.utils.encode_col(subHeaderMap['Date of Renewal'])} (${subHeaderMap['Date of Renewal']})`);
+    } else {
+      console.log(`⚠️  Contract Type/Date of Renewal sub-header NOT found. Will try column Y (index 24) directly.`);
+    }
+    console.log('');
+    
+    // Debug: Check Bar Association and Tax Card positions
+    if (columnMap['Bar Association'] !== undefined && columnMap['Tax Card'] !== undefined) {
+      const barCol = columnMap['Bar Association'];
+      const taxCol = columnMap['Tax Card'];
+      console.log(`Bar Association at column ${barCol}, Tax Card at column ${taxCol}, difference: ${taxCol - barCol}`);
+    }
     console.log('');
 
     console.log(`Found ${Object.keys(columnMap).length} main headers`);
@@ -212,7 +307,27 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
 
       try {
         // Basic Info
-        const employeeCode = parseString(getColumnValue('ID', row));
+        // System ID No. comes from column A "ID" (employeeCode)
+        // IMPORTANT: Always use column A (index 0) directly for employeeCode, regardless of header name
+        // This ensures we get the System ID (like "2-21") and not the NationalID
+        let employeeCode = parseString(row[0]); // Column A is always index 0
+        
+        // Also try to get from 'ID' header if it exists and column A is empty
+        if (!employeeCode) {
+          const idFromHeader = parseString(getColumnValue('ID', row));
+          if (idFromHeader) {
+            employeeCode = idFromHeader;
+            console.log(`  ⚠️  Row ${i + 1}: Column A was empty, using 'ID' header value: "${employeeCode}"`);
+          }
+        }
+        
+        // Debug: Log first few rows to verify ID is being read correctly
+        if (i <= 4) {
+          const columnAValue = row[0];
+          const idFromHeader = getColumnValue('ID', row);
+          console.log(`  Row ${i + 1}: Column A (index 0) = "${columnAValue}", 'ID' header value = "${idFromHeader}", Final employeeCode = "${employeeCode}"`);
+        }
+        
         const category = parseString(getColumnValue('Category', row));
         const nameEnglish = parseString(getColumnValue('Name in English', row));
         const nameArabic = parseString(getColumnValue('الاسم بالعربية', row));
@@ -241,10 +356,111 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
 
         // Identification Numbers
         const socialInsurance = parseString(getColumnValue('Social Insurance', row));
-        const barAssociation = parseString(getColumnValue('Bar Association', row));
-        const barValidTill = parseDate(getAdjacentValue('Bar Association', 1, row));
-        const barDegree = parseString(getAdjacentValue('Bar Association', 2, row));
+        
+        // Bar Association has sub-headers: Number, Valid Till, Degree
+        // Find the Bar Association column, then use sub-headers to find the correct columns
+        const barAssociationCol = columnMap['Bar Association'];
+        let barAssociation: string | null = null;
+        let barValidTill: Date | null = null;
+        let barDegree: string | null = null;
+        
+        if (barAssociationCol !== undefined) {
+          barAssociation = parseString(row[barAssociationCol]);
+          
+          // Find the "Degree" column by looking for sub-headers containing "Degree" or "درجة"
+          // Search in a range around the Bar Association column (up to 5 columns)
+          let degreeCol: number | null = null;
+          let validTillCol: number | null = null;
+          
+          for (let offset = 1; offset <= 5; offset++) {
+            const checkCol = barAssociationCol + offset;
+            if (checkCol >= subHeaders.length) break;
+            
+            const subHeader = String(subHeaders[checkCol] || '').toLowerCase();
+            if (subHeader.includes('degree') || subHeader.includes('درجة') || subHeader.includes('قيد')) {
+              degreeCol = checkCol;
+            }
+            if (subHeader.includes('valid') || subHeader.includes('till') || subHeader.includes('تاريخ')) {
+              validTillCol = checkCol;
+            }
+          }
+          
+          // Use found columns or fall back to offsets
+          if (validTillCol !== null) {
+            barValidTill = parseDate(row[validTillCol]);
+          } else {
+            barValidTill = parseDate(getAdjacentValue('Bar Association', 1, row));
+          }
+          
+          if (degreeCol !== null) {
+            barDegree = parseString(row[degreeCol]);
+          } else {
+            // Fall back to offset 2, but verify it's not the Tax Card column
+            const taxCardCol = columnMap['Tax Card'];
+            const fallbackCol = barAssociationCol + 2;
+            if (taxCardCol !== undefined && fallbackCol === taxCardCol) {
+              // This is the Tax Card column, not the Degree! Try offset 1 or 3
+              if (barAssociationCol + 1 !== taxCardCol && barAssociationCol + 1 < row.length) {
+                barDegree = parseString(row[barAssociationCol + 1]);
+              } else if (barAssociationCol + 3 !== taxCardCol && barAssociationCol + 3 < row.length) {
+                barDegree = parseString(row[barAssociationCol + 3]);
+              }
+            } else {
+              barDegree = parseString(getAdjacentValue('Bar Association', 2, row));
+            }
+          }
+        }
+        
+        // Tax Card is a separate column (not adjacent to Bar Association)
         const taxCard = parseString(getColumnValue('Tax Card', row));
+        
+        // NationalID has sub-headers: "Number" (column M, index 12) and "Valid Till" (column N, index 13)
+        // Since "Number" appears under both NationalID and Bar Association, we need to find the correct one
+        // by checking which sub-header is adjacent to the NationalID main header
+        let nationalIdNumber: string | null = null;
+        let nationalIdValidTill: Date | null = null;
+        
+        const nationalIdMainCol = columnMap['NationalID'];
+        
+        if (nationalIdMainCol !== undefined) {
+          // NationalID main header found - check adjacent columns for sub-headers
+          // Column M (index 12) should have "Number" sub-header
+          // Column N (index 13) should have "Valid Till" sub-header
+          
+          // Check if sub-header at column M is "Number" (under NationalID)
+          if (subHeaders[nationalIdMainCol] && String(subHeaders[nationalIdMainCol]).trim() === 'Number') {
+            nationalIdNumber = parseString(row[nationalIdMainCol]);
+          } else {
+            // Try column M directly (index 12) - this is the known position
+            nationalIdNumber = parseString(row[12]);
+          }
+          
+          // Check if sub-header at column N is "Valid Till" (under NationalID)
+          if (subHeaders[nationalIdMainCol + 1] && String(subHeaders[nationalIdMainCol + 1]).trim() === 'Valid Till') {
+            nationalIdValidTill = parseDate(row[nationalIdMainCol + 1]);
+          } else {
+            // Try column N directly (index 13) - this is the known position
+            nationalIdValidTill = parseDate(row[13]);
+          }
+        } else {
+          // NationalID main header not found - use direct column indices as fallback
+          // Column M (index 12) = NationalID/Number
+          // Column N (index 13) = NationalID/Valid Till
+          nationalIdNumber = parseString(row[12]);
+          nationalIdValidTill = parseDate(row[13]);
+        }
+        
+        // Debug: Log first few rows to verify NationalID is being read correctly
+        if (i <= 4) {
+          const usedColM = nationalIdMainCol !== undefined ? nationalIdMainCol : 12;
+          const usedColN = nationalIdMainCol !== undefined ? nationalIdMainCol + 1 : 13;
+          console.log(`  Row ${i + 1}: NationalID Number = "${nationalIdNumber}" (from column ${XLSX.utils.encode_col(usedColM)}/${usedColM}), Valid Till = "${nationalIdValidTill}" (from column ${XLSX.utils.encode_col(usedColN)}/${usedColN})`);
+        }
+        
+        // Safety check: If employeeCode looks like a NationalID (very long number), warn
+        if (employeeCode && employeeCode.length > 10 && /^\d+$/.test(employeeCode.replace(/[^\d]/g, ''))) {
+          console.log(`  ⚠️  WARNING Row ${i + 1}: employeeCode "${employeeCode}" looks like a NationalID! Column A might be wrong.`);
+        }
 
         // Contact Information
         const address = parseString(getColumnValue('Address', row));
@@ -256,7 +472,41 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
         // Employment Details
         const contractType = parseString(getColumnValue('Contract Type', row));
         const contractDuration = parseString(getAdjacentValue('Contract Type', 1, row));
-        const contractRenewalDate = parseDate(getAdjacentValue('Contract Type', 2, row));
+        
+        // Contract Renewal Date: Use "Date of Renewal" sub-header under "Contract Type" (column Y, index 24)
+        // Similar to NationalID, find the sub-header in the context of the main header
+        let contractRenewalDate: Date | null = null;
+        const contractTypeMainCol = columnMap['Contract Type'];
+        
+        if (contractTypeMainCol !== undefined) {
+          // Contract Type main header found - check for "Date of Renewal" sub-header in adjacent columns
+          // Look for the sub-header in a range around the Contract Type column (up to 5 columns)
+          for (let offset = 0; offset <= 5; offset++) {
+            const checkCol = contractTypeMainCol + offset;
+            if (checkCol < subHeaders.length && subHeaders[checkCol]) {
+              const subHeaderStr = String(subHeaders[checkCol]).trim();
+              if (subHeaderStr === 'Date of Renewal') {
+                contractRenewalDate = parseDate(row[checkCol]);
+                if (i <= 4) {
+                  console.log(`  Row ${i + 1}: Found "Date of Renewal" at column ${XLSX.utils.encode_col(checkCol)} (${checkCol}), value: "${contractRenewalDate ? contractRenewalDate.toISOString().split('T')[0] : 'null'}"`);
+                }
+                break;
+              }
+            }
+          }
+          
+          // If not found via sub-header, try column Y directly (index 24)
+          if (!contractRenewalDate && row[24]) {
+            contractRenewalDate = parseDate(row[24]);
+            if (i <= 4) {
+              console.log(`  Row ${i + 1}: Using column Y (index 24) directly for Date of Renewal, value: "${contractRenewalDate ? contractRenewalDate.toISOString().split('T')[0] : 'null'}"`);
+            }
+          }
+        } else {
+          // Contract Type main header not found - use direct column index Y (24) as fallback
+          contractRenewalDate = parseDate(row[24]);
+        }
+        
         const status = parseString(getColumnValue('Status', row));
 
         // Experience - Experience In has Years and Months in adjacent columns
@@ -279,25 +529,37 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
           });
         }
 
+        // Store NationalID in dedicated fields (not in additionalData)
+        // IMPORTANT: NationalID should NEVER overwrite employeeCode
+        if (i <= 4) {
+          if (nationalIdNumber) {
+            console.log(`  Row ${i + 1}: Storing NationalID "${nationalIdNumber}" in nationalId field`);
+          } else {
+            console.log(`  Row ${i + 1}: No NationalID found (NationalID column may be empty or not found)`);
+          }
+        }
+        
         const employeeData = {
           name: primaryName,
           normalizedName,
           category,
-          employeeCode,
+          employeeCode, // Column A "ID" - used for System ID No.
           nameArabic,
           jobTitle,
           department,
           dateOfBirth,
           joiningDate,
-          graduationCertificate: graduationCertificate || section,
-          graduationSection: section,
-          graduationUniversity: university,
-          graduationYear: year,
+          graduationCertificate,
+          graduationSection,
+          graduationUniversity,
+          graduationYear,
           socialInsurance,
           barAssociation,
           barAssociationValidTill: barValidTill,
           barAssociationDegree: barDegree,
           taxCard,
+          nationalId: nationalIdNumber, // National ID Number from NationalID column
+          nationalIdValidTill: nationalIdValidTill, // National ID Valid Till date
           address,
           addressRegion,
           addressGovernorate,
@@ -305,7 +567,10 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
           mobileNumber,
           contractType,
           contractDuration,
-          contractRenewalDate,
+          // Don't overwrite contractRenewalDate from AllOffice if it's a placeholder date
+          // The Contracts sheet import should handle the correct renewal date
+          contractRenewalDate: contractRenewalDate && 
+            new Date(contractRenewalDate).getFullYear() > 2001 ? contractRenewalDate : undefined,
           status,
           experienceInYears,
           experienceInMonths,
@@ -315,19 +580,25 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
 
         if (employee) {
           // Update existing employee
-          await prisma.employee.update({
+          const updated = await prisma.employee.update({
             where: { id: employee.id },
             data: employeeData
           });
           result.recordsUpdated++;
-          console.log(`  ✅ Updated: ${primaryName} (${employeeCode || 'No ID'})`);
+          
+          console.log(`  ✅ Updated: ${primaryName}`);
+          console.log(`     - employeeCode: "${updated.employeeCode || 'null'}" (from column A)`);
+          console.log(`     - nationalId: "${updated.nationalId || 'null'}" (from NationalID column)`);
         } else {
           // Create new employee
-          await prisma.employee.create({
+          const created = await prisma.employee.create({
             data: employeeData
           });
           result.recordsImported++;
-          console.log(`  ➕ Created: ${primaryName} (${employeeCode || 'No ID'})`);
+          
+          console.log(`  ➕ Created: ${primaryName}`);
+          console.log(`     - employeeCode: "${created.employeeCode || 'null'}" (from column A)`);
+          console.log(`     - nationalId: "${created.nationalId || 'null'}" (from NationalID column)`);
         }
 
       } catch (error: any) {

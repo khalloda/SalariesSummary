@@ -86,6 +86,35 @@ employeesRouter.get('/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/employees/:id/card
+ * Get employee details for Employee Card report
+ */
+employeesRouter.get('/:id/card', async (req, res) => {
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: req.params.id },
+      include: {
+        salaries: {
+          orderBy: [
+            { year: 'desc' },
+            { month: 'desc' }
+          ],
+          take: 12 // Get last 12 months
+        }
+      }
+    });
+    
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    
+    res.json(employee);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/employees/:id/all-years
  * Get all salary records for an employee across all years
  */

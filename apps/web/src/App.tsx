@@ -24,6 +24,7 @@ import EmployeeBonus from './pages/EmployeeBonus';
 import AnnualBonusReport from './pages/AnnualBonusReport';
 import BonusComparison from './pages/BonusComparison';
 import BonusImport from './pages/BonusImport';
+import EmployeeCard from './pages/EmployeeCard';
 
 function App() {
   const { i18n } = useTranslation();
@@ -60,6 +61,7 @@ function App() {
           <Route path="/reports/month-to-month-comparison" element={<MonthToMonthComparison />} />
           <Route path="/reports/annual-bonus" element={<AnnualBonusReport />} />
           <Route path="/reports/bonus-comparison" element={<BonusComparison />} />
+          <Route path="/reports/employee-card" element={<EmployeeCard />} />
           <Route path="/import/bonus" element={<BonusImport />} />
         </Routes>
       </Layout>

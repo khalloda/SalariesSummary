@@ -41,6 +41,8 @@ model Employee {
   barAssociationValidTill DateTime? // Bar Association Valid Till
   barAssociationDegree  String? // درجة القيد (Bar Association Degree)
   taxCard               String? // Tax Card Number
+  nationalId            String? // National ID Number (from NationalID column)
+  nationalIdValidTill   DateTime? // National ID Valid Till date
   
   // Contact Information
   address               String? // Address Details
@@ -64,8 +66,16 @@ model Employee {
   // Additional metadata (stored as JSON for flexibility)
   additionalData        String? // JSON string for any other fields
   
+  // Personnel data (stored as JSON)
+  personnelData         String? // JSON: { criminalRecord, militaryCertificate, idCopy, educationCertificate, birthCertificate, recommendationLetter, personalPhotos, taxCard, associationId, form6, laptopPcTablet, workStub, insuranceStartDate }
+  
+  // Resignation data
+  resignationDate       DateTime? // Date of resignation
+  resignationReason     String? // Reason for resignation
+  
   salaries    SalaryRecord[]
   annualBonuses AnnualBonus[]
+  contractRecords ContractRecord[]
   
   @@index([normalizedName])
   @@index([category])
@@ -178,5 +188,27 @@ model AnnualBonus {
   @@index([year])
   @@index([employeeId])
   @@index([year, employeeId])
+}
+
+model ContractRecord {
+  id                String   @id @default(cuid())
+  employeeId        String?
+  employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Contract details
+  employeeName      String?  // Employee name (for matching)
+  employeeCode      String?  // Employee code (for matching)
+  contractDate      DateTime? // Contract/renewal date
+  contractDuration  String?  // Contract Duration (e.g., "Renewal for One Year")
+  comments          String?  // Comments/notes
+  
+  // Metadata
+  sourceFile        String?  // Source file name
+  importedAt        DateTime @default(now())
+  
+  @@index([employeeId])
+  @@index([employeeName])
+  @@index([employeeCode])
+  @@index([contractDate])
 }
 
