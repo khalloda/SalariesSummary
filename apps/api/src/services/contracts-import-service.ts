@@ -152,7 +152,7 @@ export async function importContracts(filePath?: string): Promise<ContractsImpor
     const workbook = XLSX.read(data, {
       type: 'buffer',
       cellDates: true,
-      cellFormulas: false,
+      cellFormula: false,
       cellStyles: false,
       cellNF: false,
       cellText: false
@@ -169,7 +169,7 @@ export async function importContracts(filePath?: string): Promise<ContractsImpor
       header: 1,
       raw: false,
       defval: null
-    });
+    }) as any[][];
 
     if (rawData.length < 2) {
       result.success = false;
@@ -178,13 +178,18 @@ export async function importContracts(filePath?: string): Promise<ContractsImpor
     }
 
     // Headers are in row 0
-    const headers = rawData[0] || [];
+    const headers = (rawData[0] || []) as any[];
     const nameColIdx = headers.findIndex((h: any) => h && String(h).trim().toLowerCase() === 'name');
     const contractDurationColIdx = headers.findIndex((h: any) => h && String(h).trim().toLowerCase().includes('contract duration'));
     const commentsColIdx = headers.findIndex((h: any) => h && String(h).trim().toLowerCase() === 'comments');
 
     console.log(`Found columns: Name=${nameColIdx}, Contract Duration=${contractDurationColIdx}, Comments=${commentsColIdx}`);
     console.log(`Processing ${rawData.length - 1} data rows...\n`);
+
+    // Track current employee info across rows (contracts are grouped by employee)
+    let currentEmployeeCode: string | null = null;
+    let currentEmployeeName: string | null = null;
+    let currentEmployee: any = null;
 
     // Process data rows (starting from row 1)
     for (let i = 1; i < rawData.length; i++) {
@@ -194,91 +199,96 @@ export async function importContracts(filePath?: string): Promise<ContractsImpor
       }
 
       try {
-        const nameValue = nameColIdx >= 0 ? row[nameColIdx] : null;
+        // Get values from columns A, B, C, D directly
+        // Column A (index 0): "From" date or employee code
+        // Column B (index 1): "To" date or employee name
+        // Column C (index 2): "Contract Duration"
+        // Column D (index 3): "Comments"
+        const columnA = row[0];
+        const columnB = row[1];
         const contractDuration = contractDurationColIdx >= 0 ? parseString(row[contractDurationColIdx]) : null;
         const comments = commentsColIdx >= 0 ? parseString(row[commentsColIdx]) : null;
 
-        // Skip if no contract duration
-        if (!contractDuration) {
-          continue;
-        }
-
-        // Parse contract date and employee identifier
-        // The Name column can contain: employee code, employee name, or date
-        // Column B might also contain dates
-        let contractDate: Date | null = null;
-        let employeeName: string | null = null;
-        let employeeCode: string | null = null;
-
-        // Check column B for date (sometimes the date is in column B)
-        const columnB = row[1];
-        const dateFromB = parseDate(columnB);
-        if (dateFromB) {
-          contractDate = dateFromB;
-        }
-
-        if (nameValue) {
-          const nameStr = String(nameValue).trim();
+        // Check if column A contains an employee code (e.g., "3-1", "2-4")
+        // This indicates the start of a new employee's contract section
+        const columnAStr = columnA ? String(columnA).trim() : '';
+        const isEmployeeRow = /^\d+-\d+/.test(columnAStr);
+        
+        if (isEmployeeRow) {
+          // This is an employee identifier row
+          currentEmployeeCode = columnAStr;
+          currentEmployeeName = columnB ? String(columnB).trim() : null;
           
-          // Try to parse as date first
-          const dateFromName = parseDate(nameValue);
-          if (dateFromName) {
-            contractDate = dateFromName;
-          } else {
-            // If not a date, treat as employee identifier
-            // Check if it looks like an employee code (e.g., "3-1", "2-4")
-            if (/^\d+-\d+/.test(nameStr)) {
-              employeeCode = nameStr;
-            } else if (nameStr !== 'From' && nameStr !== 'Resigned') {
-              employeeName = nameStr;
-            }
+          // Try to find the employee in the database
+          currentEmployee = await prisma.employee.findFirst({
+            where: { employeeCode: currentEmployeeCode }
+          });
+          
+          if (!currentEmployee && currentEmployeeName) {
+            const normalizedName = normalizeEmployeeName(currentEmployeeName);
+            currentEmployee = await prisma.employee.findUnique({
+              where: { normalizedName }
+            });
           }
+          
+          if (i <= 5) {
+            console.log(`  📋 Row ${i + 1}: Found employee ${currentEmployeeCode} - ${currentEmployeeName || 'N/A'} ${currentEmployee ? `(Linked)` : '(Not found in DB)'}`);
+          }
+          
+          // Check if there's a date in the Comments column (sometimes the latest renewal date is here)
+          // This is informational - we'll use individual contract dates from the records below
+          continue; // Move to next row (contract records follow)
         }
-
-        // Also check comments for dates
+        
+        // This is a contract record row
+        // Skip if no contract duration (empty rows or header rows like "From"/"To")
+        if (!contractDuration) {
+          // Skip rows that are just headers or separators
+          if (columnAStr === 'From' || columnAStr === 'Resigned' || columnAStr === '') {
+            continue;
+          }
+          // If we have dates but no duration, it might be a valid record - continue processing
+        }
+        
+        // Parse contract dates from columns A ("From") and B ("To")
+        // Use "To" date as the contract date (renewal/end date)
+        let contractDate: Date | null = null;
+        const dateFromA = parseDate(columnA); // "From" date
+        const dateFromB = parseDate(columnB); // "To" date
+        
+        // Prefer "To" date as it represents when the contract ends/renews
+        contractDate = dateFromB || dateFromA;
+        
+        // If we still don't have a contract date, check comments
         if (!contractDate && comments) {
           const dateFromComments = parseDate(comments);
           if (dateFromComments) {
             contractDate = dateFromComments;
           }
         }
-
-        // Try to find employee
-        let employee = null;
-        if (employeeCode) {
-          employee = await prisma.employee.findFirst({
-            where: { employeeCode }
-          });
-        }
-        if (!employee && employeeName) {
-          const normalizedName = normalizeEmployeeName(employeeName);
-          employee = await prisma.employee.findUnique({
-            where: { normalizedName }
-          });
-        }
-
+        
         // Create contract record
         const contractData = {
-          employeeId: employee?.id || null,
-          employeeName,
-          employeeCode,
+          employeeId: currentEmployee?.id || null,
+          employeeName: currentEmployeeName,
+          employeeCode: currentEmployeeCode,
           contractDate,
-          contractDuration,
+          contractDuration: contractDuration || null,
           comments,
           sourceFile: 'SEPEmployees.xlsx'
         };
-
+        
         await prisma.contractRecord.create({
           data: contractData
         });
-
-        if (employee) {
+        
+        if (currentEmployee) {
           result.recordsLinked++;
         }
-
+        
         result.recordsImported++;
-        if (i <= 5) {
-          console.log(`  ✅ Row ${i + 1}: Imported ${contractDuration} ${contractDate ? `(Date: ${contractDate.toISOString().split('T')[0]})` : '(No date)'} ${employee ? `(Linked to ${employee.name})` : '(No employee match)'}`);
+        if (result.recordsImported <= 5) {
+          console.log(`  ✅ Row ${i + 1}: Imported ${contractDuration || 'N/A'} ${contractDate ? `(Date: ${contractDate.toISOString().split('T')[0]})` : '(No date)'} ${currentEmployee ? `(Linked to ${currentEmployee.name})` : `(Employee: ${currentEmployeeCode || 'N/A'})`}`);
         }
 
       } catch (error: any) {
