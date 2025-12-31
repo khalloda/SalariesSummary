@@ -22,6 +22,11 @@ export default function Dashboard() {
   const [selectedPairs, setSelectedPairs] = useState<Set<number>>(new Set());
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [useFileUpload, setUseFileUpload] = useState(true);
+  const [importingEmployees, setImportingEmployees] = useState(false);
+  const [selectedEmployeeFile, setSelectedEmployeeFile] = useState<File | null>(null);
+  const [useEmployeeFileUpload, setUseEmployeeFileUpload] = useState(true);
+  const [employeeImportReport, setEmployeeImportReport] = useState<any>(null);
+  const [showEmployeeImportReport, setShowEmployeeImportReport] = useState(false);
   
   useEffect(() => {
     // Fetch available years from database
@@ -51,6 +56,65 @@ export default function Dashboard() {
         file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
       );
       setSelectedFiles(excelFiles);
+    }
+  };
+
+  const handleEmployeeFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setSelectedEmployeeFile(files[0]);
+    }
+  };
+
+  const handleImportEmployees = async () => {
+    setImportingEmployees(true);
+    setEmployeeImportReport(null);
+    setShowEmployeeImportReport(false);
+    try {
+      let response;
+      
+      if (useEmployeeFileUpload && selectedEmployeeFile) {
+        // Upload file from client
+        const formData = new FormData();
+        formData.append('file', selectedEmployeeFile);
+        
+        response = await axios.post(`${API_BASE_URL}/import/employees/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        // Use server-side Sheets directory
+        response = await axios.post(`${API_BASE_URL}/import/employees`);
+      }
+      
+      if (response.data.success) {
+        setEmployeeImportReport(response.data);
+        setShowEmployeeImportReport(true);
+        const errorMsg = response.data.errors && response.data.errors.length > 0
+          ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}`
+          : '';
+        alert(`Employee import successful!\n\n- ${response.data.recordsImported} employees created\n- ${response.data.recordsUpdated} employees updated${errorMsg}\n\nClick "View Import Report" to see detailed information.`);
+        // Clear selected file after successful import
+        setSelectedEmployeeFile(null);
+        // Reset file input
+        const fileInput = document.getElementById('employee-file-input') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      } else {
+        const errorMsg = response.data.errors && response.data.errors.length > 0
+          ? response.data.errors.slice(0, 10).join('\n')
+          : 'Unknown error';
+        alert(`Employee import completed with errors:\n\n${errorMsg}`);
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      const errorDetails = error.response?.data?.stack 
+        ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
+        : '';
+      alert(`Employee import failed: ${errorMsg}${errorDetails}`);
+      console.error('Employee import error:', error);
+    } finally {
+      setImportingEmployees(false);
     }
   };
 
@@ -356,6 +420,107 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Employee Import Section */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-4">Employee Import</h2>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <p className="text-sm text-gray-600 mb-4">
+            Import employee data from SEPEmployees.xlsx (AllOffice sheet). This will create or update employee records with all available information.
+          </p>
+          
+          {/* File Upload Section */}
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="mb-3">
+              <label className="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={useEmployeeFileUpload}
+                  onChange={(e) => setUseEmployeeFileUpload(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium">Upload file from my computer</span>
+              </label>
+              <p className="text-xs text-gray-500 ml-6">
+                {useEmployeeFileUpload 
+                  ? 'Select SEPEmployees.xlsx from your computer to import'
+                  : 'Use SEPEmployees.xlsx from server Sheets directory (legacy method)'}
+              </p>
+            </div>
+            
+            {useEmployeeFileUpload && (
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Select SEPEmployees.xlsx File
+                </label>
+                <input
+                  id="employee-file-input"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleEmployeeFileSelect}
+                  disabled={importingEmployees || importing || clearing || merging}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 disabled:opacity-50"
+                />
+                {selectedEmployeeFile && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600">
+                      <strong>Selected:</strong> {selectedEmployeeFile.name} ({(selectedEmployeeFile.size / 1024).toFixed(1)} KB)
+                    </p>
+                  </div>
+                )}
+                {useEmployeeFileUpload && !selectedEmployeeFile && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    ⚠️ Please select SEPEmployees.xlsx file to import
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={handleImportEmployees}
+              disabled={importingEmployees || importing || clearing || merging || (useEmployeeFileUpload && !selectedEmployeeFile)}
+              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+            >
+              {importingEmployees ? 'Importing Employees...' : 'Import Employees'}
+            </button>
+            {employeeImportReport && (
+              <button
+                onClick={() => setShowEmployeeImportReport(!showEmployeeImportReport)}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                {showEmployeeImportReport ? 'Hide' : 'View'} Import Report
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Employee Import Report */}
+      {showEmployeeImportReport && employeeImportReport && (
+        <div className="mb-6 bg-white p-6 rounded-lg shadow">
+          <h3 className="text-xl font-bold mb-4">Employee Import Report</h3>
+          <div className="mb-4">
+            <p><strong>Records Created:</strong> {employeeImportReport.recordsImported}</p>
+            <p><strong>Records Updated:</strong> {employeeImportReport.recordsUpdated}</p>
+            <p><strong>Total Processed:</strong> {employeeImportReport.recordsImported + employeeImportReport.recordsUpdated}</p>
+            {employeeImportReport.errors && employeeImportReport.errors.length > 0 && (
+              <div className="mt-2">
+                <p><strong>Errors:</strong> {employeeImportReport.errors.length}</p>
+                <ul className="list-disc list-inside text-red-600 text-sm max-h-48 overflow-y-auto">
+                  {employeeImportReport.errors.map((error: string, idx: number) => (
+                    <li key={idx}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {employeeImportReport.errors && employeeImportReport.errors.length === 0 && (
+              <p className="text-green-600 mt-2">✅ No errors during import!</p>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* Import Report */}
       {showImportReport && importReport && (

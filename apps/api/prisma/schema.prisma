@@ -20,11 +20,58 @@ model Employee {
   createdAt   DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
+  // SEPEmployees.xlsx fields - Basic Info
+  nameArabic  String?  // الاسم بالعربية
+  jobTitle    String?  // Job Title
+  department  String?  // Department
+  
+  // Dates
+  dateOfBirth DateTime? // Date of Birth
+  joiningDate DateTime? // Joining Date
+  
+  // Education
+  graduationCertificate String? // Graduation - Certificate (Ph.D., Masters, Bachelor, etc.)
+  graduationSection    String? // Graduation - Section (International Business Law, Private Law, etc.)
+  graduationUniversity  String? // Graduation - University / School
+  graduationYear        Int?    // Graduation - Year
+  
+  // Identification Numbers
+  socialInsurance       String? // Social Insurance Number
+  barAssociation        String? // Bar Association Number
+  barAssociationValidTill DateTime? // Bar Association Valid Till
+  barAssociationDegree  String? // درجة القيد (Bar Association Degree)
+  taxCard               String? // Tax Card Number
+  
+  // Contact Information
+  address               String? // Address Details
+  addressRegion         String? // Region / City
+  addressGovernorate    String? // Governorate
+  extension             String? // Extension
+  mobileNumber          String? // Mobile Number
+  
+  // Employment Details
+  contractType          String? // Contract Type
+  contractDuration      String? // Contract Duration
+  contractRenewalDate   DateTime? // Date of Renewal
+  status                String? // Status (Active, Resigned)
+  
+  // Experience
+  experienceInYears     Int?    // Experience In - Years
+  experienceInMonths    Int?    // Experience In - Months
+  experienceOutYears    Int?    // Experience Out - Years
+  experienceOutMonths   Int?    // Experience Out - Months
+  
+  // Additional metadata (stored as JSON for flexibility)
+  additionalData        String? // JSON string for any other fields
+  
   salaries    SalaryRecord[]
   annualBonuses AnnualBonus[]
   
   @@index([normalizedName])
   @@index([category])
+  @@index([department])
+  @@index([status])
+  @@index([employeeCode])
 }
 
 model SalaryRecord {

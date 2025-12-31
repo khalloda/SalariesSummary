@@ -5,6 +5,7 @@ import { readFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { importAllWorkbooks } from '../services/import-service.js';
 import { parseBonusSheet, importBonusRecords } from '../services/bonus-import-service.js';
+import { importSEPEmployees } from '../services/sep-employees-import-service.js';
 import XLSX from 'xlsx';
 
 export const importRouter = Router();
@@ -350,6 +351,84 @@ importRouter.post('/bonus/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/import/employees
+ * Import employees from SEPEmployees.xlsx (from server Sheets directory)
+ */
+importRouter.post('/employees', async (req, res) => {
+  try {
+    console.log('SEP Employees import request received (server-side Sheets directory)');
+    const result = await importSEPEmployees();
+    console.log(`Import completed: ${result.recordsImported} created, ${result.recordsUpdated} updated, ${result.errors.length} errors`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('SEP Employees import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/import/employees/upload
+ * Import employees from uploaded SEPEmployees.xlsx file
+ */
+importRouter.post('/employees/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    const filePath = req.file.path;
+    const fileName = req.file.originalname;
+
+    console.log(`SEP Employees import request received with file: ${fileName}`);
+
+    try {
+      // Import from uploaded file
+      const result = await importSEPEmployees(filePath);
+
+      // Clean up uploaded file
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+
+      console.log(`Import completed: ${result.recordsImported} created, ${result.recordsUpdated} updated, ${result.errors.length} errors`);
+      res.json(result);
+    } catch (error: any) {
+      // Clean up on error
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Could not delete temporary file ${filePath}:`, cleanupError);
+      }
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('SEP Employees import error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
