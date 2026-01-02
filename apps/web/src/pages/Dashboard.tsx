@@ -353,7 +353,7 @@ export default function Dashboard() {
       {/* Quick Access to Management */}
       <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-sm border border-blue-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <button
             onClick={() => navigate('/manage/employees')}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
@@ -381,6 +381,13 @@ export default function Dashboard() {
           >
             <div className="font-semibold text-gray-900 mb-1">🎁 Bonuses</div>
             <div className="text-sm text-gray-600">Manage bonus records</div>
+          </button>
+          <button
+            onClick={() => navigate('/manage/bulk-salary')}
+            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
+          >
+            <div className="font-semibold text-gray-900 mb-1">📊 Bulk Salary Entry</div>
+            <div className="text-sm text-gray-600">Create month salary for all employees</div>
           </button>
         </div>
       </div>

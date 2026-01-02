@@ -11,6 +11,7 @@ import { employeesCrudRouter } from './routes/employees-crud.js';
 import { contractsCrudRouter } from './routes/contracts-crud.js';
 import { salariesCrudRouter } from './routes/salaries-crud.js';
 import { bonusesCrudRouter } from './routes/bonuses-crud.js';
+import { bulkSalaryRouter } from './routes/bulk-salary.js';
 import { reportsRouter } from './routes/reports.js';
 import { exportsRouter } from './routes/exports.js';
 import { annualBonusExportRouter } from './routes/annual-bonus-export.js';
@@ -50,6 +51,7 @@ app.use('/api/employees', employeesCrudRouter); // CRUD operations
 app.use('/api/contracts', contractsCrudRouter);
 app.use('/api/salaries', salariesCrudRouter);
 app.use('/api/bonuses', bonusesCrudRouter);
+app.use('/api/bulk-salary', bulkSalaryRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/exports', exportsRouter);
 app.use('/api/exports', annualBonusExportRouter);

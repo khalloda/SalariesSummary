@@ -31,6 +31,7 @@ import EmployeeManagement from './pages/EmployeeManagement';
 import ContractManagement from './pages/ContractManagement';
 import SalaryManagement from './pages/SalaryManagement';
 import BonusManagement from './pages/BonusManagement';
+import BulkSalaryEntry from './pages/BulkSalaryEntry';
 
 function App() {
   const { i18n } = useTranslation();
@@ -56,6 +57,7 @@ function App() {
           <Route path="/manage/contracts" element={<ContractManagement />} />
           <Route path="/manage/salaries" element={<SalaryManagement />} />
           <Route path="/manage/bonuses" element={<BonusManagement />} />
+          <Route path="/manage/bulk-salary" element={<BulkSalaryEntry />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/category-totals" element={<CategoryTotals />} />
           <Route path="/reports/joiners-leavers" element={<JoinersLeavers />} />
