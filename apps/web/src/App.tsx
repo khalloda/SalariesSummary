@@ -27,6 +27,10 @@ import BonusImport from './pages/BonusImport';
 import EmployeeCard from './pages/EmployeeCard';
 import EmployeeDetails from './pages/EmployeeDetails';
 import EmployeeDetail from './pages/EmployeeDetail';
+import EmployeeManagement from './pages/EmployeeManagement';
+import ContractManagement from './pages/ContractManagement';
+import SalaryManagement from './pages/SalaryManagement';
+import BonusManagement from './pages/BonusManagement';
 
 function App() {
   const { i18n } = useTranslation();
@@ -48,6 +52,10 @@ function App() {
           <Route path="/employees/:id" element={<EmployeeDetail />} />
           <Route path="/employees/:id/annual" element={<EmployeeAnnual />} />
           <Route path="/employees/:id/bonus" element={<EmployeeBonus />} />
+          <Route path="/manage/employees" element={<EmployeeManagement />} />
+          <Route path="/manage/contracts" element={<ContractManagement />} />
+          <Route path="/manage/salaries" element={<SalaryManagement />} />
+          <Route path="/manage/bonuses" element={<BonusManagement />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/category-totals" element={<CategoryTotals />} />
           <Route path="/reports/joiners-leavers" element={<JoinersLeavers />} />

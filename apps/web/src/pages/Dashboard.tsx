@@ -350,6 +350,41 @@ export default function Dashboard() {
   
   return (
     <div>
+      {/* Quick Access to Management */}
+      <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-sm border border-blue-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <button
+            onClick={() => navigate('/manage/employees')}
+            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
+          >
+            <div className="font-semibold text-gray-900 mb-1">👥 Employees</div>
+            <div className="text-sm text-gray-600">Manage employee records</div>
+          </button>
+          <button
+            onClick={() => navigate('/manage/contracts')}
+            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
+          >
+            <div className="font-semibold text-gray-900 mb-1">📄 Contracts</div>
+            <div className="text-sm text-gray-600">Manage contract records</div>
+          </button>
+          <button
+            onClick={() => navigate('/manage/salaries')}
+            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
+          >
+            <div className="font-semibold text-gray-900 mb-1">💰 Salaries</div>
+            <div className="text-sm text-gray-600">Manage salary records</div>
+          </button>
+          <button
+            onClick={() => navigate('/manage/bonuses')}
+            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
+          >
+            <div className="font-semibold text-gray-900 mb-1">🎁 Bonuses</div>
+            <div className="text-sm text-gray-600">Manage bonus records</div>
+          </button>
+        </div>
+      </div>
+
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-4">{t('dashboard')}</h2>
         <div className="bg-white p-6 rounded-lg shadow">

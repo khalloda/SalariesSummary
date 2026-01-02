@@ -7,6 +7,10 @@ import cors from 'cors';
 console.log('📦 Loading routes...');
 import { importRouter } from './routes/import.js';
 import { employeesRouter } from './routes/employees.js';
+import { employeesCrudRouter } from './routes/employees-crud.js';
+import { contractsCrudRouter } from './routes/contracts-crud.js';
+import { salariesCrudRouter } from './routes/salaries-crud.js';
+import { bonusesCrudRouter } from './routes/bonuses-crud.js';
 import { reportsRouter } from './routes/reports.js';
 import { exportsRouter } from './routes/exports.js';
 import { annualBonusExportRouter } from './routes/annual-bonus-export.js';
@@ -42,6 +46,10 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/import', importRouter);
 app.use('/api/employees', employeesRouter);
+app.use('/api/employees', employeesCrudRouter); // CRUD operations
+app.use('/api/contracts', contractsCrudRouter);
+app.use('/api/salaries', salariesCrudRouter);
+app.use('/api/bonuses', bonusesCrudRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/exports', exportsRouter);
 app.use('/api/exports', annualBonusExportRouter);
