@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import Tooltip from '../components/Tooltip';
+import { tooltips } from '../utils/tooltips';
 
 interface AssetData {
   employeeId: string;
@@ -186,30 +188,38 @@ export default function AssetInventoryReport() {
       <div className="flex justify-between items-center mb-6 no-print">
         <h2 className="text-3xl font-bold">Asset Inventory Report</h2>
         <div className="flex gap-2">
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Print
-          </button>
-          <button
-            onClick={() => handleExport('pdf')}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Export PDF
-          </button>
-          <button
-            onClick={() => handleExport('xlsx')}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Export XLSX
-          </button>
-          <button
-            onClick={() => handleExport('csv')}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Export CSV
-          </button>
+          <Tooltip content={tooltips.reports.print}>
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Print
+            </button>
+          </Tooltip>
+          <Tooltip content={tooltips.reports.exportPDF}>
+            <button
+              onClick={() => handleExport('pdf')}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Export PDF
+            </button>
+          </Tooltip>
+          <Tooltip content={tooltips.reports.exportXLSX}>
+            <button
+              onClick={() => handleExport('xlsx')}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Export XLSX
+            </button>
+          </Tooltip>
+          <Tooltip content={tooltips.reports.exportCSV}>
+            <button
+              onClick={() => handleExport('csv')}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Export CSV
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -272,31 +282,39 @@ export default function AssetInventoryReport() {
       <div className="bg-white p-4 rounded-lg shadow mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+            <Tooltip content={tooltips.reports.filterByCategory}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            </Tooltip>
+            <Tooltip content={tooltips.reports.filterByCategory}>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="all">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </Tooltip>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
-            <select
-              value={assetFilter}
-              onChange={(e) => setAssetFilter(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="all">All Assets</option>
-              <option value="Laptop">Laptop</option>
-              <option value="PC">PC</option>
-              <option value="Tablet">Tablet</option>
-              <option value="none">None</option>
-            </select>
+            <Tooltip content={tooltips.reports.assetType}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
+            </Tooltip>
+            <Tooltip content={tooltips.reports.assetType}>
+              <select
+                value={assetFilter}
+                onChange={(e) => setAssetFilter(e.target.value)}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="all">All Assets</option>
+                <option value="Laptop">Laptop</option>
+                <option value="PC">PC</option>
+                <option value="Tablet">Tablet</option>
+                <option value="none">None</option>
+              </select>
+            </Tooltip>
           </div>
         </div>
       </div>

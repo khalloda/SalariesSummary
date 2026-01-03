@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import Tooltip from '../components/Tooltip';
+import { tooltips } from '../utils/tooltips';
 
 const logo = '/logo.png';
 
@@ -349,26 +351,32 @@ export default function EmployeeCard() {
         {/* Export Buttons */}
         {selectedEmployee && (
           <div className="flex gap-2 mb-4 no-print">
-            <button
-              onClick={handleExportPDF}
-              disabled={exporting}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-            >
-              {exporting ? 'Exporting...' : 'Export PDF'}
-            </button>
-            <button
-              onClick={handleExportXLSX}
-              disabled={exporting}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-            >
-              {exporting ? 'Exporting...' : 'Export XLSX'}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Print
-            </button>
+            <Tooltip content={tooltips.reports.exportPDF}>
+              <button
+                onClick={handleExportPDF}
+                disabled={exporting}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                {exporting ? 'Exporting...' : 'Export PDF'}
+              </button>
+            </Tooltip>
+            <Tooltip content={tooltips.reports.exportXLSX}>
+              <button
+                onClick={handleExportXLSX}
+                disabled={exporting}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {exporting ? 'Exporting...' : 'Export XLSX'}
+              </button>
+            </Tooltip>
+            <Tooltip content={tooltips.reports.print}>
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Print
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>

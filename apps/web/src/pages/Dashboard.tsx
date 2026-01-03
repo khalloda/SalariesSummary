@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import Tooltip from '../components/Tooltip';
+import { tooltips } from '../utils/tooltips';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -460,22 +462,26 @@ export default function Dashboard() {
         <h2 className="text-2xl font-bold mb-4">{t('dashboard')}</h2>
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">{t('year')}</label>
-            <select
-              value={year}
-              onChange={(e) => setYear(parseInt(e.target.value))}
-              className="border rounded px-3 py-2"
-            >
-              {availableYears.length > 0 ? (
-                availableYears.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))
-              ) : (
-                Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))
-              )}
-            </select>
+            <Tooltip content={tooltips.dashboard.yearSelector}>
+              <label className="block text-sm font-medium mb-2">{t('year')}</label>
+            </Tooltip>
+            <Tooltip content={tooltips.dashboard.yearSelector}>
+              <select
+                value={year}
+                onChange={(e) => setYear(parseInt(e.target.value))}
+                className="border rounded px-3 py-2"
+              >
+                {availableYears.length > 0 ? (
+                  availableYears.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))
+                ) : (
+                  Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))
+                )}
+              </select>
+            </Tooltip>
           </div>
           <div className="mb-4">
             <p className="text-sm text-gray-600">{t('lastImported')}: {lastImport || 'Never'}</p>
@@ -484,15 +490,17 @@ export default function Dashboard() {
           {/* File Upload Section */}
           <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div className="mb-3">
-              <label className="flex items-center gap-2 mb-2">
-                <input
-                  type="checkbox"
-                  checked={useFileUpload}
-                  onChange={(e) => setUseFileUpload(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm font-medium">Upload files from my computer</span>
-              </label>
+              <Tooltip content={tooltips.dashboard.fileUpload}>
+                <label className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={useFileUpload}
+                    onChange={(e) => setUseFileUpload(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-medium">Upload files from my computer</span>
+                </label>
+              </Tooltip>
               <p className="text-xs text-gray-500 ml-6">
                 {useFileUpload 
                   ? 'Select Excel files (.xlsx) from your computer to import'
@@ -536,56 +544,70 @@ export default function Dashboard() {
           </div>
           
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={handleImport}
-              disabled={importing || clearing || merging || (useFileUpload && selectedFiles.length === 0)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {importing ? 'Importing...' : 'Import Salaries'}
-            </button>
-            <button
-              onClick={() => navigate('/import/bonus')}
-              disabled={importing || clearing || merging}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-            >
-              Import Bonuses
-            </button>
-            <button
-              onClick={handlePreviewDuplicates}
-              disabled={importing || clearing || merging}
-              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
-            >
-              {merging ? 'Loading...' : 'Preview Duplicates'}
-            </button>
-            <button
-              onClick={handleMergeDuplicates}
-              disabled={importing || clearing || merging}
-              className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
-            >
-              {merging ? 'Merging...' : 'Auto Merge All'}
-            </button>
-            <button
-              onClick={handleClearDatabase}
-              disabled={importing || clearing || merging}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-            >
-              {clearing ? 'Clearing...' : 'Clear Database'}
-            </button>
-            {importReport && (
+            <Tooltip content={tooltips.dashboard.importSalaries}>
               <button
-                onClick={() => setShowImportReport(!showImportReport)}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                onClick={handleImport}
+                disabled={importing || clearing || merging || (useFileUpload && selectedFiles.length === 0)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
               >
-                {showImportReport ? 'Hide' : 'View'} Import Report
+                {importing ? 'Importing...' : 'Import Salaries'}
               </button>
+            </Tooltip>
+            <Tooltip content="Import annual bonus data from Excel files">
+              <button
+                onClick={() => navigate('/import/bonus')}
+                disabled={importing || clearing || merging}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                Import Bonuses
+              </button>
+            </Tooltip>
+            <Tooltip content="Preview duplicate employees before merging">
+              <button
+                onClick={handlePreviewDuplicates}
+                disabled={importing || clearing || merging}
+                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
+              >
+                {merging ? 'Loading...' : 'Preview Duplicates'}
+              </button>
+            </Tooltip>
+            <Tooltip content={tooltips.dashboard.mergeDuplicates}>
+              <button
+                onClick={handleMergeDuplicates}
+                disabled={importing || clearing || merging}
+                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+              >
+                {merging ? 'Merging...' : 'Auto Merge All'}
+              </button>
+            </Tooltip>
+            <Tooltip content={tooltips.dashboard.clearData}>
+              <button
+                onClick={handleClearDatabase}
+                disabled={importing || clearing || merging}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                {clearing ? 'Clearing...' : 'Clear Database'}
+              </button>
+            </Tooltip>
+            {importReport && (
+              <Tooltip content={tooltips.dashboard.viewImportReport}>
+                <button
+                  onClick={() => setShowImportReport(!showImportReport)}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  {showImportReport ? 'Hide' : 'View'} Import Report
+                </button>
+              </Tooltip>
             )}
             {mergeReport && (
-              <button
-                onClick={() => setShowMergeReport(!showMergeReport)}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-              >
-                {showMergeReport ? 'Hide' : 'View'} Merge Report
-              </button>
+              <Tooltip content="View detailed merge results">
+                <button
+                  onClick={() => setShowMergeReport(!showMergeReport)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
+                  {showMergeReport ? 'Hide' : 'View'} Merge Report
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -648,20 +670,24 @@ export default function Dashboard() {
           </div>
           
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={handleImportEmployees}
-              disabled={importingEmployees || importingPersonnel || importing || clearing || merging || (useEmployeeFileUpload && !selectedEmployeeFile)}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-            >
-              {importingEmployees ? 'Importing Employees...' : 'Import Employees'}
-            </button>
-            {employeeImportReport && (
+            <Tooltip content={tooltips.dashboard.importEmployees}>
               <button
-                onClick={() => setShowEmployeeImportReport(!showEmployeeImportReport)}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                onClick={handleImportEmployees}
+                disabled={importingEmployees || importingPersonnel || importing || clearing || merging || (useEmployeeFileUpload && !selectedEmployeeFile)}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
               >
-                {showEmployeeImportReport ? 'Hide' : 'View'} Import Report
+                {importingEmployees ? 'Importing Employees...' : 'Import Employees'}
               </button>
+            </Tooltip>
+            {employeeImportReport && (
+              <Tooltip content={tooltips.dashboard.viewImportReport}>
+                <button
+                  onClick={() => setShowEmployeeImportReport(!showEmployeeImportReport)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
+                  {showEmployeeImportReport ? 'Hide' : 'View'} Import Report
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -749,20 +775,24 @@ export default function Dashboard() {
           </div>
           
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={handleImportContracts}
-              disabled={importingContracts || importingPersonnel || importing || clearing || merging || (useContractsFileUpload && !selectedContractsFile)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {importingContracts ? 'Importing Contracts...' : 'Import Contracts'}
-            </button>
-            {contractsImportReport && (
+            <Tooltip content={tooltips.dashboard.importContracts}>
               <button
-                onClick={() => setShowContractsImportReport(!showContractsImportReport)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                onClick={handleImportContracts}
+                disabled={importingContracts || importingPersonnel || importing || clearing || merging || (useContractsFileUpload && !selectedContractsFile)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
               >
-                {showContractsImportReport ? 'Hide' : 'View'} Import Report
+                {importingContracts ? 'Importing Contracts...' : 'Import Contracts'}
               </button>
+            </Tooltip>
+            {contractsImportReport && (
+              <Tooltip content={tooltips.dashboard.viewImportReport}>
+                <button
+                  onClick={() => setShowContractsImportReport(!showContractsImportReport)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                  {showContractsImportReport ? 'Hide' : 'View'} Import Report
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -797,12 +827,14 @@ export default function Dashboard() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Personnel Import</h2>
-          <button
-            onClick={() => navigate('/personnel-diagnostics')}
-            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm font-medium"
-          >
-            🔍 Run Diagnostics
-          </button>
+          <Tooltip content={tooltips.dashboard.runDiagnostics}>
+            <button
+              onClick={() => navigate('/personnel-diagnostics')}
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm font-medium"
+            >
+              🔍 Run Diagnostics
+            </button>
+          </Tooltip>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-4">
@@ -861,20 +893,24 @@ export default function Dashboard() {
           </div>
           
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={handleImportPersonnel}
-              disabled={importingPersonnel || importing || clearing || merging || (usePersonnelFileUpload && !selectedPersonnelFile)}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-            >
-              {importingPersonnel ? 'Importing Personnel...' : 'Import Personnel'}
-            </button>
-            {personnelImportReport && (
+            <Tooltip content={tooltips.dashboard.importPersonnel}>
               <button
-                onClick={() => setShowPersonnelImportReport(!showPersonnelImportReport)}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                onClick={handleImportPersonnel}
+                disabled={importingPersonnel || importing || clearing || merging || (usePersonnelFileUpload && !selectedPersonnelFile)}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
               >
-                {showPersonnelImportReport ? 'Hide' : 'View'} Import Report
+                {importingPersonnel ? 'Importing Personnel...' : 'Import Personnel'}
               </button>
+            </Tooltip>
+            {personnelImportReport && (
+              <Tooltip content={tooltips.dashboard.viewImportReport}>
+                <button
+                  onClick={() => setShowPersonnelImportReport(!showPersonnelImportReport)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
+                  {showPersonnelImportReport ? 'Hide' : 'View'} Import Report
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>

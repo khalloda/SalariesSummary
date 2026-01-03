@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import Tooltip from '../components/Tooltip';
+import { tooltips } from '../utils/tooltips';
 
 interface Employee {
   id: string;
@@ -134,23 +136,27 @@ export default function EmployeeManagement() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Employee Management</h1>
           <p className="text-gray-600">Create, update, and manage employee records</p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-        >
-          + New Employee
-        </button>
+        <Tooltip content={tooltips.management.create}>
+          <button
+            onClick={handleCreate}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            + New Employee
+          </button>
+        </Tooltip>
       </div>
 
       {/* Search */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <input
-          type="text"
-          placeholder="Search by name, ID, job title..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+        <Tooltip content={tooltips.common.search}>
+          <input
+            type="text"
+            placeholder="Search by name, ID, job title..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </Tooltip>
       </div>
 
       {/* Employee List */}
@@ -201,24 +207,30 @@ export default function EmployeeManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => navigate(`/employees/${employee.id}`)}
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleEdit(employee)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(employee.id, employee.name)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
+                      <Tooltip content={tooltips.common.viewDetails}>
+                        <button
+                          onClick={() => navigate(`/employees/${employee.id}`)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          View
+                        </button>
+                      </Tooltip>
+                      <Tooltip content={tooltips.management.edit}>
+                        <button
+                          onClick={() => handleEdit(employee)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Edit
+                        </button>
+                      </Tooltip>
+                      <Tooltip content={tooltips.management.delete}>
+                        <button
+                          onClick={() => handleDelete(employee.id, employee.name)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>
@@ -240,18 +252,20 @@ export default function EmployeeManagement() {
                 <h2 className="text-2xl font-bold text-gray-900">
                   {editingEmployee ? 'Edit Employee' : 'Create New Employee'}
                 </h2>
-                <button
-                  onClick={() => {
-                    setShowForm(false);
-                    setFormData({});
-                    setEditingEmployee(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <Tooltip content={tooltips.common.close}>
+                  <button
+                    onClick={() => {
+                      setShowForm(false);
+                      setFormData({});
+                      setEditingEmployee(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </Tooltip>
               </div>
 
               <form onSubmit={handleSubmit} className="p-6">
@@ -637,24 +651,28 @@ export default function EmployeeManagement() {
                 </div>
 
                 <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setFormData({});
-                      setEditingEmployee(null);
-                    }}
-                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {saving ? 'Saving...' : editingEmployee ? 'Update' : 'Create'}
-                  </button>
+                  <Tooltip content={tooltips.common.cancel}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForm(false);
+                        setFormData({});
+                        setEditingEmployee(null);
+                      }}
+                      className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={tooltips.management.save}>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {saving ? 'Saving...' : editingEmployee ? 'Update' : 'Create'}
+                    </button>
+                  </Tooltip>
                 </div>
               </form>
             </div>

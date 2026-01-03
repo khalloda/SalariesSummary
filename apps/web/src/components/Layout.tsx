@@ -2,6 +2,8 @@ import { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import LanguageToggle from './LanguageToggle';
+import Tooltip from './Tooltip';
+import { tooltips } from '../utils/tooltips';
 // Logo path - Vite serves files from public directory at root
 const logo = '/logo.png';
 
@@ -42,17 +44,18 @@ export default function Layout({ children }: LayoutProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`flex space-x-1 ${isRTL ? 'flex-row-reverse space-x-reverse' : ''}`}>
               {navItems.map(item => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    location.pathname === item.path
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {item.label}
-                </Link>
+                <Tooltip key={item.path} content={tooltips.navigation[item.path as keyof typeof tooltips.navigation] || item.label}>
+                  <Link
+                    to={item.path}
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      location.pathname === item.path
+                        ? 'bg-gray-900 text-white'
+                        : 'text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </Tooltip>
               ))}
             </div>
           </div>

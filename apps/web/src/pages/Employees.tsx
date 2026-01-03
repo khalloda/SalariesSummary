@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import Tooltip from '../components/Tooltip';
+import { tooltips } from '../utils/tooltips';
 
 interface Employee {
   id: string;
@@ -225,23 +227,27 @@ export default function Employees() {
       )}
       
       <div className="mb-4 flex gap-4 flex-wrap">
-        <input
-          type="text"
-          placeholder="Search employees..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border rounded px-3 py-2 w-full max-w-md"
-        />
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="all">All Categories</option>
-          {categories.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
+        <Tooltip content={tooltips.common.search}>
+          <input
+            type="text"
+            placeholder="Search employees..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border rounded px-3 py-2 w-full max-w-md"
+          />
+        </Tooltip>
+        <Tooltip content={tooltips.reports.filterByCategory}>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
+            <option value="all">All Categories</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </Tooltip>
       </div>
       <div className="space-y-6">
         {sortedCategories.map(category => {
