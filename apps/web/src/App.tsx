@@ -32,6 +32,7 @@ import ContractManagement from './pages/ContractManagement';
 import SalaryManagement from './pages/SalaryManagement';
 import BonusManagement from './pages/BonusManagement';
 import BulkSalaryEntry from './pages/BulkSalaryEntry';
+import PersonnelDiagnostics from './pages/PersonnelDiagnostics';
 
 function App() {
   const { i18n } = useTranslation();
@@ -77,6 +78,7 @@ function App() {
           <Route path="/reports/bonus-comparison" element={<BonusComparison />} />
           <Route path="/reports/employee-card" element={<EmployeeCard />} />
           <Route path="/import/bonus" element={<BonusImport />} />
+          <Route path="/personnel-diagnostics" element={<PersonnelDiagnostics />} />
         </Routes>
       </Layout>
     </BrowserRouter>

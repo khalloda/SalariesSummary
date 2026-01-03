@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
-import { normalizeEmployeeName } from '../utils/normalize.js';
+import { normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
 
 const prisma = new PrismaClient();
 
@@ -64,6 +64,91 @@ function parseString(value: any): string | null {
     return trimmed === '' || trimmed === '-' || trimmed === 'N/A' ? null : trimmed;
   }
   return String(value).trim() || null;
+}
+
+/**
+ * Parse status indicator (X, √)
+ */
+function parseStatusIndicator(value: any): 'Present' | 'Missing' | null {
+  if (!value) return null;
+  const str = String(value).trim();
+  if (str === '√' || str === '✓' || str.toLowerCase() === 'yes' || str.toLowerCase() === 'present') {
+    return 'Present';
+  }
+  if (str === 'X' || str === '✗' || str.toLowerCase() === 'no' || str.toLowerCase() === 'missing') {
+    return 'Missing';
+  }
+  return null;
+}
+
+/**
+ * Parse document status (Copy, Original, N/A, X)
+ */
+function parseDocumentStatus(value: any): 'Copy' | 'Original' | 'N/A' | 'Missing' | null {
+  if (!value) return null;
+  const str = String(value).trim().toUpperCase();
+  if (str === 'COPY') return 'Copy';
+  if (str === 'ORIGINAL') return 'Original';
+  if (str === 'N/A' || str === 'NA' || str === 'NOT APPLICABLE') return 'N/A';
+  if (str === 'X' || str === '✗') return 'Missing';
+  return null;
+}
+
+/**
+ * Parse asset type
+ */
+function parseAssetType(value: any): 'Laptop' | 'PC' | 'Tablet' | 'None' | null {
+  if (!value) return null;
+  const str = String(value).trim().toUpperCase();
+  if (str.includes('LAPTOP')) return 'Laptop';
+  if (str === 'PC' || str.includes('DESKTOP')) return 'PC';
+  if (str.includes('TABLET')) return 'Tablet';
+  if (str === 'N/A' || str === 'NONE') return 'None';
+  return null;
+}
+
+/**
+ * Parse insurance start date
+ */
+function parseInsuranceDate(value: any): Date | null {
+  if (!value) return null;
+  const str = String(value).trim().toUpperCase();
+  if (str === 'N/A' || str === 'NA' || str === 'NOT APPLICABLE') return null;
+  
+  // Try parsing as date
+  if (value instanceof Date) return value;
+  
+  // Try "DD-Mon-YY" format (e.g., "1-Jan-21")
+  const dateMatch = String(value).match(/(\d+)-(\w+)-(\d+)/);
+  if (dateMatch) {
+    const day = parseInt(dateMatch[1]);
+    const monthName = dateMatch[2];
+    const year = parseInt(dateMatch[3]);
+    const yearFull = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
+    
+    const monthMap: Record<string, number> = {
+      'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+      'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+    };
+    const month = monthMap[monthName.toLowerCase()];
+    if (month !== undefined) {
+      return new Date(yearFull, month, day);
+    }
+  }
+  
+  // Try standard date parsing
+  const parsed = new Date(value);
+  if (!isNaN(parsed.getTime())) return parsed;
+  
+  // Try Excel serial date
+  if (typeof value === 'number') {
+    const date = XLSX.SSF.parse_date_code(value);
+    if (date) {
+      return new Date(date.y, date.m - 1, date.d);
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -131,14 +216,49 @@ export async function importPersonnel(filePath?: string): Promise<PersonnelImpor
       if (header) {
         const headerStr = String(header).trim();
         columnMap[headerStr] = idx;
+        // Also map variations of the header
+        if (headerStr.includes('Laptop') || headerStr.includes('PC') || headerStr.includes('Tablet')) {
+          columnMap['Laptop / PC / Tablet'] = idx;
+          columnMap['Laptop / \nPC / Tablet'] = idx;
+        }
       }
     });
 
     console.log(`Found ${Object.keys(columnMap).length} columns`);
     console.log(`Processing ${rawData.length - 1} data rows...\n`);
 
+    // Cache all employees for fuzzy matching (load once)
+    let allEmployeesCache: Array<{ id: string; name: string; normalizedName: string; employeeCode: string | null }> | null = null;
+    const getAllEmployees = async () => {
+      if (!allEmployeesCache) {
+        allEmployeesCache = await prisma.employee.findMany({
+          select: {
+            id: true,
+            name: true,
+            normalizedName: true,
+            employeeCode: true
+          }
+        });
+        console.log(`  📋 Loaded ${allEmployeesCache.length} employees for matching\n`);
+      }
+      return allEmployeesCache;
+    };
+
     const getValue = (headerName: string, row: any[]): any => {
-      const colIdx = columnMap[headerName];
+      // Try exact match first
+      let colIdx = columnMap[headerName];
+      
+      // If not found, try variations
+      if (colIdx === undefined && headerName === 'Laptop / PC / Tablet') {
+        colIdx = columnMap['Laptop / \nPC / Tablet'] || 
+                 columnMap['Laptop / PC / Tablet'] ||
+                 Object.keys(columnMap).find(key => 
+                   key.includes('Laptop') || key.includes('PC') || key.includes('Tablet')
+                 ) ? columnMap[Object.keys(columnMap).find(key => 
+                   key.includes('Laptop') || key.includes('PC') || key.includes('Tablet')
+                 )!] : undefined;
+      }
+      
       if (colIdx === undefined || colIdx < 0) return null;
       return row[colIdx] !== undefined ? row[colIdx] : null;
     };
@@ -158,51 +278,152 @@ export async function importPersonnel(filePath?: string): Promise<PersonnelImpor
           continue;
         }
 
-        // Find employee
+        // Find employee with improved matching
         let employee = null;
+        
+        // Step 1: Try exact match by Employee Code
         if (employeeCode) {
           employee = await prisma.employee.findFirst({
             where: { employeeCode }
           });
         }
+        
+        // Step 2: Try exact normalized name match
         if (!employee && employeeName) {
           const normalizedName = normalizeEmployeeName(employeeName);
           employee = await prisma.employee.findUnique({
             where: { normalizedName }
           });
         }
+        
+        // Step 3: Try fuzzy/similarity matching if exact match failed
+        if (!employee && employeeName) {
+          const allEmployees = await getAllEmployees();
+          
+          // Try to find similar name
+          for (const emp of allEmployees) {
+            if (areNamesSimilar(employeeName, emp.name)) {
+              console.log(`  🔍 Fuzzy match: "${employeeName}" matched with "${emp.name}" (${emp.employeeCode || emp.id})`);
+              employee = await prisma.employee.findUnique({
+                where: { id: emp.id }
+              });
+              break;
+            }
+          }
+        }
+        
+        // Step 4: Try case-insensitive partial matching as last resort
+        if (!employee && employeeName) {
+          const normalizedSearchName = normalizeEmployeeName(employeeName);
+          // Try to find by first 3 words (handles abbreviated names)
+          const searchWords = normalizedSearchName.split(/\s+/).slice(0, 3);
+          if (searchWords.length >= 2) {
+            const searchPattern = searchWords.join(' ');
+            const allEmployees = await getAllEmployees();
+            
+            for (const emp of allEmployees) {
+              const empNormalized = normalizeEmployeeName(emp.name);
+              if (empNormalized.includes(searchPattern) || searchPattern.includes(empNormalized)) {
+                console.log(`  🔍 Partial match: "${employeeName}" partially matched with "${emp.name}"`);
+                employee = await prisma.employee.findUnique({
+                  where: { id: emp.id }
+                });
+                break;
+              }
+            }
+          }
+        }
 
-        // Collect personnel data
-        const personnelData = {
-          criminalRecord: parseString(getValue('Criminal Record', row)),
-          militaryCertificate: parseString(getValue('Military Certificate', row)),
-          idCopy: parseString(getValue('ID Copy', row)),
-          educationCertificate: parseString(getValue('Education Certificate', row)),
-          birthCertificate: parseString(getValue('Birth Certificate', row)),
-          recommendationLetter: parseString(getValue('Recommendation Letter', row)),
-          personalPhotos: parseString(getValue('Personal Photos', row)),
-          taxCard: parseString(getValue('Tax Card', row)),
-          associationId: parseString(getValue('Association ID', row)),
-          form6: parseString(getValue('Form 6', row)),
-          laptopPcTablet: parseString(getValue('Laptop / PC / Tablet', row)) || parseString(getValue('Laptop / \nPC / Tablet', row)),
-          workStub: parseString(getValue('كعب العمل', row)),
-          insuranceStartDate: parseDate(getValue('تاريخ بداية التأمين', row)),
-          status: parseString(getValue('Status', row))
-        };
+        // Parse personnel data
+        const criminalRecord = parseStatusIndicator(getValue('Criminal Record', row));
+        const militaryCert = parseDocumentStatus(getValue('Military Certificate', row));
+        const idCopyValue = parseStatusIndicator(getValue('ID Copy', row));
+        const educationCert = parseDocumentStatus(getValue('Education Certificate', row));
+        const birthCert = parseDocumentStatus(getValue('Birth Certificate', row));
+        const recommendationLetterValue = parseStatusIndicator(getValue('Recommendation Letter', row));
+        const personalPhotosValue = parseStatusIndicator(getValue('Personal Photos', row));
+        const taxCardValue = parseStatusIndicator(getValue('Tax Card', row));
+        const associationIdValue = parseStatusIndicator(getValue('Association ID', row));
+        const form6Value = parseString(getValue('Form 6', row)) || 'N/A';
+        // Try multiple variations for Laptop/PC/Tablet column
+        const laptopPcTabletRaw = getValue('Laptop / PC / Tablet', row);
+        const laptopPcTabletValue = parseAssetType(laptopPcTabletRaw);
+        const workStubValue = parseString(getValue('كعب العمل', row)) || 'N/A';
+        const insuranceStartDateValue = parseInsuranceDate(getValue('تاريخ بداية التأمين', row));
+        const statusValue = parseString(getValue('Status', row));
 
         if (employee) {
-          // Update employee with personnel data
-          await prisma.employee.update({
-            where: { id: employee.id },
-            data: {
-              personnelData: JSON.stringify(personnelData),
-              status: personnelData.status || employee.status
+          // Update or create PersonnelRecord
+          await prisma.personnelRecord.upsert({
+            where: { employeeId: employee.id },
+            create: {
+              employeeId: employee.id,
+              criminalRecord,
+              militaryCertificate: militaryCert,
+              idCopy: idCopyValue === 'Present',
+              educationCertificate: educationCert,
+              birthCertificate: birthCert,
+              recommendationLetter: recommendationLetterValue === 'Present',
+              personalPhotos: personalPhotosValue === 'Present',
+              taxCard: taxCardValue === 'Present',
+              associationId: associationIdValue === 'Present',
+              form6: form6Value,
+              laptopPcTablet: laptopPcTabletValue,
+              workStub: workStubValue,
+              insuranceStartDate: insuranceStartDateValue,
+              sourceFile: 'SEPEmployees.xlsx - Personnel'
+            },
+            update: {
+              criminalRecord,
+              militaryCertificate: militaryCert,
+              idCopy: idCopyValue === 'Present',
+              educationCertificate: educationCert,
+              birthCertificate: birthCert,
+              recommendationLetter: recommendationLetterValue === 'Present',
+              personalPhotos: personalPhotosValue === 'Present',
+              taxCard: taxCardValue === 'Present',
+              associationId: associationIdValue === 'Present',
+              form6: form6Value,
+              laptopPcTablet: laptopPcTabletValue,
+              workStub: workStubValue,
+              insuranceStartDate: insuranceStartDateValue,
+              sourceFile: 'SEPEmployees.xlsx - Personnel'
             }
           });
+
+          // Update employee status if provided
+          if (statusValue) {
+            await prisma.employee.update({
+              where: { id: employee.id },
+              data: { status: statusValue }
+            });
+          }
+
           result.recordsUpdated++;
           console.log(`  ✅ Updated: ${employee.name} (Personnel data)`);
         } else {
-          result.errors.push(`Row ${i + 1}: Employee not found (${employeeCode || employeeName})`);
+          // Try to find potential matches for better error reporting
+          let potentialMatches: string[] = [];
+          if (employeeName) {
+            const allEmployees = await getAllEmployees();
+            const normalizedSearchName = normalizeEmployeeName(employeeName);
+            const searchWords = normalizedSearchName.split(/\s+/).slice(0, 2); // First 2 words
+            
+            if (searchWords.length >= 1) {
+              for (const emp of allEmployees) {
+                const empNormalized = normalizeEmployeeName(emp.name);
+                // Check if first word matches
+                if (searchWords[0] && empNormalized.includes(searchWords[0])) {
+                  potentialMatches.push(emp.name);
+                  if (potentialMatches.length >= 3) break; // Limit to 3 suggestions
+                }
+              }
+            }
+          }
+          
+          const errorMsg = `Row ${i + 1}: Employee not found (${employeeCode || employeeName})${potentialMatches.length > 0 ? ` - Potential matches: ${potentialMatches.join(', ')}` : ''}`;
+          result.errors.push(errorMsg);
+          console.log(`  ⚠️  ${errorMsg}`);
         }
 
       } catch (error: any) {

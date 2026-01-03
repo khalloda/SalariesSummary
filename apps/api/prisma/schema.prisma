@@ -76,6 +76,7 @@ model Employee {
   salaries    SalaryRecord[]
   annualBonuses AnnualBonus[]
   contractRecords ContractRecord[]
+  personnelRecord PersonnelRecord?
   
   @@index([normalizedName])
   @@index([category])
@@ -210,5 +211,40 @@ model ContractRecord {
   @@index([employeeName])
   @@index([employeeCode])
   @@index([contractDate])
+}
+
+model PersonnelRecord {
+  id                    String    @id @default(cuid())
+  employeeId            String   @unique
+  employee              Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Document Status Fields
+  criminalRecord        String?  // 'Present', 'Missing'
+  militaryCertificate   String?  // 'Copy', 'Original', 'N/A', 'Missing'
+  idCopy                Boolean? @default(true)
+  educationCertificate  String?  // 'Copy', 'Original', 'Missing'
+  birthCertificate      String?  // 'Copy', 'Original', 'Missing'
+  recommendationLetter  Boolean? // true = Present, false = Missing
+  personalPhotos        Boolean? // true = Present, false = Missing
+  taxCard               Boolean? // true = Present, false = Missing
+  associationId         Boolean? // true = Present, false = Missing
+  form6                 String?  @default("N/A") // 'N/A', 'Present', 'Missing'
+  
+  // Asset Fields
+  laptopPcTablet        String?  // JSON array: ['Laptop', 'PC', 'Tablet'] or single value for backward compatibility
+  
+  // Other Fields
+  workStub              String?  @default("N/A") // 'N/A', 'Present', 'Missing'
+  insuranceStartDate    DateTime?
+  
+  // Metadata
+  importedAt            DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  sourceFile            String?
+  
+  @@index([criminalRecord])
+  @@index([militaryCertificate])
+  @@index([laptopPcTablet])
+  @@index([insuranceStartDate])
 }
 

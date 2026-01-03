@@ -99,6 +99,7 @@ employeesRouter.get('/:id/details', async (req, res) => {
             contractDate: 'desc'
           }
         },
+        personnelRecord: true,
         _count: {
           select: {
             salaries: true,
@@ -134,7 +135,8 @@ employeesRouter.get('/:id/card', async (req, res) => {
             { month: 'desc' }
           ],
           take: 12 // Get last 12 months
-        }
+        },
+        personnelRecord: true
       }
     });
     
@@ -473,6 +475,7 @@ employeesRouter.get('/all/details', async (req, res) => {
             contractDate: 'desc'
           }
         },
+        personnelRecord: true,
         _count: {
           select: {
             salaries: true,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 
@@ -17,6 +17,7 @@ interface Employee {
 
 export default function EmployeeManagement() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -28,6 +29,21 @@ export default function EmployeeManagement() {
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  // Auto-open edit modal if editId is in URL
+  useEffect(() => {
+    const editId = searchParams.get('editId');
+    if (editId && employees.length > 0 && !editingEmployee) {
+      const employee = employees.find(emp => emp.id === editId);
+      if (employee) {
+        setEditingEmployee(employee);
+        setFormData(employee);
+        setShowForm(true);
+        // Remove editId from URL
+        setSearchParams({});
+      }
+    }
+  }, [employees, searchParams, setSearchParams, editingEmployee]);
 
   const fetchEmployees = async () => {
     setLoading(true);

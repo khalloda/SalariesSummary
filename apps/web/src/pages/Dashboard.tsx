@@ -32,6 +32,11 @@ export default function Dashboard() {
   const [useContractsFileUpload, setUseContractsFileUpload] = useState(true);
   const [contractsImportReport, setContractsImportReport] = useState<any>(null);
   const [showContractsImportReport, setShowContractsImportReport] = useState(false);
+  const [importingPersonnel, setImportingPersonnel] = useState(false);
+  const [selectedPersonnelFile, setSelectedPersonnelFile] = useState<File | null>(null);
+  const [usePersonnelFileUpload, setUsePersonnelFileUpload] = useState(true);
+  const [personnelImportReport, setPersonnelImportReport] = useState<any>(null);
+  const [showPersonnelImportReport, setShowPersonnelImportReport] = useState(false);
   
   useEffect(() => {
     // Fetch available years from database
@@ -75,6 +80,13 @@ export default function Dashboard() {
     const files = event.target.files;
     if (files && files.length > 0) {
       setSelectedContractsFile(files[0]);
+    }
+  };
+
+  const handlePersonnelFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setSelectedPersonnelFile(files[0]);
     }
   };
 
@@ -179,6 +191,58 @@ export default function Dashboard() {
       console.error('Contracts import error:', error);
     } finally {
       setImportingContracts(false);
+    }
+  };
+
+  const handleImportPersonnel = async () => {
+    setImportingPersonnel(true);
+    setPersonnelImportReport(null);
+    setShowPersonnelImportReport(false);
+    try {
+      let response;
+      
+      if (usePersonnelFileUpload && selectedPersonnelFile) {
+        // Upload file from client
+        const formData = new FormData();
+        formData.append('file', selectedPersonnelFile);
+        
+        response = await axios.post(`${API_BASE_URL}/import/personnel/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        // Use server-side Sheets directory
+        response = await axios.post(`${API_BASE_URL}/import/personnel`);
+      }
+      
+      if (response.data.success) {
+        setPersonnelImportReport(response.data);
+        setShowPersonnelImportReport(true);
+        const errorMsg = response.data.errors && response.data.errors.length > 0
+          ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}`
+          : '';
+        alert(`Personnel import successful!\n\n- ${response.data.recordsUpdated} personnel records updated${errorMsg}\n\nClick "View Import Report" to see detailed information.`);
+        // Clear selected file after successful import
+        setSelectedPersonnelFile(null);
+        // Reset file input
+        const fileInput = document.getElementById('personnel-file-input') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      } else {
+        const errorMsg = response.data.errors && response.data.errors.length > 0
+          ? response.data.errors.slice(0, 10).join('\n')
+          : 'Unknown error';
+        alert(`Personnel import completed with errors:\n\n${errorMsg}`);
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      const errorDetails = error.response?.data?.stack 
+        ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
+        : '';
+      alert(`Personnel import failed: ${errorMsg}${errorDetails}`);
+      console.error('Personnel import error:', error);
+    } finally {
+      setImportingPersonnel(false);
     }
   };
 
@@ -564,7 +628,7 @@ export default function Dashboard() {
                   type="file"
                   accept=".xlsx,.xls"
                   onChange={handleEmployeeFileSelect}
-                  disabled={importingEmployees || importing || clearing || merging}
+                  disabled={importingEmployees || importingPersonnel || importing || clearing || merging}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 disabled:opacity-50"
                 />
                 {selectedEmployeeFile && (
@@ -586,7 +650,7 @@ export default function Dashboard() {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={handleImportEmployees}
-              disabled={importingEmployees || importing || clearing || merging || (useEmployeeFileUpload && !selectedEmployeeFile)}
+              disabled={importingEmployees || importingPersonnel || importing || clearing || merging || (useEmployeeFileUpload && !selectedEmployeeFile)}
               className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
             >
               {importingEmployees ? 'Importing Employees...' : 'Import Employees'}
@@ -665,7 +729,7 @@ export default function Dashboard() {
                   type="file"
                   accept=".xlsx,.xls"
                   onChange={handleContractsFileSelect}
-                  disabled={importingContracts || importing || clearing || merging}
+                  disabled={importingContracts || importingPersonnel || importing || clearing || merging}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50"
                 />
                 {selectedContractsFile && (
@@ -687,7 +751,7 @@ export default function Dashboard() {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={handleImportContracts}
-              disabled={importingContracts || importing || clearing || merging || (useContractsFileUpload && !selectedContractsFile)}
+              disabled={importingContracts || importingPersonnel || importing || clearing || merging || (useContractsFileUpload && !selectedContractsFile)}
               className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
             >
               {importingContracts ? 'Importing Contracts...' : 'Import Contracts'}
@@ -723,6 +787,116 @@ export default function Dashboard() {
               </div>
             )}
             {contractsImportReport.errors && contractsImportReport.errors.length === 0 && (
+              <p className="text-green-600 mt-2">✅ No errors during import!</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Personnel Import Section */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">Personnel Import</h2>
+          <button
+            onClick={() => navigate('/personnel-diagnostics')}
+            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm font-medium"
+          >
+            🔍 Run Diagnostics
+          </button>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <p className="text-sm text-gray-600 mb-4">
+            Import personnel data from SEPEmployees.xlsx (Personnel sheet). This will create/update HR document checklist and asset tracking records for employees.
+            <span className="block mt-2 text-xs text-blue-600">
+              💡 Having import errors? Use "Run Diagnostics" to identify missing employees and potential name matches.
+            </span>
+          </p>
+          
+          {/* File Upload Section */}
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="mb-3">
+              <label className="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={usePersonnelFileUpload}
+                  onChange={(e) => setUsePersonnelFileUpload(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium">Upload file from my computer</span>
+              </label>
+              <p className="text-xs text-gray-500 ml-6">
+                {usePersonnelFileUpload 
+                  ? 'Select SEPEmployees.xlsx from your computer to import'
+                  : 'Use SEPEmployees.xlsx from server Sheets directory (legacy method)'}
+              </p>
+            </div>
+            
+            {usePersonnelFileUpload && (
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Select SEPEmployees.xlsx File
+                </label>
+                <input
+                  id="personnel-file-input"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handlePersonnelFileSelect}
+                  disabled={importingPersonnel || importing || clearing || merging}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 disabled:opacity-50"
+                />
+                {selectedPersonnelFile && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600">
+                      <strong>Selected:</strong> {selectedPersonnelFile.name} ({(selectedPersonnelFile.size / 1024).toFixed(1)} KB)
+                    </p>
+                  </div>
+                )}
+                {usePersonnelFileUpload && !selectedPersonnelFile && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    ⚠️ Please select SEPEmployees.xlsx file to import
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={handleImportPersonnel}
+              disabled={importingPersonnel || importing || clearing || merging || (usePersonnelFileUpload && !selectedPersonnelFile)}
+              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+            >
+              {importingPersonnel ? 'Importing Personnel...' : 'Import Personnel'}
+            </button>
+            {personnelImportReport && (
+              <button
+                onClick={() => setShowPersonnelImportReport(!showPersonnelImportReport)}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                {showPersonnelImportReport ? 'Hide' : 'View'} Import Report
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Personnel Import Report */}
+      {showPersonnelImportReport && personnelImportReport && (
+        <div className="mb-6 bg-white p-6 rounded-lg shadow">
+          <h3 className="text-xl font-bold mb-4">Personnel Import Report</h3>
+          <div className="mb-4">
+            <p><strong>Records Updated:</strong> {personnelImportReport.recordsUpdated}</p>
+            {personnelImportReport.errors && personnelImportReport.errors.length > 0 && (
+              <div className="mt-2">
+                <p><strong>Errors:</strong> {personnelImportReport.errors.length}</p>
+                <ul className="list-disc list-inside text-red-600 text-sm max-h-48 overflow-y-auto">
+                  {personnelImportReport.errors.map((error: string, idx: number) => (
+                    <li key={idx}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {personnelImportReport.errors && personnelImportReport.errors.length === 0 && (
               <p className="text-green-600 mt-2">✅ No errors during import!</p>
             )}
           </div>
