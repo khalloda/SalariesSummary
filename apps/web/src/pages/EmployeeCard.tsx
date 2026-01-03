@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 
+const logo = '/logo.png';
+
 interface Employee {
   id: string;
   name: string;
@@ -41,7 +43,8 @@ interface Employee {
 }
 
 export default function EmployeeCard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -231,11 +234,63 @@ export default function EmployeeCard() {
 
   return (
     <div className="p-6">
+      <style>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          nav {
+            display: none !important;
+          }
+          header {
+            display: none !important;
+          }
+        }
+        .employee-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem;
+          background: white;
+          border-bottom: 1px solid #e5e7eb;
+          margin-bottom: 1.5rem;
+        }
+        .employee-card-header.rtl {
+          flex-direction: row-reverse;
+        }
+        .employee-card-header .logo-container {
+          flex-shrink: 0;
+        }
+        .employee-card-header .title-container {
+          flex: 1;
+          text-align: center;
+        }
+      `}</style>
+      
+      {/* Custom Header */}
+      <div className={`employee-card-header ${isRTL ? 'rtl' : ''}`}>
+        <div className="logo-container">
+          <img 
+            src={logo} 
+            alt="Logo" 
+            className="h-10 w-auto"
+          />
+        </div>
+        <div className="title-container">
+          <h1 className="text-2xl font-bold text-gray-900">Employee Card</h1>
+        </div>
+        <div className="logo-container">
+          <div className="text-sm text-gray-600 text-right" style={isRTL ? { textAlign: 'left' } : { textAlign: 'right' }}>
+            <div className="font-semibold">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            <div className="text-xs">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+          </div>
+        </div>
+      </div>
+      
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Employee Card</h2>
         
         {/* Search/Filter Section */}
-        <div className="bg-white p-4 rounded-lg shadow mb-4">
+        <div className="bg-white p-4 rounded-lg shadow mb-4 no-print">
           <label className="block text-sm font-medium mb-2">
             Search Employee (by Name, ID, or Employee Code)
           </label>
@@ -278,7 +333,7 @@ export default function EmployeeCard() {
 
         {/* Export Buttons */}
         {selectedEmployee && (
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 no-print">
             <button
               onClick={handleExportPDF}
               disabled={exporting}
@@ -307,14 +362,22 @@ export default function EmployeeCard() {
       {selectedEmployee ? (
         <div className="bg-white p-6 rounded-lg shadow print-container">
           {/* Top Box */}
-          <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 rounded-lg mb-6 flex justify-between items-center print-top-box">
-            <div>
-              <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">System ID No.</div>
-              <div className="text-lg font-bold">{selectedEmployee.employeeCode || 'N/A'}</div>
+          <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 rounded-lg mb-6 print-top-box">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">System ID No.</div>
+                <div className="text-lg font-bold">{selectedEmployee.employeeCode || 'N/A'}</div>
+              </div>
+              <div>
+                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">Category</div>
+                <div className="text-lg font-bold">{selectedEmployee.category || 'N/A'}</div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">Category</div>
-              <div className="text-lg font-bold">{selectedEmployee.category || 'N/A'}</div>
+            <div className="text-center border-t border-purple-400 pt-3 mt-3">
+              <div className="text-3xl font-bold">{selectedEmployee.name || 'N/A'}</div>
+              {selectedEmployee.nameArabic && (
+                <div className="text-xl mt-1 opacity-95">{selectedEmployee.nameArabic}</div>
+              )}
             </div>
           </div>
 

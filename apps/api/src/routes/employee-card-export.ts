@@ -399,7 +399,12 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
 
 function generateEmployeeCardHTML(employee: any): string {
   const logoBase64 = getLogoBase64();
-  const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 50px; position: absolute; top: 20px; right: 20px;" />` : '';
+  const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 40px;" />` : '';
+  
+  // Get current date and time
+  const now = new Date();
+  const printDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const printTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   
   const formatDate = (date: Date | string | null) => {
     if (!date) return 'N/A';
@@ -514,21 +519,45 @@ function generateEmployeeCardHTML(employee: any): string {
     }
     
     .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
       margin-bottom: 20px;
-      overflow: hidden;
-      position: relative;
     }
     
-    .header h1 {
+    .header-logo {
+      flex-shrink: 0;
+    }
+    
+    .header-title {
+      flex: 1;
+      text-align: center;
+    }
+    
+    .header-title h1 {
       font-size: 24px;
       color: #2c3e50;
-      margin-bottom: 15px;
+      margin: 0;
+      font-weight: bold;
     }
     
-    .logo-container {
-      position: absolute;
-      top: 0;
-      right: 0;
+    .header-date {
+      flex-shrink: 0;
+      text-align: right;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .header-date .date {
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    
+    .header-date .time {
+      font-size: 11px;
     }
     
     .top-box {
@@ -537,10 +566,14 @@ function generateEmployeeCardHTML(employee: any): string {
       padding: 15px 20px;
       border-radius: 8px;
       margin-bottom: 25px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .top-box-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
     }
     
     .top-box .info-item {
@@ -559,6 +592,24 @@ function generateEmployeeCardHTML(employee: any): string {
     .top-box .value {
       font-size: 16px;
       font-weight: bold;
+    }
+    
+    .top-box-name {
+      text-align: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+      padding-top: 15px;
+      margin-top: 15px;
+    }
+    
+    .top-box-name .name {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .top-box-name .name-arabic {
+      font-size: 20px;
+      opacity: 0.95;
     }
     
     .info-table {
@@ -645,20 +696,32 @@ function generateEmployeeCardHTML(employee: any): string {
 <body>
   <div class="card-container">
     <div class="header">
-      <div class="logo-container">
+      <div class="header-logo">
         ${logoImg}
       </div>
-      <h1>Employee Card</h1>
+      <div class="header-title">
+        <h1>Employee Card</h1>
+      </div>
+      <div class="header-date">
+        <div class="date">${printDate}</div>
+        <div class="time">${printTime}</div>
+      </div>
     </div>
     
     <div class="top-box">
-      <div class="info-item">
-        <span class="label">System ID No.</span>
-        <span class="value">${employee.employeeCode || 'N/A'}</span>
+      <div class="top-box-row">
+        <div class="info-item">
+          <span class="label">System ID No.</span>
+          <span class="value">${employee.employeeCode || 'N/A'}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Category</span>
+          <span class="value">${employee.category || 'N/A'}</span>
+        </div>
       </div>
-      <div class="info-item">
-        <span class="label">Category</span>
-        <span class="value">${employee.category || 'N/A'}</span>
+      <div class="top-box-name">
+        <div class="name">${employee.name || 'N/A'}</div>
+        ${employee.nameArabic ? `<div class="name-arabic">${employee.nameArabic}</div>` : ''}
       </div>
     </div>
     
