@@ -160,6 +160,27 @@ export default function Reports() {
       path: '/reports/employee-card',
       icon: '🆔',
       color: 'purple'
+    },
+    {
+      title: 'Document Compliance',
+      description: 'Track document completion across all employees',
+      path: '/reports/document-compliance',
+      icon: '📋',
+      color: 'blue'
+    },
+    {
+      title: 'Asset Inventory',
+      description: 'Track company-provided assets (Laptop/PC/Tablet)',
+      path: '/reports/asset-inventory',
+      icon: '💻',
+      color: 'indigo'
+    },
+    {
+      title: 'Personnel Dashboard',
+      description: 'Overview of personnel document status and compliance',
+      path: '/reports/personnel-dashboard',
+      icon: '📊',
+      color: 'teal'
     }
   ];
 

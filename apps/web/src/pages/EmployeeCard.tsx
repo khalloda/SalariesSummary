@@ -40,6 +40,21 @@ interface Employee {
     gross: number;
     net: number;
   }>;
+  personnelRecord?: {
+    criminalRecord?: string | null;
+    militaryCertificate?: string | null;
+    idCopy?: boolean | null;
+    educationCertificate?: string | null;
+    birthCertificate?: string | null;
+    recommendationLetter?: boolean | null;
+    personalPhotos?: boolean | null;
+    taxCard?: boolean | null;
+    associationId?: boolean | null;
+    form6?: string | null;
+    laptopPcTablet?: string | null;
+    workStub?: string | null;
+    insuranceStartDate?: string | null;
+  } | null;
 }
 
 export default function EmployeeCard() {
@@ -484,6 +499,45 @@ export default function EmployeeCard() {
                   )}
                 </td>
               </tr>
+
+              {/* Personnel */}
+              {selectedEmployee.personnelRecord && (
+                <tr>
+                  <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Personnel</td>
+                  <td className="p-3 border">
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="font-semibold text-gray-600">Criminal Record:</span> {selectedEmployee.personnelRecord.criminalRecord || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600">Military Certificate:</span> {selectedEmployee.personnelRecord.militaryCertificate || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600">ID Copy:</span> {selectedEmployee.personnelRecord.idCopy ? 'Present' : 'Missing'}</div>
+                        <div><span className="font-semibold text-gray-600">Education Certificate:</span> {selectedEmployee.personnelRecord.educationCertificate || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600">Birth Certificate:</span> {selectedEmployee.personnelRecord.birthCertificate || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600">Recommendation Letter:</span> {selectedEmployee.personnelRecord.recommendationLetter ? 'Present' : 'Missing'}</div>
+                        <div><span className="font-semibold text-gray-600">Personal Photos:</span> {selectedEmployee.personnelRecord.personalPhotos ? 'Present' : 'Missing'}</div>
+                        <div><span className="font-semibold text-gray-600">Tax Card:</span> {selectedEmployee.personnelRecord.taxCard ? 'Present' : 'Missing'}</div>
+                        <div><span className="font-semibold text-gray-600">Association ID:</span> {selectedEmployee.personnelRecord.associationId ? 'Present' : 'Missing'}</div>
+                        <div><span className="font-semibold text-gray-600">Form 6:</span> {selectedEmployee.personnelRecord.form6 || 'N/A'}</div>
+                      </div>
+                      <div className="border-t pt-2 mt-2">
+                        <div><span className="font-semibold text-gray-600 text-xs">Asset (Laptop/PC/Tablet):</span> 
+                          {selectedEmployee.personnelRecord.laptopPcTablet ? (
+                            (() => {
+                              try {
+                                const assets = JSON.parse(selectedEmployee.personnelRecord.laptopPcTablet);
+                                return Array.isArray(assets) ? assets.join(', ') : selectedEmployee.personnelRecord.laptopPcTablet;
+                              } catch {
+                                return selectedEmployee.personnelRecord.laptopPcTablet;
+                              }
+                            })()
+                          ) : 'None'}
+                        </div>
+                        <div><span className="font-semibold text-gray-600 text-xs">Work Stub:</span> {selectedEmployee.personnelRecord.workStub || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 text-xs">Insurance Start Date:</span> {formatDateOrNotSpecified(selectedEmployee.personnelRecord.insuranceStartDate)}</div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

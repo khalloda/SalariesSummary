@@ -10,40 +10,6 @@ const prisma = new PrismaClient();
 export const personnelRouter = Router();
 
 /**
- * GET /api/personnel/:employeeId
- * Get personnel record for a specific employee
- */
-personnelRouter.get('/:employeeId', async (req, res) => {
-  try {
-    const { employeeId } = req.params;
-
-    const personnelRecord = await prisma.personnelRecord.findUnique({
-      where: { employeeId },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            employeeCode: true,
-            category: true,
-            department: true
-          }
-        }
-      }
-    });
-
-    if (!personnelRecord) {
-      return res.status(404).json({ error: 'Personnel record not found' });
-    }
-
-    res.json(personnelRecord);
-  } catch (error: any) {
-    console.error('Error fetching personnel record:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
  * GET /api/personnel/compliance/report
  * Get document compliance report
  * Query params: category (optional), minCompliance (optional, default 0)
@@ -71,6 +37,8 @@ personnelRouter.get('/compliance/report', async (req, res) => {
         const pr = emp.personnelRecord!;
         
         // Define all document fields
+        // Note: Association ID and Tax Card are only applicable for Partners and Lawyers
+        const isPartnerOrLawyer = emp.category === 'Partner' || emp.category === 'Lawyer';
         const documents = [
           { name: 'Criminal Record', status: pr.criminalRecord },
           { name: 'Military Certificate', status: pr.militaryCertificate },
@@ -79,8 +47,8 @@ personnelRouter.get('/compliance/report', async (req, res) => {
           { name: 'Birth Certificate', status: pr.birthCertificate },
           { name: 'Recommendation Letter', status: pr.recommendationLetter ? 'Present' : 'Missing' },
           { name: 'Personal Photos', status: pr.personalPhotos ? 'Present' : 'Missing' },
-          { name: 'Tax Card', status: pr.taxCard ? 'Present' : 'Missing' },
-          { name: 'Association ID', status: pr.associationId ? 'Present' : 'Missing' }
+          { name: 'Tax Card', status: isPartnerOrLawyer ? (pr.taxCard ? 'Present' : 'Missing') : 'N/A' },
+          { name: 'Association ID', status: isPartnerOrLawyer ? (pr.associationId ? 'Present' : 'Missing') : 'N/A' }
         ];
 
         // Count completed documents (Present, Copy, Original - not Missing or N/A)
@@ -263,11 +231,19 @@ personnelRouter.get('/dashboard', async (req, res) => {
       if (pr.personalPhotos) documentStatuses['Personal Photos'].present++;
       else documentStatuses['Personal Photos'].missing++;
       
-      if (pr.taxCard) documentStatuses['Tax Card'].present++;
-      else documentStatuses['Tax Card'].missing++;
-      
-      if (pr.associationId) documentStatuses['Association ID'].present++;
-      else documentStatuses['Association ID'].missing++;
+      // Tax Card and Association ID are only applicable for Partners and Lawyers
+      const isPartnerOrLawyer = emp.category === 'Partner' || emp.category === 'Lawyer';
+      if (isPartnerOrLawyer) {
+        if (pr.taxCard) documentStatuses['Tax Card'].present++;
+        else documentStatuses['Tax Card'].missing++;
+        
+        if (pr.associationId) documentStatuses['Association ID'].present++;
+        else documentStatuses['Association ID'].missing++;
+      } else {
+        // For Admins and others, these are N/A
+        documentStatuses['Tax Card'].na++;
+        documentStatuses['Association ID'].na++;
+      }
     });
 
     // Calculate compliance by category
@@ -288,6 +264,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
       
       categoryEmployees.forEach(emp => {
         const pr = emp.personnelRecord!;
+        // Association ID and Tax Card are only applicable for Partners and Lawyers
+        const isPartnerOrLawyer = emp.category === 'Partner' || emp.category === 'Lawyer';
         const documents = [
           pr.criminalRecord,
           pr.militaryCertificate,
@@ -296,8 +274,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
           pr.birthCertificate,
           pr.recommendationLetter ? 'Present' : 'Missing',
           pr.personalPhotos ? 'Present' : 'Missing',
-          pr.taxCard ? 'Present' : 'Missing',
-          pr.associationId ? 'Present' : 'Missing'
+          isPartnerOrLawyer ? (pr.taxCard ? 'Present' : 'Missing') : 'N/A',
+          isPartnerOrLawyer ? (pr.associationId ? 'Present' : 'Missing') : 'N/A'
         ];
         
         const completed = documents.filter(s => s === 'Present' || s === 'Copy' || s === 'Original').length;
@@ -323,6 +301,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
     let totalCompliance = 0;
     employeesWithRecords.forEach(emp => {
       const pr = emp.personnelRecord!;
+      // Association ID and Tax Card are only applicable for Partners and Lawyers
+      const isPartnerOrLawyer = emp.category === 'Partner' || emp.category === 'Lawyer';
       const documents = [
         pr.criminalRecord,
         pr.militaryCertificate,
@@ -331,8 +311,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
         pr.birthCertificate,
         pr.recommendationLetter ? 'Present' : 'Missing',
         pr.personalPhotos ? 'Present' : 'Missing',
-        pr.taxCard ? 'Present' : 'Missing',
-        pr.associationId ? 'Present' : 'Missing'
+        isPartnerOrLawyer ? (pr.taxCard ? 'Present' : 'Missing') : 'N/A',
+        isPartnerOrLawyer ? (pr.associationId ? 'Present' : 'Missing') : 'N/A'
       ];
       
       const completed = documents.filter(s => s === 'Present' || s === 'Copy' || s === 'Original').length;
@@ -365,6 +345,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
       complianceLevels: {
         critical: employeesWithRecords.filter(emp => {
           const pr = emp.personnelRecord!;
+          // Association ID and Tax Card are only applicable for Partners and Lawyers
+          const isPartnerOrLawyer = emp.category === 'Partner' || emp.category === 'Lawyer';
           const documents = [
             pr.criminalRecord,
             pr.militaryCertificate,
@@ -373,8 +355,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
             pr.birthCertificate,
             pr.recommendationLetter ? 'Present' : 'Missing',
             pr.personalPhotos ? 'Present' : 'Missing',
-            pr.taxCard ? 'Present' : 'Missing',
-            pr.associationId ? 'Present' : 'Missing'
+            isPartnerOrLawyer ? (pr.taxCard ? 'Present' : 'Missing') : 'N/A',
+            isPartnerOrLawyer ? (pr.associationId ? 'Present' : 'Missing') : 'N/A'
           ];
           const completed = documents.filter(s => s === 'Present' || s === 'Copy' || s === 'Original').length;
           const applicable = documents.filter(s => s !== 'N/A' && s !== null).length;
@@ -383,6 +365,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
         }).length,
         warning: employeesWithRecords.filter(emp => {
           const pr = emp.personnelRecord!;
+          // Association ID and Tax Card are only applicable for Partners and Lawyers
+          const isPartnerOrLawyer = emp.category === 'Partner' || emp.category === 'Lawyer';
           const documents = [
             pr.criminalRecord,
             pr.militaryCertificate,
@@ -391,8 +375,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
             pr.birthCertificate,
             pr.recommendationLetter ? 'Present' : 'Missing',
             pr.personalPhotos ? 'Present' : 'Missing',
-            pr.taxCard ? 'Present' : 'Missing',
-            pr.associationId ? 'Present' : 'Missing'
+            isPartnerOrLawyer ? (pr.taxCard ? 'Present' : 'Missing') : 'N/A',
+            isPartnerOrLawyer ? (pr.associationId ? 'Present' : 'Missing') : 'N/A'
           ];
           const completed = documents.filter(s => s === 'Present' || s === 'Copy' || s === 'Original').length;
           const applicable = documents.filter(s => s !== 'N/A' && s !== null).length;
@@ -401,6 +385,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
         }).length,
         good: employeesWithRecords.filter(emp => {
           const pr = emp.personnelRecord!;
+          // Association ID and Tax Card are only applicable for Partners and Lawyers
+          const isPartnerOrLawyer = emp.category === 'Partner' || emp.category === 'Lawyer';
           const documents = [
             pr.criminalRecord,
             pr.militaryCertificate,
@@ -409,8 +395,8 @@ personnelRouter.get('/dashboard', async (req, res) => {
             pr.birthCertificate,
             pr.recommendationLetter ? 'Present' : 'Missing',
             pr.personalPhotos ? 'Present' : 'Missing',
-            pr.taxCard ? 'Present' : 'Missing',
-            pr.associationId ? 'Present' : 'Missing'
+            isPartnerOrLawyer ? (pr.taxCard ? 'Present' : 'Missing') : 'N/A',
+            isPartnerOrLawyer ? (pr.associationId ? 'Present' : 'Missing') : 'N/A'
           ];
           const completed = documents.filter(s => s === 'Present' || s === 'Copy' || s === 'Original').length;
           const applicable = documents.filter(s => s !== 'N/A' && s !== null).length;
@@ -421,6 +407,42 @@ personnelRouter.get('/dashboard', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error generating personnel dashboard:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/personnel/:employeeId
+ * Get personnel record for a specific employee
+ * NOTE: This must be defined AFTER all specific routes (like /dashboard, /compliance/report, etc.)
+ * to prevent route conflicts
+ */
+personnelRouter.get('/:employeeId', async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+
+    const personnelRecord = await prisma.personnelRecord.findUnique({
+      where: { employeeId },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            employeeCode: true,
+            category: true,
+            department: true
+          }
+        }
+      }
+    });
+
+    if (!personnelRecord) {
+      return res.status(404).json({ error: 'Personnel record not found' });
+    }
+
+    res.json(personnelRecord);
+  } catch (error: any) {
+    console.error('Error fetching personnel record:', error);
     res.status(500).json({ error: error.message });
   }
 });

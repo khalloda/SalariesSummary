@@ -22,6 +22,7 @@ import { configRouter } from './routes/config.js';
 import { personnelRouter } from './routes/personnel.js';
 import { personnelCrudRouter } from './routes/personnel-crud.js';
 import { personnelDiagnosticsRouter } from './routes/personnel-diagnostics.js';
+import { personnelExportRouter } from './routes/personnel-export.js';
 
 console.log('📦 Routes loaded successfully');
 
@@ -65,6 +66,7 @@ app.use('/api/config', configRouter);
 app.use('/api/personnel', personnelRouter);
 app.use('/api/personnel', personnelCrudRouter); // CRUD operations
 app.use('/api/personnel-diagnostics', personnelDiagnosticsRouter);
+app.use('/api/exports', personnelExportRouter);
 
 // Global error handlers
 process.on('uncaughtException', (error) => {

@@ -44,7 +44,8 @@ employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
             { month: 'desc' }
           ],
           take: 12 // Last 12 months
-        }
+        },
+        personnelRecord: true
       }
     });
     
@@ -101,7 +102,8 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
             { month: 'desc' }
           ],
           take: 12 // Last 12 months
-        }
+        },
+        personnelRecord: true
       }
     });
     
@@ -371,6 +373,54 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
         worksheet.getRow(currentRow).getCell(4).numFmt = '#,##0.00';
         worksheet.getRow(currentRow).getCell(5).numFmt = '#,##0.00';
         
+        currentRow++;
+      });
+    }
+    
+    currentRow++; // Spacing
+    
+    // Personnel
+    if (employee.personnelRecord) {
+      worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
+      const personnelHeader = worksheet.getRow(currentRow);
+      personnelHeader.getCell(1).value = 'Personnel';
+      personnelHeader.getCell(1).font = { size: 12, bold: true };
+      personnelHeader.getCell(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF5F5F5' }
+      };
+      currentRow++;
+      
+      const personnelData = [
+        ['Criminal Record', employee.personnelRecord.criminalRecord || 'N/A'],
+        ['Military Certificate', employee.personnelRecord.militaryCertificate || 'N/A'],
+        ['ID Copy', employee.personnelRecord.idCopy ? 'Present' : 'Missing'],
+        ['Education Certificate', employee.personnelRecord.educationCertificate || 'N/A'],
+        ['Birth Certificate', employee.personnelRecord.birthCertificate || 'N/A'],
+        ['Recommendation Letter', employee.personnelRecord.recommendationLetter ? 'Present' : 'Missing'],
+        ['Personal Photos', employee.personnelRecord.personalPhotos ? 'Present' : 'Missing'],
+        ['Tax Card', employee.personnelRecord.taxCard ? 'Present' : 'Missing'],
+        ['Association ID', employee.personnelRecord.associationId ? 'Present' : 'Missing'],
+        ['Form 6', employee.personnelRecord.form6 || 'N/A'],
+        ['Asset (Laptop/PC/Tablet)', employee.personnelRecord.laptopPcTablet ? (
+          (() => {
+            try {
+              const assets = JSON.parse(employee.personnelRecord.laptopPcTablet);
+              return Array.isArray(assets) ? assets.join(', ') : employee.personnelRecord.laptopPcTablet;
+            } catch {
+              return employee.personnelRecord.laptopPcTablet;
+            }
+          })()
+        ) : 'None'],
+        ['Work Stub', employee.personnelRecord.workStub || 'N/A'],
+        ['Insurance Start Date', formatDateOrNotSpecified(employee.personnelRecord.insuranceStartDate)]
+      ];
+      
+      personnelData.forEach(([label, value]) => {
+        worksheet.getRow(currentRow).getCell(1).value = label;
+        worksheet.getRow(currentRow).getCell(1).font = { bold: true };
+        worksheet.getRow(currentRow).getCell(2).value = value;
         currentRow++;
       });
     }
@@ -877,6 +927,77 @@ function generateEmployeeCardHTML(employee: any): string {
           ` : '<span class="no-data">No salary records available</span>'}
         </td>
       </tr>
+      
+      ${employee.personnelRecord ? `
+      <tr>
+        <td class="section-label">Personnel</td>
+        <td class="section-content">
+          <div class="field-row">
+            <span class="field-label">Criminal Record:</span>
+            <span class="field-value">${employee.personnelRecord.criminalRecord || 'N/A'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Military Certificate:</span>
+            <span class="field-value">${employee.personnelRecord.militaryCertificate || 'N/A'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">ID Copy:</span>
+            <span class="field-value">${employee.personnelRecord.idCopy ? 'Present' : 'Missing'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Education Certificate:</span>
+            <span class="field-value">${employee.personnelRecord.educationCertificate || 'N/A'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Birth Certificate:</span>
+            <span class="field-value">${employee.personnelRecord.birthCertificate || 'N/A'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Recommendation Letter:</span>
+            <span class="field-value">${employee.personnelRecord.recommendationLetter ? 'Present' : 'Missing'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Personal Photos:</span>
+            <span class="field-value">${employee.personnelRecord.personalPhotos ? 'Present' : 'Missing'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Tax Card:</span>
+            <span class="field-value">${employee.personnelRecord.taxCard ? 'Present' : 'Missing'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Association ID:</span>
+            <span class="field-value">${employee.personnelRecord.associationId ? 'Present' : 'Missing'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Form 6:</span>
+            <span class="field-value">${employee.personnelRecord.form6 || 'N/A'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Asset (Laptop/PC/Tablet):</span>
+            <span class="field-value">${
+              employee.personnelRecord.laptopPcTablet ? (
+                (() => {
+                  try {
+                    const assets = JSON.parse(employee.personnelRecord.laptopPcTablet);
+                    return Array.isArray(assets) ? assets.join(', ') : employee.personnelRecord.laptopPcTablet;
+                  } catch {
+                    return employee.personnelRecord.laptopPcTablet;
+                  }
+                })()
+              ) : 'None'
+            }</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Work Stub:</span>
+            <span class="field-value">${employee.personnelRecord.workStub || 'N/A'}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Insurance Start Date:</span>
+            <span class="field-value">${formatDateOrNotSpecified(employee.personnelRecord.insuranceStartDate)}</span>
+          </div>
+        </td>
+      </tr>
+      ` : ''}
     </table>
   </div>
 </body>
