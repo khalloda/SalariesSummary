@@ -166,20 +166,20 @@ export default function BulkSalaryEntry() {
 
   const renderSalariesTable = () => {
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="w-full">
+        <table className="w-full divide-y divide-gray-200 table-auto">
+          <thead className="bg-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Basic Salary</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Direct Additions</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Indirect Additions</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Yearly Increase</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Bonuses</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gross</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salary Deductions</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gross Deductions</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Net</th>
+              <th className="px-1.5 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">Employee</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Basic Salary</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Direct Additions</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Indirect Additions</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Yearly Increase</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Bonuses</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Gross</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Salary Deductions</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Gross Deductions</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Net</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -201,48 +201,48 @@ export default function BulkSalaryEntry() {
                     const net = gross - salaryDeductions - grossDeductions;
 
                     return (
-                      <tr key={emp.employeeId} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{emp.employeeName}</div>
+                      <tr key={emp.employeeId} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-200'} hover:bg-blue-200 transition-colors border-b border-gray-300`}>
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
+                          <div className="text-xs font-medium text-gray-900">{emp.employeeName}</div>
                           <div className="text-xs text-gray-500">{emp.employeeCode}</div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.basicSalary || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'basicSalary', parseFloat(e.target.value) || 0)}
-                            className="w-24 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-right text-gray-700">
                           {directAdditions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-right text-gray-700">
                           {indirectAdditions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.yearlyIncrease || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'yearlyIncrease', parseFloat(e.target.value) || 0)}
-                            className="w-24 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-right text-gray-700">
                           {bonuses.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-blue-600">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-right font-semibold text-blue-600">
                           {gross.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-right text-gray-700">
                           {salaryDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-right text-gray-700">
                           {grossDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-green-600">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-right font-bold text-green-600">
                           {net.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
@@ -250,33 +250,33 @@ export default function BulkSalaryEntry() {
                   })}
                   {categoryEmployees.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="px-4 py-3 text-center text-sm text-gray-500">
+                      <td colSpan={10} className="px-2 py-2 text-center text-xs text-gray-500">
                         No employees in this category
                       </td>
                     </tr>
                   )}
                   {/* Category Total */}
-                  <tr className="bg-gray-100 font-semibold">
-                    <td className="px-4 py-3 text-sm text-gray-900">{category} Total</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'basicSalary').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">
+                  <tr className="bg-green-100 font-semibold border-t-2 border-green-300">
+                    <td className="px-2 py-2 text-xs text-gray-900 font-bold">{category} Total</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'basicSalary').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">
                       {categoryEmployees.reduce((sum, emp) => {
                         const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                       (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
                         return sum + direct;
                       }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-2 py-2 text-xs text-right">
                       {categoryEmployees.reduce((sum, emp) => {
                         const indirect = (emp.socialInsurance || 0) + (emp.taxes || 0) + (emp.medicalInsurance || 0);
                         return sum + indirect;
                       }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">
                       {categoryEmployees.reduce((sum, emp) => sum + (emp.annualBonus || 0) + (emp.monthlyBonus || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-blue-600">
+                    <td className="px-2 py-2 text-xs text-right text-blue-600">
                       {categoryEmployees.reduce((sum, emp) => {
                         const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                       (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
@@ -285,17 +285,17 @@ export default function BulkSalaryEntry() {
                         return sum + (emp.basicSalary || 0) + indirect + direct + (emp.yearlyIncrease || 0) + bonuses;
                       }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-2 py-2 text-xs text-right">
                       {categoryEmployees.reduce((sum, emp) => {
                         return sum + (emp.otherBankWithdrawal || 0) + (emp.loansDeductions || 0) + 
                                (emp.phoneDeduction || 0) + (emp.unpaidVacation || 0) + 
                                (emp.lateArrivals || 0) + (emp.timeSheetDeductions || 0) + (emp.otherDeductions || 0);
                       }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-2 py-2 text-xs text-right">
                       {categoryEmployees.reduce((sum, emp) => sum + (emp.medicalInsuranceDeducted || 0) + (emp.lawyersTaxes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-green-600">
+                    <td className="px-2 py-2 text-xs text-right text-green-600">
                       {categoryEmployees.reduce((sum, emp) => {
                         const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                       (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
@@ -315,26 +315,26 @@ export default function BulkSalaryEntry() {
             })}
             {/* Grand Totals */}
             <tr className="bg-blue-100 font-bold border-t-2 border-blue-300">
-              <td className="px-4 py-3 text-sm text-gray-900">All Employees Total</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('basicSalary').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-gray-900">All Employees Total</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('basicSalary').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                 (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
                   return sum + direct;
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   const indirect = (emp.socialInsurance || 0) + (emp.taxes || 0) + (emp.medicalInsurance || 0);
                   return sum + indirect;
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).flat().reduce((sum, emp) => sum + (emp.annualBonus || 0) + (emp.monthlyBonus || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-blue-700">
+              <td className="px-2 py-2 text-xs text-right text-blue-700">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                 (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
@@ -343,17 +343,17 @@ export default function BulkSalaryEntry() {
                   return sum + (emp.basicSalary || 0) + indirect + direct + (emp.yearlyIncrease || 0) + bonuses;
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   return sum + (emp.otherBankWithdrawal || 0) + (emp.loansDeductions || 0) + 
                          (emp.phoneDeduction || 0) + (emp.unpaidVacation || 0) + 
                          (emp.lateArrivals || 0) + (emp.timeSheetDeductions || 0) + (emp.otherDeductions || 0);
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).flat().reduce((sum, emp) => sum + (emp.medicalInsuranceDeducted || 0) + (emp.lawyersTaxes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                 (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
@@ -370,26 +370,26 @@ export default function BulkSalaryEntry() {
             </tr>
             {/* All Employees Except Consultants Total */}
             <tr className="bg-green-100 font-bold border-t-2 border-green-300">
-              <td className="px-4 py-3 text-sm text-gray-900">All Employees (Except Consultants) Total</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('basicSalary', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-gray-900">All Employees (Except Consultants) Total</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('basicSalary', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                 (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
                   return sum + direct;
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   const indirect = (emp.socialInsurance || 0) + (emp.taxes || 0) + (emp.medicalInsurance || 0);
                   return sum + indirect;
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('yearlyIncrease', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('yearlyIncrease', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => sum + (emp.annualBonus || 0) + (emp.monthlyBonus || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                 (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
@@ -398,17 +398,17 @@ export default function BulkSalaryEntry() {
                   return sum + (emp.basicSalary || 0) + indirect + direct + (emp.yearlyIncrease || 0) + bonuses;
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   return sum + (emp.otherBankWithdrawal || 0) + (emp.loansDeductions || 0) + 
                          (emp.phoneDeduction || 0) + (emp.unpaidVacation || 0) + 
                          (emp.lateArrivals || 0) + (emp.timeSheetDeductions || 0) + (emp.otherDeductions || 0);
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right">
+              <td className="px-2 py-2 text-xs text-right">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => sum + (emp.medicalInsuranceDeducted || 0) + (emp.lawyersTaxes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-green-800">
+              <td className="px-2 py-2 text-xs text-right text-green-800">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   const direct = (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                 (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
@@ -431,24 +431,24 @@ export default function BulkSalaryEntry() {
 
   const renderAdditionsTable = () => {
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="w-full">
+        <table className="w-full divide-y divide-gray-200 table-auto">
+          <thead className="bg-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Phone Allowance</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transportation</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Accommodation</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Other Allowances</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Yearly Increase</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Annual Bonus</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Monthly Bonus</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Social Insurance</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Taxes</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Medical Insurance</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Direct Total</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Indirect Total</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Bonuses Total</th>
+              <th className="px-1.5 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">Employee</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Phone Allowance</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Transportation</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Accommodation</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Other Allowances</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Yearly Increase</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Annual Bonus</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Monthly Bonus</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Social Insurance</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Taxes</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Medical Insurance</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Direct Total</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Indirect Total</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Bonuses Total</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -464,108 +464,108 @@ export default function BulkSalaryEntry() {
                     const bonusesTotal = (emp.annualBonus || 0) + (emp.monthlyBonus || 0);
 
                     return (
-                      <tr key={emp.employeeId} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{emp.employeeName}</div>
+                      <tr key={emp.employeeId} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-200'} hover:bg-blue-200 transition-colors border-b border-gray-300`}>
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
+                          <div className="text-xs font-medium text-gray-900">{emp.employeeName}</div>
                           <div className="text-xs text-gray-500">{emp.employeeCode}</div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.phoneAllowance || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'phoneAllowance', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.transportationAllowance || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'transportationAllowance', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.accommodationAllowance || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'accommodationAllowance', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.otherAllowances || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'otherAllowances', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.yearlyIncrease || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'yearlyIncrease', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.annualBonus || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'annualBonus', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.monthlyBonus || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'monthlyBonus', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.socialInsurance || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'socialInsurance', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.taxes || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'taxes', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.medicalInsurance || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'medicalInsurance', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-blue-600">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap text-xs text-right font-semibold text-blue-600">
                           {directTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-purple-600">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap text-xs text-right font-semibold text-purple-600">
                           {indirectTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-green-600">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap text-xs text-right font-semibold text-green-600">
                           {bonusesTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
@@ -573,36 +573,36 @@ export default function BulkSalaryEntry() {
                   })}
                   {categoryEmployees.length === 0 && (
                     <tr>
-                      <td colSpan={14} className="px-4 py-3 text-center text-sm text-gray-500">
+                      <td colSpan={14} className="px-2 py-2 text-center text-xs text-gray-500">
                         No employees in this category
                       </td>
                     </tr>
                   )}
                   {/* Category Total */}
-                  <tr className="bg-gray-100 font-semibold">
-                    <td className="px-4 py-3 text-sm text-gray-900">{category} Total</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'phoneAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'transportationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'accommodationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'otherAllowances').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'annualBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'monthlyBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'socialInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'taxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'medicalInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right text-blue-600">
+                  <tr className="bg-green-100 font-semibold border-t-2 border-green-300">
+                    <td className="px-2 py-2 text-xs text-gray-900 font-bold">{category} Total</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'phoneAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'transportationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'accommodationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'otherAllowances').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'annualBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'monthlyBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'socialInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'taxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'medicalInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right text-blue-600">
                       {categoryEmployees.reduce((sum, emp) => {
                         return sum + (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                                (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
                       }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-purple-600">
+                    <td className="px-2 py-2 text-xs text-right text-purple-600">
                       {categoryEmployees.reduce((sum, emp) => {
                         return sum + (emp.socialInsurance || 0) + (emp.taxes || 0) + (emp.medicalInsurance || 0);
                       }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-green-600">
+                    <td className="px-2 py-2 text-xs text-right text-green-600">
                       {categoryEmployees.reduce((sum, emp) => sum + (emp.annualBonus || 0) + (emp.monthlyBonus || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
@@ -611,57 +611,57 @@ export default function BulkSalaryEntry() {
             })}
             {/* Grand Totals */}
             <tr className="bg-blue-100 font-bold border-t-2 border-blue-300">
-              <td className="px-4 py-3 text-sm text-gray-900">All Employees Total</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('phoneAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('transportationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('accommodationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('otherAllowances').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('annualBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('monthlyBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('socialInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('taxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('medicalInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right text-blue-700">
+              <td className="px-2 py-2 text-xs text-gray-900">All Employees Total</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('phoneAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('transportationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('accommodationAllowance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('otherAllowances').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('yearlyIncrease').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('annualBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('monthlyBonus').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('socialInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('taxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('medicalInsurance').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right text-blue-700">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   return sum + (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                          (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-purple-700">
+              <td className="px-2 py-2 text-xs text-right text-purple-700">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   return sum + (emp.socialInsurance || 0) + (emp.taxes || 0) + (emp.medicalInsurance || 0);
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).flat().reduce((sum, emp) => sum + (emp.annualBonus || 0) + (emp.monthlyBonus || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
             </tr>
             {/* All Employees Except Consultants Total */}
             <tr className="bg-green-100 font-bold border-t-2 border-green-300">
-              <td className="px-4 py-3 text-sm text-gray-900">All Employees (Except Consultants) Total</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('phoneAllowance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('transportationAllowance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('accommodationAllowance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('otherAllowances', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('yearlyIncrease', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('annualBonus', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('monthlyBonus', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('socialInsurance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('taxes', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('medicalInsurance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-gray-900">All Employees (Except Consultants) Total</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('phoneAllowance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('transportationAllowance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('accommodationAllowance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('otherAllowances', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('yearlyIncrease', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('annualBonus', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('monthlyBonus', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('socialInsurance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('taxes', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('medicalInsurance', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   return sum + (emp.phoneAllowance || 0) + (emp.transportationAllowance || 0) + 
                          (emp.accommodationAllowance || 0) + (emp.otherAllowances || 0);
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   return sum + (emp.socialInsurance || 0) + (emp.taxes || 0) + (emp.medicalInsurance || 0);
                 }, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => sum + (emp.annualBonus || 0) + (emp.monthlyBonus || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
             </tr>
@@ -673,22 +673,22 @@ export default function BulkSalaryEntry() {
 
   const renderDeductionsTable = () => {
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="w-full">
+        <table className="w-full divide-y divide-gray-200 table-auto">
+          <thead className="bg-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Medical Insurance Deducted</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lawyers Taxes</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Other Bank Withdrawal</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Loans / Deductions</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Phone Deduction</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unpaid Vacation</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Late Arrivals</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Time Sheet Deductions</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Other Deductions</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gross Deductions Total</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salary Deductions Total</th>
+              <th className="px-1.5 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">Employee</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Medical Insurance Deducted</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Lawyers Taxes</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Other Bank Withdrawal</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Loans / Deductions</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Phone Deduction</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Unpaid Vacation</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Late Arrivals</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Time Sheet Deductions</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Other Deductions</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Gross Deductions Total</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Salary Deductions Total</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -704,96 +704,96 @@ export default function BulkSalaryEntry() {
                                                  (emp.lateArrivals || 0) + (emp.timeSheetDeductions || 0) + (emp.otherDeductions || 0);
 
                     return (
-                      <tr key={emp.employeeId} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{emp.employeeName}</div>
+                      <tr key={emp.employeeId} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-200'} hover:bg-blue-200 transition-colors border-b border-gray-300`}>
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
+                          <div className="text-xs font-medium text-gray-900">{emp.employeeName}</div>
                           <div className="text-xs text-gray-500">{emp.employeeCode}</div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.medicalInsuranceDeducted || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'medicalInsuranceDeducted', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.lawyersTaxes || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'lawyersTaxes', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.otherBankWithdrawal || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'otherBankWithdrawal', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.loansDeductions || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'loansDeductions', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.phoneDeduction || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'phoneDeduction', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.unpaidVacation || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'unpaidVacation', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.lateArrivals || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'lateArrivals', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.timeSheetDeductions || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'timeSheetDeductions', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.otherDeductions || 0}
                             onChange={(e) => handleFieldChange(category, idx, 'otherDeductions', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                            className="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-red-600">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap text-xs text-right font-semibold text-red-600">
                           {grossDeductionsTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-orange-600">
+                        <td className="px-1.5 py-1.5 whitespace-nowrap text-xs text-right font-semibold text-orange-600">
                           {salaryDeductionsTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
@@ -801,27 +801,27 @@ export default function BulkSalaryEntry() {
                   })}
                   {categoryEmployees.length === 0 && (
                     <tr>
-                      <td colSpan={12} className="px-4 py-3 text-center text-sm text-gray-500">
+                      <td colSpan={12} className="px-1.5 py-1.5 text-center text-xs text-gray-500">
                         No employees in this category
                       </td>
                     </tr>
                   )}
                   {/* Category Total */}
-                  <tr className="bg-gray-100 font-semibold">
-                    <td className="px-4 py-3 text-sm text-gray-900">{category} Total</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'medicalInsuranceDeducted').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'lawyersTaxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'otherBankWithdrawal').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'loansDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'phoneDeduction').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'unpaidVacation').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'lateArrivals').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'timeSheetDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right">{calculateTotals(category, 'otherDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-sm text-right text-red-600">
+                  <tr className="bg-green-100 font-semibold border-t-2 border-green-300">
+                    <td className="px-2 py-2 text-xs text-gray-900 font-bold">{category} Total</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'medicalInsuranceDeducted').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'lawyersTaxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'otherBankWithdrawal').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'loansDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'phoneDeduction').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'unpaidVacation').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'lateArrivals').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'timeSheetDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right">{calculateTotals(category, 'otherDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-2 py-2 text-xs text-right text-red-600">
                       {categoryEmployees.reduce((sum, emp) => sum + (emp.medicalInsuranceDeducted || 0) + (emp.lawyersTaxes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-orange-600">
+                    <td className="px-2 py-2 text-xs text-right text-orange-600">
                       {categoryEmployees.reduce((sum, emp) => {
                         return sum + (emp.otherBankWithdrawal || 0) + (emp.loansDeductions || 0) + 
                                (emp.phoneDeduction || 0) + (emp.unpaidVacation || 0) + 
@@ -834,20 +834,20 @@ export default function BulkSalaryEntry() {
             })}
             {/* Grand Totals */}
             <tr className="bg-blue-100 font-bold border-t-2 border-blue-300">
-              <td className="px-4 py-3 text-sm text-gray-900">All Employees Total</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('medicalInsuranceDeducted').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('lawyersTaxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('otherBankWithdrawal').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('loansDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('phoneDeduction').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('unpaidVacation').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('lateArrivals').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('timeSheetDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('otherDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right text-red-700">
+              <td className="px-2 py-2 text-xs text-gray-900">All Employees Total</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('medicalInsuranceDeducted').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('lawyersTaxes').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('otherBankWithdrawal').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('loansDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('phoneDeduction').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('unpaidVacation').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('lateArrivals').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('timeSheetDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('otherDeductions').toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right text-red-700">
                 {Object.values(employees).flat().reduce((sum, emp) => sum + (emp.medicalInsuranceDeducted || 0) + (emp.lawyersTaxes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-orange-700">
+              <td className="px-2 py-2 text-xs text-right text-orange-700">
                 {Object.values(employees).flat().reduce((sum, emp) => {
                   return sum + (emp.otherBankWithdrawal || 0) + (emp.loansDeductions || 0) + 
                          (emp.phoneDeduction || 0) + (emp.unpaidVacation || 0) + 
@@ -857,20 +857,20 @@ export default function BulkSalaryEntry() {
             </tr>
             {/* All Employees Except Consultants Total */}
             <tr className="bg-green-100 font-bold border-t-2 border-green-300">
-              <td className="px-4 py-3 text-sm text-gray-900">All Employees (Except Consultants) Total</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('medicalInsuranceDeducted', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('lawyersTaxes', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('otherBankWithdrawal', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('loansDeductions', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('phoneDeduction', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('unpaidVacation', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('lateArrivals', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('timeSheetDeductions', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right">{calculateAllTotals('otherDeductions', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-gray-900">All Employees (Except Consultants) Total</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('medicalInsuranceDeducted', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('lawyersTaxes', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('otherBankWithdrawal', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('loansDeductions', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('phoneDeduction', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('unpaidVacation', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('lateArrivals', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('timeSheetDeductions', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right">{calculateAllTotals('otherDeductions', true).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => sum + (emp.medicalInsuranceDeducted || 0) + (emp.lawyersTaxes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-green-700">
+              <td className="px-2 py-2 text-xs text-right text-green-700">
                 {Object.values(employees).filter((_, idx) => CATEGORIES[idx] !== 'Consultants/مستشارين').flat().reduce((sum, emp) => {
                   return sum + (emp.otherBankWithdrawal || 0) + (emp.loansDeductions || 0) + 
                          (emp.phoneDeduction || 0) + (emp.unpaidVacation || 0) + 
@@ -885,9 +885,10 @@ export default function BulkSalaryEntry() {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
+    <div className="bg-gray-50 min-h-screen p-4">
+      <div className="w-full mx-auto">
+        <div className="mb-6 flex justify-between items-center">
+          <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Bulk Salary Entry</h1>
           <p className="text-gray-600">Create salary records for all employees for a specific month</p>
         </div>
@@ -969,7 +970,7 @@ export default function BulkSalaryEntry() {
           </div>
 
           {/* Table Content */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="bg-white rounded-lg shadow-sm p-2 overflow-x-auto">
             {activeTab === 'salaries' && renderSalariesTable()}
             {activeTab === 'additions' && renderAdditionsTable()}
             {activeTab === 'deductions' && renderDeductionsTable()}
@@ -994,6 +995,7 @@ export default function BulkSalaryEntry() {
           <p className="text-sm text-gray-400">This will load all active employees and copy their last month's salary data (or set to 0 if no previous data exists)</p>
         </div>
       )}
+      </div>
     </div>
   );
 }
