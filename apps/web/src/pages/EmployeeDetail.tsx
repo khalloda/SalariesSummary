@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import PersonnelEditModal from '../components/PersonnelEditModal';
@@ -124,6 +125,7 @@ function calculateWorkDuration(joiningDate: string | null): string {
 }
 
 export default function EmployeeDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -160,12 +162,12 @@ export default function EmployeeDetail() {
     setSavingPersonnel(true);
     try {
       await axios.put(`${API_BASE_URL}/personnel/employee/${employee.id}`, personnelFormData);
-      alert('Personnel data updated successfully');
+      alert(t('personnelDataUpdatedSuccessfully'));
       setEditingPersonnel(false);
       fetchEmployee(); // Refresh employee data
     } catch (err: any) {
       console.error('Error saving personnel data:', err);
-      alert(`Failed to save personnel data: ${err.response?.data?.error || err.message}`);
+      alert(`${t('failedToSave')} ${t('personnel').toLowerCase()}: ${err.response?.data?.error || err.message}`);
     } finally {
       setSavingPersonnel(false);
     }
@@ -249,13 +251,13 @@ export default function EmployeeDetail() {
                   onClick={() => navigate(`/employees/${employee.id}/annual?year=${new Date().getFullYear()}`)}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
-                  Annual Report
+                  {t('annualReport')}
                 </button>
                 <button
                   onClick={() => navigate(`/employees/${employee.id}/bonus?year=${new Date().getFullYear()}`)}
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                 >
-                  Bonus Report
+                  {t('bonusReport')}
                 </button>
                 <button
                   onClick={() => navigate(`/reports/employee-card?employeeId=${employee.id}`)}
@@ -474,7 +476,7 @@ export default function EmployeeDetail() {
         {employee.contractRecords && employee.contractRecords.length > 0 && (
           <div className="mt-6 bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-              Contract Renewals History ({employee.contractRecords.length})
+              {t('contractRenewalsHistory')} ({employee.contractRecords.length})
             </h2>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -535,7 +537,7 @@ export default function EmployeeDetail() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-600 text-sm font-medium">Salary Records</p>
+                <p className="text-blue-600 text-sm font-medium">{t('salaryRecords')}</p>
                 <p className="text-3xl font-bold text-blue-900 mt-2">{employee._count.salaries}</p>
               </div>
               <div className="text-blue-400">
@@ -548,7 +550,7 @@ export default function EmployeeDetail() {
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-600 text-sm font-medium">Contract Records</p>
+                <p className="text-green-600 text-sm font-medium">{t('contractRecords')}</p>
                 <p className="text-3xl font-bold text-green-900 mt-2">{employee._count.contractRecords}</p>
               </div>
               <div className="text-green-400">

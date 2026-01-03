@@ -110,7 +110,7 @@ export default function DocumentComplianceReport() {
       if (format === 'csv') {
         if (!data) return;
         
-        const headers = ['Employee Code', 'Name', 'Category', 'Department', 'Compliance %', 'Completed', 'Total', 'Missing Documents'];
+        const headers = [t('employeeCodeHeader'), t('nameHeader'), t('categoryHeader'), t('department'), t('compliancePercentage'), t('completed'), t('totalHeader'), t('missingDocuments')];
         const rows = data.employees.map(emp => [
           emp.employeeCode,
           emp.employeeName,
@@ -181,14 +181,14 @@ export default function DocumentComplianceReport() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6 no-print">
-        <h2 className="text-3xl font-bold">Document Compliance Report</h2>
+        <h2 className="text-3xl font-bold">{t('documentComplianceReport')}</h2>
         <div className="flex gap-2">
           <Tooltip content={tooltips.reports.print}>
             <button
               onClick={handlePrint}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              Print
+              {t('print')}
             </button>
           </Tooltip>
           <Tooltip content={tooltips.reports.exportPDF}>
@@ -196,7 +196,7 @@ export default function DocumentComplianceReport() {
               onClick={() => handleExport('pdf')}
               className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             >
-              Export PDF
+              {t('exportPDF')}
             </button>
           </Tooltip>
           <Tooltip content={tooltips.reports.exportXLSX}>
@@ -204,7 +204,7 @@ export default function DocumentComplianceReport() {
               onClick={() => handleExport('xlsx')}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
             >
-              Export XLSX
+              {t('exportXLSX')}
             </button>
           </Tooltip>
           <Tooltip content={tooltips.reports.exportCSV}>
@@ -212,7 +212,7 @@ export default function DocumentComplianceReport() {
               onClick={() => handleExport('csv')}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              Export CSV
+              {t('exportCSV')}
             </button>
           </Tooltip>
         </div>
@@ -225,17 +225,17 @@ export default function DocumentComplianceReport() {
           <div className="text-3xl font-bold text-gray-900">{data.summary.totalEmployees}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Average Compliance</div>
+          <div className="text-sm text-gray-600 mb-1">{t('averageCompliance')}</div>
           <div className="text-3xl font-bold text-blue-600">
             {data.summary.averageCompliance.toFixed(1)}%
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Critical (&lt;70%)</div>
+          <div className="text-sm text-gray-600 mb-1">{t('critical')}</div>
           <div className="text-3xl font-bold text-red-600">{data.summary.complianceLevels.critical}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Good (≥90%)</div>
+          <div className="text-sm text-gray-600 mb-1">{t('good')}</div>
           <div className="text-3xl font-bold text-green-600">{data.summary.complianceLevels.good}</div>
         </div>
       </div>
@@ -245,7 +245,7 @@ export default function DocumentComplianceReport() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Tooltip content={tooltips.reports.filterByCategory}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('filterByCategory')}</label>
             </Tooltip>
             <Tooltip content={tooltips.reports.filterByCategory}>
               <select
@@ -253,7 +253,7 @@ export default function DocumentComplianceReport() {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               >
-                <option value="all">All Categories</option>
+                <option value="all">{t('allCategories')}</option>
                 {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
@@ -262,7 +262,7 @@ export default function DocumentComplianceReport() {
           </div>
           <div>
             <Tooltip content={tooltips.reports.minCompliance}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Min Compliance %</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('minCompliance')}</label>
             </Tooltip>
             <Tooltip content={tooltips.reports.minCompliance}>
               <select
@@ -270,7 +270,7 @@ export default function DocumentComplianceReport() {
                 onChange={(e) => setMinComplianceFilter(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               >
-                <option value="0">All</option>
+                <option value="0">{t('all')}</option>
                 <option value="70">≥70%</option>
                 <option value="80">≥80%</option>
                 <option value="90">≥90%</option>

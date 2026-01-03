@@ -65,18 +65,19 @@ export default function Employees() {
   
   const handleManualMerge = async () => {
     if (selectedEmployees.size < 2) {
-      alert('Please select at least 2 employees to merge');
+      alert(t('pleaseSelectAtLeast2Employees'));
       return;
     }
     
     if (!targetEmployeeId || !selectedEmployees.has(targetEmployeeId)) {
-      alert('Please select which employee to keep (target employee)');
+      alert(t('pleaseSelectEmployeeToKeep'));
       return;
     }
     
     const employeesToMerge = Array.from(selectedEmployees).filter(id => id !== targetEmployeeId);
+    const targetEmployee = employees.find(e => e.id === targetEmployeeId);
     
-    if (!confirm(`Merge ${employeesToMerge.length} employee(s) into "${employees.find(e => e.id === targetEmployeeId)?.name}"?\n\nThis action cannot be undone!`)) {
+    if (!confirm(t('mergeConfirmMessage', { count: employeesToMerge.length, name: targetEmployee?.name || '' }))) {
       return;
     }
     
@@ -87,16 +88,16 @@ export default function Employees() {
       });
       
       if (response.data.success) {
-        alert(`Merge successful!\n\n- ${response.data.recordsMoved} records moved\n- ${response.data.recordsSkipped} records skipped`);
+        alert(t('mergeSuccessful', { moved: response.data.recordsMoved, skipped: response.data.recordsSkipped }));
         setSelectedEmployees(new Set());
         setTargetEmployeeId('');
         setShowManualMerge(false);
         fetchEmployees(); // Refresh the list
       } else {
-        alert(`Merge failed: ${response.data.error || 'Unknown error'}`);
+        alert(t('mergeFailed', { error: response.data.error || 'Unknown error' }));
       }
     } catch (error: any) {
-      alert(`Merge failed: ${error.response?.data?.error || error.message || 'Unknown error'}`);
+      alert(t('mergeFailed', { error: error.response?.data?.error || error.message || 'Unknown error' }));
       console.error('Manual merge error:', error);
     }
   };
@@ -134,17 +135,17 @@ export default function Employees() {
     employeesByCategory[category].push(emp);
   });
   
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div>{t('loading')}</div>;
   
   return (
     <div>
       <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-800 mb-2">📋 Manual Merge Instructions</h3>
+        <h3 className="font-semibold text-blue-800 mb-2">📋 {t('manualMergeInstructions')}</h3>
         <p className="text-sm text-blue-700">
-          1. Select 2 or more employees using the checkboxes<br />
-          2. Click "Merge Selected" button<br />
-          3. Choose which employee to keep (all others will be merged into it)<br />
-          4. Confirm the merge
+          1. {t('selectEmployeesToMerge')}<br />
+          2. {t('clickMergeSelected')}<br />
+          3. {t('chooseEmployeeToKeep')}<br />
+          4. {t('confirmTheMerge')}
         </p>
       </div>
       
@@ -155,7 +156,7 @@ export default function Employees() {
             onClick={() => navigate('/employees/details')}
             className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
           >
-            View All Details
+            {t('viewAllDetails')}
           </button>
           {selectedEmployees.size > 0 && (
             <>
@@ -163,7 +164,7 @@ export default function Employees() {
                 onClick={() => setShowManualMerge(true)}
                 className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
               >
-                Merge Selected ({selectedEmployees.size})
+                {t('mergeSelected')} ({selectedEmployees.size})
               </button>
               <button
                 onClick={() => {
@@ -173,7 +174,7 @@ export default function Employees() {
                 }}
                 className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
               >
-                Clear Selection
+                {t('clearSelection')}
               </button>
             </>
           )}
@@ -182,8 +183,8 @@ export default function Employees() {
       
       {showManualMerge && selectedEmployees.size >= 2 && (
         <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Manual Merge</h3>
-          <p className="text-sm mb-3">Select which employee to keep (all others will be merged into it):</p>
+          <h3 className="font-semibold mb-2">{t('manualMergeInstructions')}</h3>
+          <p className="text-sm mb-3">{t('selectEmployeeToKeep')}</p>
           <div className="space-y-2">
             {Array.from(selectedEmployees).map(id => {
               const emp = employees.find(e => e.id === id);
@@ -211,7 +212,7 @@ export default function Employees() {
               disabled={!targetEmployeeId}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
             >
-              Confirm Merge
+              {t('confirmMergeButton')}
             </button>
             <button
               onClick={() => {
@@ -220,7 +221,7 @@ export default function Employees() {
               }}
               className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
             >
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -230,7 +231,7 @@ export default function Employees() {
         <Tooltip content={tooltips.common.search}>
           <input
             type="text"
-            placeholder="Search employees..."
+            placeholder={t('search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="border rounded px-3 py-2 w-full max-w-md"
@@ -242,7 +243,7 @@ export default function Employees() {
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="border rounded px-3 py-2"
           >
-            <option value="all">All Categories</option>
+            <option value="all">{t('allCategories')}</option>
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
@@ -363,7 +364,7 @@ export default function Employees() {
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  Uncategorized ({uncategorized.length})
+                  {t('uncategorized')} ({uncategorized.length})
                 </h3>
               </div>
               <table className="min-w-full divide-y divide-gray-200">
@@ -388,9 +389,9 @@ export default function Employees() {
                       />
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('category')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('records')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -434,19 +435,19 @@ export default function Employees() {
                             onClick={() => navigate(`/employees/${employee.id}`)}
                             className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
                           >
-                            Details
+                            {t('details')}
                           </button>
                           <button
                             onClick={() => navigate(`/employees/${employee.id}/annual?year=${new Date().getFullYear()}`)}
                             className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                           >
-                            Annual
+                            {t('annual')}
                           </button>
                           <button
                             onClick={() => navigate(`/employees/${employee.id}/bonus?year=${new Date().getFullYear()}`)}
                             className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
                           >
-                            Bonus
+                            {t('bonus')}
                           </button>
                         </div>
                       </td>

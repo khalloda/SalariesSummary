@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 
@@ -24,6 +25,7 @@ interface Employee {
 }
 
 export default function ContractManagement() {
+  const { t } = useTranslation();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export default function ContractManagement() {
       setContracts(response.data.contracts || []);
     } catch (error) {
       console.error('Error fetching contracts:', error);
-      alert('Failed to load contracts');
+      alert(t('failedToLoad') + ' ' + t('contracts').toLowerCase());
     } finally {
       setLoading(false);
     }
@@ -81,16 +83,16 @@ export default function ContractManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this contract record?')) {
+    if (!confirm(t('deleteContractConfirm'))) {
       return;
     }
 
     try {
       await axios.delete(`${API_BASE_URL}/contracts/${id}`);
-      alert('Contract deleted successfully');
+      alert(t('contractDeleted'));
       fetchContracts();
     } catch (error: any) {
-      alert(`Failed to delete contract: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToDelete')} ${t('contract').toLowerCase()}: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -101,16 +103,16 @@ export default function ContractManagement() {
     try {
       if (editingContract) {
         await axios.put(`${API_BASE_URL}/contracts/${editingContract.id}`, formData);
-        alert('Contract updated successfully');
+        alert(t('contractUpdated'));
       } else {
         await axios.post(`${API_BASE_URL}/contracts`, formData);
-        alert('Contract created successfully');
+        alert(t('contractCreated'));
       }
       setShowForm(false);
       setFormData({});
       fetchContracts();
     } catch (error: any) {
-      alert(`Failed to save contract: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToSave')} ${t('contract').toLowerCase()}: ${error.response?.data?.error || error.message}`);
     } finally {
       setSaving(false);
     }
@@ -139,7 +141,7 @@ export default function ContractManagement() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading contracts...</p>
+          <p className="text-gray-600">{t('loadingContracts')}</p>
         </div>
       </div>
     );
@@ -149,14 +151,14 @@ export default function ContractManagement() {
     <div className="bg-gray-50 min-h-screen">
         <div className="mb-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Contract Management</h1>
-            <p className="text-gray-600">Manage employee contract records and renewals</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('contractManagement')}</h1>
+            <p className="text-gray-600">{t('createUpdateManageContracts')}</p>
           </div>
           <button
             onClick={handleCreate}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
-            + New Contract
+            + {t('newContract')}
           </button>
         </div>
 
@@ -165,7 +167,7 @@ export default function ContractManagement() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="text"
-              placeholder="Search by employee name, code, or duration..."
+              placeholder={t('search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -175,7 +177,7 @@ export default function ContractManagement() {
               onChange={(e) => setEmployeeFilter(e.target.value)}
               className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All Employees</option>
+              <option value="all">{t('employees')}</option>
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name} ({emp.employeeCode || 'N/A'})</option>
               ))}
@@ -188,11 +190,11 @@ export default function ContractManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comments</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('employees')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('contract')} {t('dateOfBirth').split(' ')[0]}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('contractDuration')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('notes')}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -201,7 +203,7 @@ export default function ContractManagement() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="font-medium text-gray-900">
-                        {contract.employee?.name || contract.employeeName || 'Unlinked'}
+                        {contract.employee?.name || contract.employeeName || t('unlinked')}
                       </div>
                       {contract.employeeCode && (
                         <div className="text-sm text-gray-500">{contract.employeeCode}</div>
@@ -223,13 +225,13 @@ export default function ContractManagement() {
                         onClick={() => handleEdit(contract)}
                         className="text-blue-600 hover:text-blue-900"
                       >
-                        Edit
+                        {t('edit')}
                       </button>
                       <button
                         onClick={() => handleDelete(contract.id)}
                         className="text-red-600 hover:text-red-900"
                       >
-                        Delete
+                        {t('delete')}
                       </button>
                     </div>
                   </td>
@@ -239,7 +241,7 @@ export default function ContractManagement() {
           </table>
           {filtered.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500">No contracts found</p>
+              <p className="text-gray-500">{t('noContractsFound')}</p>
             </div>
           )}
         </div>
@@ -250,7 +252,7 @@ export default function ContractManagement() {
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingContract ? 'Edit Contract' : 'Create New Contract'}
+                  {editingContract ? t('editContract') : t('createNewContract')}
                 </h2>
                 <button
                   onClick={() => {
@@ -269,7 +271,7 @@ export default function ContractManagement() {
               <form onSubmit={handleSubmit} className="p-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Employee</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('employees')}</label>
                     <select
                       value={formData.employeeId || ''}
                       onChange={(e) => {
@@ -283,7 +285,7 @@ export default function ContractManagement() {
                       }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">Select Employee (or leave blank)</option>
+                      <option value="">{t('selectEmployeeOrBlank')}</option>
                       {employees.map(emp => (
                         <option key={emp.id} value={emp.id}>
                           {emp.name} ({emp.employeeCode || 'N/A'})
@@ -293,17 +295,17 @@ export default function ContractManagement() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Employee Name (if not linked)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('employeeNameIfNotLinked')}</label>
                       <input
                         type="text"
                         value={formData.employeeName || ''}
                         onChange={(e) => setFormData({ ...formData, employeeName: e.target.value })}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter name if employee not in system"
+                        placeholder={t('enterNameIfNotInSystem')}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Employee Code (if not linked)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('employeeCodeIfNotLinked')}</label>
                       <input
                         type="text"
                         value={formData.employeeCode || ''}
@@ -314,7 +316,7 @@ export default function ContractManagement() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contract Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('contractDate')}</label>
                     <input
                       type="date"
                       value={formData.contractDate || ''}
@@ -323,7 +325,7 @@ export default function ContractManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contract Duration</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('contractDuration')}</label>
                     <input
                       type="text"
                       value={formData.contractDuration || ''}
@@ -333,13 +335,13 @@ export default function ContractManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('notes')}</label>
                     <textarea
                       value={formData.comments || ''}
                       onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                       rows={3}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Additional notes or comments"
+                      placeholder={t('additionalNotes')}
                     />
                   </div>
                 </div>
@@ -354,14 +356,14 @@ export default function ContractManagement() {
                     }}
                     className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
-                    Cancel
+                    {t('cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {saving ? 'Saving...' : editingContract ? 'Update' : 'Create'}
+                    {saving ? t('loading') : editingContract ? t('update') : t('create')}
                   </button>
                 </div>
               </form>

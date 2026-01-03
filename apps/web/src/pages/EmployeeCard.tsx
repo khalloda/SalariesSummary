@@ -181,13 +181,13 @@ export default function EmployeeCard() {
   };
 
   const formatDateOrNotSpecified = (date: string | null | undefined) => {
-    if (!date) return 'Not Specified';
+    if (!date) return t('notSpecified');
     const parsedDate = new Date(date);
     // Reject placeholder dates like January 1, 2000
     if (parsedDate.getFullYear() === 2000 && parsedDate.getMonth() === 0 && parsedDate.getDate() === 1) {
-      return 'Not Specified';
+      return t('notSpecified');
     }
-    if (isNaN(parsedDate.getTime())) return 'Not Specified';
+    if (isNaN(parsedDate.getTime())) return t('notSpecified');
     return parsedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
@@ -294,7 +294,7 @@ export default function EmployeeCard() {
           />
         </div>
         <div className="title-container">
-          <h1 className="text-2xl font-bold text-gray-900">Employee Card</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('employeeCard')}</h1>
         </div>
         <div className="logo-container">
           <div className="text-sm text-gray-600 text-right" style={isRTL ? { textAlign: 'left' } : { textAlign: 'right' }}>
@@ -309,22 +309,22 @@ export default function EmployeeCard() {
         {/* Search/Filter Section */}
         <div className="bg-white p-4 rounded-lg shadow mb-4 no-print">
           <label className="block text-sm font-medium mb-2">
-            Search Employee (by Name, ID, or Employee Code)
+            {t('searchEmployee')}
           </label>
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Type to search..."
+            placeholder={t('typeToSearch')}
             className="w-full border rounded px-3 py-2 mb-3"
           />
           
           {loading ? (
-            <p className="text-gray-500">Loading employees...</p>
+            <p className="text-gray-500">{t('loadingEmployees')}</p>
           ) : (
             <div className="max-h-60 overflow-y-auto border rounded">
               {filteredEmployees.length === 0 ? (
-                <p className="p-3 text-gray-500 text-center">No employees found</p>
+                <p className="p-3 text-gray-500 text-center">{t('noEmployeesFoundList')}</p>
               ) : (
                 <ul className="divide-y">
                   {filteredEmployees.map(emp => (
@@ -357,7 +357,7 @@ export default function EmployeeCard() {
                 disabled={exporting}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
               >
-                {exporting ? 'Exporting...' : 'Export PDF'}
+                {exporting ? t('loading') : t('exportPDF')}
               </button>
             </Tooltip>
             <Tooltip content={tooltips.reports.exportXLSX}>
@@ -366,7 +366,7 @@ export default function EmployeeCard() {
                 disabled={exporting}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
               >
-                {exporting ? 'Exporting...' : 'Export XLSX'}
+                {exporting ? t('loading') : t('exportXLSX')}
               </button>
             </Tooltip>
             <Tooltip content={tooltips.reports.print}>
@@ -374,7 +374,7 @@ export default function EmployeeCard() {
                 onClick={() => window.print()}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Print
+                {t('print')}
               </button>
             </Tooltip>
           </div>
@@ -388,11 +388,11 @@ export default function EmployeeCard() {
           <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 rounded-lg mb-6 print-top-box">
             <div className="flex justify-between items-center mb-3">
               <div>
-                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">System ID No.</div>
+                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">{t('systemId')}</div>
                 <div className="text-lg font-bold">{selectedEmployee.employeeCode || 'N/A'}</div>
               </div>
               <div>
-                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">Category</div>
+                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">{t('category')}</div>
                 <div className="text-lg font-bold">{selectedEmployee.category || 'N/A'}</div>
               </div>
             </div>
@@ -409,85 +409,85 @@ export default function EmployeeCard() {
             <tbody>
               {/* Basic Info */}
               <tr>
-                <td className="w-48 p-3 border bg-gray-50 font-bold text-sm align-top">Basic Info</td>
+                <td className="w-48 p-3 border bg-gray-50 font-bold text-sm align-top">{t('basicInfo')}</td>
                 <td className="p-3 border">
                   <div className="space-y-2">
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Name:</span> {selectedEmployee.name || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Name (Arabic):</span> {selectedEmployee.nameArabic || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Joining Date:</span> {formatDate(selectedEmployee.joiningDate)}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Job Title:</span> {selectedEmployee.jobTitle || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Department:</span> {selectedEmployee.department || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Date of Birth:</span> {formatDate(selectedEmployee.dateOfBirth)}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Mobile Number:</span> {selectedEmployee.mobileNumber || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('name')}:</span> {selectedEmployee.name || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nameArabic')}:</span> {selectedEmployee.nameArabic || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('joiningDate')}:</span> {formatDate(selectedEmployee.joiningDate)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('jobTitle')}:</span> {selectedEmployee.jobTitle || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('department')}:</span> {selectedEmployee.department || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('dateOfBirth')}:</span> {formatDate(selectedEmployee.dateOfBirth)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('mobileNumber')}:</span> {selectedEmployee.mobileNumber || 'N/A'}</div>
                   </div>
                 </td>
               </tr>
 
               {/* Education */}
               <tr>
-                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Education</td>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('education')}</td>
                 <td className="p-3 border">
                   <div className="space-y-2">
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Certificate:</span> {selectedEmployee.graduationCertificate || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Section:</span> {selectedEmployee.graduationSection || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">University:</span> {selectedEmployee.graduationUniversity || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Graduation Year:</span> {selectedEmployee.graduationYear || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('certificate')}:</span> {selectedEmployee.graduationCertificate || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('section')}:</span> {selectedEmployee.graduationSection || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('university')}:</span> {selectedEmployee.graduationUniversity || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('graduationYear')}:</span> {selectedEmployee.graduationYear || 'N/A'}</div>
                   </div>
                 </td>
               </tr>
 
               {/* IDs */}
               <tr>
-                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">IDs</td>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('ids')}</td>
                 <td className="p-3 border">
                   <div className="space-y-2">
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">National ID:</span> {formatLargeNumber(selectedEmployee.nationalId)}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">National ID Valid Till:</span> {formatDateOrNotSpecified(selectedEmployee.nationalIdValidTill)}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Bar Association No.:</span> {formatLargeNumber(selectedEmployee.barAssociation)}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">درجة القيد:</span> {selectedEmployee.barAssociationDegree || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Tax Card No.:</span> {selectedEmployee.taxCard || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Social Insurance:</span> {formatLargeNumber(selectedEmployee.socialInsurance)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nationalId')}:</span> {formatLargeNumber(selectedEmployee.nationalId)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nationalIdValidTill')}:</span> {formatDateOrNotSpecified(selectedEmployee.nationalIdValidTill)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('barAssociationNo')}:</span> {formatLargeNumber(selectedEmployee.barAssociation)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('barAssociationDegree')}:</span> {selectedEmployee.barAssociationDegree || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('taxCardNo')}:</span> {selectedEmployee.taxCard || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('socialInsurance')}:</span> {formatLargeNumber(selectedEmployee.socialInsurance)}</div>
                   </div>
                 </td>
               </tr>
 
               {/* Address */}
               <tr>
-                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Address</td>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('address')}</td>
                 <td className="p-3 border">
                   <div className="space-y-2">
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Address Details:</span> {selectedEmployee.address || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Region / City:</span> {selectedEmployee.addressRegion || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Governorate:</span> {selectedEmployee.addressGovernorate || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('addressDetails')}:</span> {selectedEmployee.address || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('regionCity')}:</span> {selectedEmployee.addressRegion || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('governorate')}:</span> {selectedEmployee.addressGovernorate || 'N/A'}</div>
                   </div>
                 </td>
               </tr>
 
               {/* Contract */}
               <tr>
-                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Contract</td>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('contract')}</td>
                 <td className="p-3 border">
                   <div className="space-y-2">
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Contract Type:</span> {selectedEmployee.contractType || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Work Duration:</span> {calculateWorkDuration(selectedEmployee.joiningDate)}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">Next Renewal Date:</span> {formatDateOrNotSpecified(selectedEmployee.contractRenewalDate)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('contractType')}:</span> {selectedEmployee.contractType || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('workDuration')}:</span> {calculateWorkDuration(selectedEmployee.joiningDate)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nextRenewalDate')}:</span> {formatDateOrNotSpecified(selectedEmployee.contractRenewalDate)}</div>
                   </div>
                 </td>
               </tr>
 
               {/* Salary */}
               <tr>
-                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Salary</td>
+                <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('salary')}</td>
                 <td className="p-3 border">
                   {selectedEmployee.salaries && selectedEmployee.salaries.length > 0 ? (
                     <table className="w-full border-collapse mt-2">
                       <thead>
                         <tr className="bg-purple-600 text-white">
-                          <th className="p-2 text-left text-xs border">Month</th>
-                          <th className="p-2 text-left text-xs border">Year</th>
-                          <th className="p-2 text-left text-xs border">Basic Salary</th>
-                          <th className="p-2 text-left text-xs border">Gross</th>
-                          <th className="p-2 text-left text-xs border">Net</th>
+                          <th className="p-2 text-left text-xs border">{t('month')}</th>
+                          <th className="p-2 text-left text-xs border">{t('year')}</th>
+                          <th className="p-2 text-left text-xs border">{t('basicSalary')}</th>
+                          <th className="p-2 text-left text-xs border">{t('gross')}</th>
+                          <th className="p-2 text-left text-xs border">{t('net')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -503,7 +503,7 @@ export default function EmployeeCard() {
                       </tbody>
                     </table>
                   ) : (
-                    <span className="text-gray-500 italic">No salary records available</span>
+                    <span className="text-gray-500 italic">{t('noData')}</span>
                   )}
                 </td>
               </tr>
@@ -511,7 +511,7 @@ export default function EmployeeCard() {
               {/* Personnel */}
               {selectedEmployee.personnelRecord && (
                 <tr>
-                  <td className="p-3 border bg-gray-50 font-bold text-sm align-top">Personnel</td>
+                  <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('personnel')}</td>
                   <td className="p-3 border">
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -537,7 +537,7 @@ export default function EmployeeCard() {
                                 return selectedEmployee.personnelRecord.laptopPcTablet;
                               }
                             })()
-                          ) : 'None'}
+                          ) : t('none')}
                         </div>
                         <div><span className="font-semibold text-gray-600 text-xs">Work Stub:</span> {selectedEmployee.personnelRecord.workStub || 'N/A'}</div>
                         <div><span className="font-semibold text-gray-600 text-xs">Insurance Start Date:</span> {formatDateOrNotSpecified(selectedEmployee.personnelRecord.insuranceStartDate)}</div>

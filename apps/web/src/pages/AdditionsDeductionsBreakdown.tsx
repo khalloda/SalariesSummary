@@ -235,7 +235,7 @@ export default function AdditionsDeductionsBreakdown() {
       {/* Additions Section */}
       {(viewType === 'both' || viewType === 'additions') && (
         <div className="bg-white p-6 rounded-lg shadow mb-6 print-section">
-          <h3 className="text-xl font-semibold mb-4 text-green-800">Additions Breakdown - {detailView === 'consolidated' ? 'Consolidated' : 'Details'}</h3>
+          <h3 className="text-xl font-semibold mb-4 text-green-800">{t('additionsBreakdown')} - {detailView === 'consolidated' ? t('consolidated') : t('detailsView')}</h3>
           
           {/* Chart */}
           <div style={{ width: '100%', height: '400px', minWidth: 300, minHeight: 400 }} className="mb-6 print-chart-section">
@@ -277,9 +277,9 @@ export default function AdditionsDeductionsBreakdown() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentage</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('category')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('amount')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('percentage')}</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -294,7 +294,7 @@ export default function AdditionsDeductionsBreakdown() {
                   );
                 })}
                 <tr className="bg-gray-100 font-semibold border-t-2 border-gray-400">
-                  <td className="px-6 py-4 whitespace-nowrap">TOTAL</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{t('total')}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{data.additions.total.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">100.00%</td>
                 </tr>
@@ -307,7 +307,7 @@ export default function AdditionsDeductionsBreakdown() {
       {/* Deductions Section */}
       {(viewType === 'both' || viewType === 'deductions') && (
         <div className="bg-white p-6 rounded-lg shadow print-section">
-          <h3 className="text-xl font-semibold mb-4 text-red-800">Deductions Breakdown - {detailView === 'consolidated' ? 'Consolidated' : 'Details'}</h3>
+          <h3 className="text-xl font-semibold mb-4 text-red-800">{t('deductionsBreakdown')} - {detailView === 'consolidated' ? t('consolidated') : t('detailsView')}</h3>
           
           {/* Chart */}
           <div style={{ width: '100%', height: '400px', minWidth: 300, minHeight: 400 }} className="mb-6 print-chart-section">
@@ -349,9 +349,9 @@ export default function AdditionsDeductionsBreakdown() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentage</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('category')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('amount')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('percentage')}</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -366,7 +366,7 @@ export default function AdditionsDeductionsBreakdown() {
                   );
                 })}
                 <tr className="bg-gray-100 font-semibold border-t-2 border-gray-400">
-                  <td className="px-6 py-4 whitespace-nowrap">TOTAL</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{t('total')}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{data.deductions.total.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">100.00%</td>
                 </tr>

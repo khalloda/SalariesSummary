@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 
@@ -39,6 +40,7 @@ const MONTHS = [
 ];
 
 export default function BulkSalaryEntry() {
+  const { t } = useTranslation();
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [activeTab, setActiveTab] = useState<'salaries' | 'additions' | 'deductions'>('salaries');
@@ -89,7 +91,7 @@ export default function BulkSalaryEntry() {
             ).join('\n')}`;
           alert(message);
         } else {
-          alert('No employees found. Please check the server console for details.');
+          alert(t('noEmployeesFoundMessage'));
         }
       }
       
@@ -98,7 +100,7 @@ export default function BulkSalaryEntry() {
       setPreviousMonth(response.data.previousMonth);
     } catch (error: any) {
       console.error('Error loading data:', error);
-      alert(`Failed to load last month data: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToLoad')}: ${error.response?.data?.error || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -137,14 +139,14 @@ export default function BulkSalaryEntry() {
       });
 
       if (response.data.success) {
-        alert(`Successfully created ${response.data.created} records and updated ${response.data.updated} records.${response.data.errors.length > 0 ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}` : ''}`);
+        alert(`${t('successfullyCreated')} ${response.data.created} ${t('records')} ${t('recordsAndUpdated')} ${response.data.updated} ${t('records')}.${response.data.errors.length > 0 ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}` : ''}`);
         // Reload data to show updated records
         await loadLastMonthData();
       } else {
-        alert(`Failed to save: ${response.data.error || 'Unknown error'}`);
+        alert(`${t('failedToSave')}: ${response.data.error || 'Unknown error'}`);
       }
     } catch (error: any) {
-      alert(`Failed to save: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToSave')}: ${error.response?.data?.error || error.message}`);
     } finally {
       setSaving(false);
     }
@@ -175,7 +177,7 @@ export default function BulkSalaryEntry() {
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Direct Additions</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Indirect Additions</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Yearly Increase</th>
-              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Bonuses</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">{t('bonuses')}</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Gross</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Salary Deductions</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Gross Deductions</th>
@@ -441,14 +443,14 @@ export default function BulkSalaryEntry() {
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Accommodation</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Other Allowances</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Yearly Increase</th>
-              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Annual Bonus</th>
-              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Monthly Bonus</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">{t('annualBonus')}</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">{t('monthlyBonus')}</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Social Insurance</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Taxes</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Medical Insurance</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Direct Total</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Indirect Total</th>
-              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Bonuses Total</th>
+              <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">{t('bonusesTotal')}</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -921,7 +923,7 @@ export default function BulkSalaryEntry() {
             disabled={loading}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Loading...' : 'Load Last Month Data'}
+            {loading ? t('loading') : t('loadLastMonthData')}
           </button>
           {previousYear && previousMonth && (
             <span className="text-sm text-gray-600">
@@ -983,7 +985,7 @@ export default function BulkSalaryEntry() {
               disabled={saving}
               className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50"
             >
-              {saving ? 'Saving...' : `Create Salary Records for ${MONTHS[month - 1]} ${year}`}
+              {saving ? t('saving') : t('createSalaryRecordsFor', { month: MONTHS[month - 1], year })}
             </button>
           </div>
         </>
@@ -991,7 +993,7 @@ export default function BulkSalaryEntry() {
 
       {(!Object.keys(employees).length || Object.values(employees).flat().length === 0) && !loading && (
         <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-          <p className="text-gray-500 text-lg mb-4">Click "Load Last Month Data" to start creating salary records</p>
+          <p className="text-gray-500 text-lg mb-4">{t('clickLoadLastMonthData')}</p>
           <p className="text-sm text-gray-400">This will load all active employees and copy their last month's salary data (or set to 0 if no previous data exists)</p>
         </div>
       )}

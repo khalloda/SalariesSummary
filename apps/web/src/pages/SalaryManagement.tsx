@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 
@@ -42,6 +43,7 @@ const MONTHS = [
 ];
 
 export default function SalaryManagement() {
+  const { t } = useTranslation();
   const [salaries, setSalaries] = useState<Salary[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +88,7 @@ export default function SalaryManagement() {
       setSalaries(response.data.salaries || []);
     } catch (error) {
       console.error('Error fetching salaries:', error);
-      alert('Failed to load salaries');
+      alert(t('failedToLoad') + ' ' + t('salary').toLowerCase());
     } finally {
       setLoading(false);
     }
@@ -186,16 +188,16 @@ export default function SalaryManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this salary record?')) {
+    if (!confirm(t('deleteSalaryConfirm'))) {
       return;
     }
 
     try {
       await axios.delete(`${API_BASE_URL}/salaries/${id}`);
-      alert('Salary record deleted successfully');
+      alert(t('salaryDeleted'));
       fetchSalaries();
     } catch (error: any) {
-      alert(`Failed to delete salary: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToDelete')} ${t('salary').toLowerCase()}: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -302,16 +304,16 @@ export default function SalaryManagement() {
 
       if (editingSalary) {
         await axios.put(`${API_BASE_URL}/salaries/${editingSalary.id}`, submitData);
-        alert('Salary record updated successfully');
+        alert(t('salaryUpdated'));
       } else {
         await axios.post(`${API_BASE_URL}/salaries`, submitData);
-        alert('Salary record created successfully');
+        alert(t('salaryCreated'));
       }
       setShowForm(false);
       setFormData({});
       fetchSalaries();
     } catch (error: any) {
-      alert(`Failed to save salary: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToSave')} ${t('salary').toLowerCase()}: ${error.response?.data?.error || error.message}`);
     } finally {
       setSaving(false);
     }

@@ -98,7 +98,7 @@ export default function AssetInventoryReport() {
       if (format === 'csv') {
         if (!data) return;
         
-        const headers = ['Employee Code', 'Name', 'Category', 'Department', 'Asset Type', 'Status'];
+        const headers = [t('employeeCodeHeader'), t('nameHeader'), t('categoryHeader'), t('department'), t('assetTypeHeader'), t('statusHeader')];
         const rows = data.employees.map(emp => [
           emp.employeeCode,
           emp.employeeName,
@@ -186,7 +186,7 @@ export default function AssetInventoryReport() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6 no-print">
-        <h2 className="text-3xl font-bold">Asset Inventory Report</h2>
+        <h2 className="text-3xl font-bold">{t('assetInventoryReport')}</h2>
         <div className="flex gap-2">
           <Tooltip content={tooltips.reports.print}>
             <button
@@ -226,19 +226,19 @@ export default function AssetInventoryReport() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Total Employees</div>
+          <div className="text-sm text-gray-600 mb-1">{t('totalEmployees')}</div>
           <div className="text-3xl font-bold text-gray-900">{data.summary.total}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Laptops</div>
+          <div className="text-sm text-gray-600 mb-1">{t('laptops')}</div>
           <div className="text-3xl font-bold text-blue-600">{data.summary.laptops}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">PCs</div>
+          <div className="text-sm text-gray-600 mb-1">{t('pcs')}</div>
           <div className="text-3xl font-bold text-purple-600">{data.summary.pcs}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Tablets</div>
+          <div className="text-sm text-gray-600 mb-1">{t('tablets')}</div>
           <div className="text-3xl font-bold text-pink-600">{data.summary.tablets}</div>
         </div>
       </div>
@@ -291,7 +291,7 @@ export default function AssetInventoryReport() {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               >
-                <option value="all">All Categories</option>
+                <option value="all">{t('allCategories')}</option>
                 {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
@@ -308,11 +308,11 @@ export default function AssetInventoryReport() {
                 onChange={(e) => setAssetFilter(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               >
-                <option value="all">All Assets</option>
-                <option value="Laptop">Laptop</option>
-                <option value="PC">PC</option>
-                <option value="Tablet">Tablet</option>
-                <option value="none">None</option>
+              <option value="all">{t('allAssets')}</option>
+              <option value="Laptop">{t('laptop')}</option>
+              <option value="PC">{t('pc')}</option>
+              <option value="Tablet">{t('tablet')}</option>
+              <option value="none">{t('none')}</option>
               </select>
             </Tooltip>
           </div>

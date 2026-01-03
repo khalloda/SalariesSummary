@@ -33,6 +33,7 @@ interface Employee {
 }
 
 export default function BonusManagement() {
+  const { t } = useTranslation();
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +57,7 @@ export default function BonusManagement() {
       setBonuses(response.data.bonuses || []);
     } catch (error) {
       console.error('Error fetching bonuses:', error);
-      alert('Failed to load bonuses');
+      alert(t('failedToLoad') + ' ' + t('bonuses').toLowerCase());
     } finally {
       setLoading(false);
     }
@@ -93,16 +94,16 @@ export default function BonusManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this bonus record?')) {
+    if (!confirm(t('deleteBonusConfirm'))) {
       return;
     }
 
     try {
       await axios.delete(`${API_BASE_URL}/bonuses/${id}`);
-      alert('Bonus record deleted successfully');
+      alert(t('bonusDeleted'));
       fetchBonuses();
     } catch (error: any) {
-      alert(`Failed to delete bonus: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToDelete')} ${t('bonuses').toLowerCase()}: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -129,16 +130,16 @@ export default function BonusManagement() {
 
       if (editingBonus) {
         await axios.put(`${API_BASE_URL}/bonuses/${editingBonus.id}`, submitData);
-        alert('Bonus record updated successfully');
+        alert(t('bonusUpdated'));
       } else {
         await axios.post(`${API_BASE_URL}/bonuses`, submitData);
-        alert('Bonus record created successfully');
+        alert(t('bonusCreated'));
       }
       setShowForm(false);
       setFormData({});
       fetchBonuses();
     } catch (error: any) {
-      alert(`Failed to save bonus: ${error.response?.data?.error || error.message}`);
+      alert(`${t('failedToSave')} ${t('bonuses').toLowerCase()}: ${error.response?.data?.error || error.message}`);
     } finally {
       setSaving(false);
     }
@@ -170,14 +171,14 @@ export default function BonusManagement() {
     <div className="bg-gray-50 min-h-screen">
         <div className="mb-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Bonus Management</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('bonusManagement')}</h1>
             <p className="text-gray-600">Manage annual bonus records</p>
           </div>
           <button
             onClick={handleCreate}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
-            + New Bonus Record
+            {t('newBonusRecord')}
           </button>
         </div>
 
@@ -222,10 +223,10 @@ export default function BonusManagement() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Year</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Bonus Amount</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('bonusAmount')}</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">First Half</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Second Half</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Annual Increase</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('annualIncrease')}</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -287,7 +288,7 @@ export default function BonusManagement() {
             <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingBonus ? 'Edit Bonus Record' : 'Create New Bonus Record'}
+                  {editingBonus ? t('editBonusRecord') : t('createNewBonusRecord')}
                 </h2>
                 <button
                   onClick={() => {
@@ -378,7 +379,7 @@ export default function BonusManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Annual Increase Net (Auto)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('annualIncreaseNetAuto')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -392,7 +393,7 @@ export default function BonusManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Annual Increase Gross (Auto)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('annualIncreaseGrossAuto')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -407,10 +408,10 @@ export default function BonusManagement() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Bonus Information</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('bonusInformation')}</h3>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bonus Amount *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('bonusAmountRequired')}</label>
                     <input
                       type="number"
                       required
@@ -421,7 +422,7 @@ export default function BonusManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Previous Year Bonus</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('previousYearBonus')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -431,7 +432,7 @@ export default function BonusManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bonus First Half</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('bonusFirstHalf')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -441,7 +442,7 @@ export default function BonusManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bonus Second Half</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('bonusSecondHalf')}</label>
                     <input
                       type="number"
                       step="0.01"

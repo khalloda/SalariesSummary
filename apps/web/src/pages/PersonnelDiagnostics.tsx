@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
@@ -39,6 +40,7 @@ interface DiagnosticResult {
 }
 
 export default function PersonnelDiagnostics() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DiagnosticResult | null>(null);
@@ -99,11 +101,11 @@ export default function PersonnelDiagnostics() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Dashboard
+            {t('backToDashboard')}
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Personnel Diagnostics</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('personnelDiagnostics')}</h1>
           <p className="text-gray-600">
-            Compare Personnel sheet with AllOffice sheet and database to identify missing employees
+            {t('comparePersonnel')}
           </p>
         </div>
 
@@ -117,19 +119,19 @@ export default function PersonnelDiagnostics() {
                 onChange={(e) => setUseFileUpload(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-sm font-medium">Upload file from my computer</span>
+              <span className="text-sm font-medium">{t('uploadFileFromComputer')}</span>
             </label>
             <p className="text-xs text-gray-500 ml-6">
               {useFileUpload 
-                ? 'Select SEPEmployees.xlsx from your computer'
-                : 'Use SEPEmployees.xlsx from server Sheets directory'}
+                ? t('selectSEPEmployeesFromComputer')
+                : t('useSEPEmployeesFromServer')}
             </p>
           </div>
 
           {useFileUpload && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2">
-                Select SEPEmployees.xlsx File
+                {t('selectSEPEmployees')}
               </label>
               <input
                 type="file"
@@ -140,7 +142,7 @@ export default function PersonnelDiagnostics() {
               />
               {selectedFile && (
                 <p className="text-sm text-gray-600 mt-2">
-                  <strong>Selected:</strong> {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                  <strong>{t('selected')}:</strong> {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
                 </p>
               )}
             </div>
@@ -151,7 +153,7 @@ export default function PersonnelDiagnostics() {
             disabled={loading || (useFileUpload && !selectedFile)}
             className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
           >
-            {loading ? 'Running Diagnostics...' : 'Run Diagnostics'}
+            {loading ? t('runningDiagnostics') : t('runDiagnostics')}
           </button>
         </div>
 
@@ -168,29 +170,29 @@ export default function PersonnelDiagnostics() {
           <div className="space-y-6">
             {/* Summary Statistics */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Summary Statistics</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('summaryStatistics')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-blue-600 text-sm font-medium">Personnel Sheet</p>
+                  <p className="text-blue-600 text-sm font-medium">{t('personnelSheet')}</p>
                   <p className="text-3xl font-bold text-blue-900 mt-2">{result.stats.personnelSheetTotal}</p>
-                  <p className="text-xs text-blue-600 mt-1">Total employees</p>
+                  <p className="text-xs text-blue-600 mt-1">{t('totalEmployees')}</p>
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-green-600 text-sm font-medium">AllOffice Sheet</p>
+                  <p className="text-green-600 text-sm font-medium">{t('allOfficeSheet')}</p>
                   <p className="text-3xl font-bold text-green-900 mt-2">{result.stats.allOfficeSheetTotal}</p>
-                  <p className="text-xs text-green-600 mt-1">Total employees</p>
+                  <p className="text-xs text-green-600 mt-1">{t('totalEmployees')}</p>
                 </div>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <p className="text-purple-600 text-sm font-medium">Database</p>
+                  <p className="text-purple-600 text-sm font-medium">{t('database')}</p>
                   <p className="text-3xl font-bold text-purple-900 mt-2">{result.stats.databaseTotal}</p>
-                  <p className="text-xs text-purple-600 mt-1">Total employees</p>
+                  <p className="text-xs text-purple-600 mt-1">{t('totalEmployees')}</p>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className={`border-2 rounded-lg p-4 ${result.stats.missingFromAllOffice > 0 ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50'}`}>
                   <p className={`text-sm font-medium ${result.stats.missingFromAllOffice > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    Missing from AllOffice
+                    {t('missingFromAllOffice')}
                   </p>
                   <p className={`text-2xl font-bold mt-2 ${result.stats.missingFromAllOffice > 0 ? 'text-red-900' : 'text-green-900'}`}>
                     {result.stats.missingFromAllOffice}
@@ -198,7 +200,7 @@ export default function PersonnelDiagnostics() {
                 </div>
                 <div className={`border-2 rounded-lg p-4 ${result.stats.missingFromDatabase > 0 ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50'}`}>
                   <p className={`text-sm font-medium ${result.stats.missingFromDatabase > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    Missing from Database
+                    {t('missingFromDatabase')}
                   </p>
                   <p className={`text-2xl font-bold mt-2 ${result.stats.missingFromDatabase > 0 ? 'text-red-900' : 'text-green-900'}`}>
                     {result.stats.missingFromDatabase}
@@ -208,7 +210,7 @@ export default function PersonnelDiagnostics() {
 
               {result.summary.recommendations.length > 0 && (
                 <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-yellow-800 font-medium mb-2">Recommendations:</p>
+                  <p className="text-yellow-800 font-medium mb-2">{t('recommendations')}:</p>
                   <ul className="list-disc list-inside text-yellow-700 text-sm space-y-1">
                     {result.summary.recommendations.map((rec, idx) => (
                       <li key={idx}>{rec}</li>
@@ -222,26 +224,26 @@ export default function PersonnelDiagnostics() {
             {result.missingFromAllOffice.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Missing from AllOffice Sheet ({result.missingFromAllOffice.length})
+                  {t('missingFromAllOfficeSheet')} ({result.missingFromAllOffice.length})
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  These employees exist in the Personnel sheet but not in the AllOffice sheet.
+                  {t('theseEmployeesExistPersonnel')}
                 </p>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Row
+                          {t('row')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Employee Code
+                          {t('employeeCode')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name (Personnel)
+                          {t('namePersonnel')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Potential Matches in AllOffice
+                          {t('potentialMatchesInAllOffice')}
                         </th>
                       </tr>
                     </thead>
@@ -275,7 +277,7 @@ export default function PersonnelDiagnostics() {
                                 ))}
                               </ul>
                             ) : (
-                              <span className="text-gray-400 italic">No potential matches found</span>
+                              <span className="text-gray-400 italic">{t('noPotentialMatchesFound')}</span>
                             )}
                           </td>
                         </tr>
@@ -290,26 +292,26 @@ export default function PersonnelDiagnostics() {
             {result.missingFromDatabase.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Missing from Database ({result.missingFromDatabase.length})
+                  {t('missingFromDatabaseTitle')} ({result.missingFromDatabase.length})
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  These employees exist in the Personnel sheet but not in the database. Import the AllOffice sheet first to create employee records.
+                  {t('theseEmployeesExistDatabase')}
                 </p>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Row
+                          {t('row')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Employee Code
+                          {t('employeeCode')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name (Personnel)
+                          {t('namePersonnel')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Potential Matches in Database
+                          {t('potentialMatchesInDatabase')}
                         </th>
                       </tr>
                     </thead>
@@ -344,14 +346,14 @@ export default function PersonnelDiagnostics() {
                                         onClick={() => navigate(`/employees/${match.id}/details`)}
                                         className="text-blue-600 hover:text-blue-800 text-xs underline"
                                       >
-                                        View
+                                        {t('view')}
                                       </button>
                                     )}
                                   </li>
                                 ))}
                               </ul>
                             ) : (
-                              <span className="text-gray-400 italic">No potential matches found</span>
+                              <span className="text-gray-400 italic">{t('noPotentialMatchesFound')}</span>
                             )}
                           </td>
                         </tr>
@@ -365,9 +367,9 @@ export default function PersonnelDiagnostics() {
             {/* Success Message */}
             {result.missingFromAllOffice.length === 0 && result.missingFromDatabase.length === 0 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-                <p className="text-green-800 text-lg font-medium">✅ All employees matched!</p>
+                <p className="text-green-800 text-lg font-medium">✅ {t('allEmployeesMatched')}</p>
                 <p className="text-green-600 text-sm mt-2">
-                  All employees in the Personnel sheet have corresponding records in both AllOffice sheet and the database.
+                  {t('allEmployeesHaveRecords')}
                 </p>
               </div>
             )}
@@ -377,13 +379,13 @@ export default function PersonnelDiagnostics() {
         {/* Instructions */}
         {!result && !loading && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">How to Use</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('howToUse')}</h2>
             <ol className="list-decimal list-inside space-y-2 text-gray-700">
-              <li>Ensure SEPEmployees.xlsx is in the Sheets directory (or upload it)</li>
-              <li>Click "Run Diagnostics" to compare the Personnel and AllOffice sheets</li>
-              <li>Review the results to see which employees are missing</li>
-              <li>For employees missing from AllOffice: Add them to the AllOffice sheet or correct name variations</li>
-              <li>For employees missing from Database: Import the AllOffice sheet first, then re-import Personnel</li>
+              <li>{t('ensureSEPEmployeesInSheets')}</li>
+              <li>{t('clickRunDiagnostics')}</li>
+              <li>{t('reviewResultsToSeeMissing')}</li>
+              <li>{t('forEmployeesMissingAllOffice')}</li>
+              <li>{t('forEmployeesMissingDatabase')}</li>
             </ol>
           </div>
         )}

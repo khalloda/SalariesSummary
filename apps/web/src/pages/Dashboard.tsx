@@ -118,9 +118,13 @@ export default function Dashboard() {
         setEmployeeImportReport(response.data);
         setShowEmployeeImportReport(true);
         const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}`
+          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
           : '';
-        alert(`Employee import successful!\n\n- ${response.data.recordsImported} employees created\n- ${response.data.recordsUpdated} employees updated${errorMsg}\n\nClick "View Import Report" to see detailed information.`);
+        alert(t('employeeImportSuccessful', { 
+          created: response.data.recordsImported, 
+          updated: response.data.recordsUpdated, 
+          errors: errorMsg 
+        }));
         // Clear selected file after successful import
         setSelectedEmployeeFile(null);
         // Reset file input
@@ -130,14 +134,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(`Employee import completed with errors:\n\n${errorMsg}`);
+        alert(t('employeeImportCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(`Employee import failed: ${errorMsg}${errorDetails}`);
+      alert(t('employeeImportFailed', { error: errorMsg + errorDetails }));
       console.error('Employee import error:', error);
     } finally {
       setImportingEmployees(false);
@@ -170,9 +174,14 @@ export default function Dashboard() {
         setContractsImportReport(response.data);
         setShowContractsImportReport(true);
         const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}`
+          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
           : '';
-        alert(`Contracts import successful!\n\n- ${response.data.recordsImported} contract records imported\n- ${response.data.recordsLinked} contracts linked to employees\n- ${response.data.recordsUpdated} employees updated${errorMsg}\n\nClick "View Import Report" to see detailed information.`);
+        alert(t('contractsImportSuccessful', { 
+          imported: response.data.recordsImported, 
+          linked: response.data.recordsLinked, 
+          updated: response.data.recordsUpdated, 
+          errors: errorMsg 
+        }));
         // Clear selected file after successful import
         setSelectedContractsFile(null);
         // Reset file input
@@ -182,14 +191,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(`Contracts import completed with errors:\n\n${errorMsg}`);
+        alert(t('contractsImportCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(`Contracts import failed: ${errorMsg}${errorDetails}`);
+      alert(t('contractsImportFailed', { error: errorMsg + errorDetails }));
       console.error('Contracts import error:', error);
     } finally {
       setImportingContracts(false);
@@ -222,9 +231,12 @@ export default function Dashboard() {
         setPersonnelImportReport(response.data);
         setShowPersonnelImportReport(true);
         const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}`
+          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
           : '';
-        alert(`Personnel import successful!\n\n- ${response.data.recordsUpdated} personnel records updated${errorMsg}\n\nClick "View Import Report" to see detailed information.`);
+        alert(t('personnelImportSuccessful', { 
+          updated: response.data.recordsUpdated, 
+          errors: errorMsg 
+        }));
         // Clear selected file after successful import
         setSelectedPersonnelFile(null);
         // Reset file input
@@ -234,14 +246,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(`Personnel import completed with errors:\n\n${errorMsg}`);
+        alert(t('personnelImportCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(`Personnel import failed: ${errorMsg}${errorDetails}`);
+      alert(t('personnelImportFailed', { error: errorMsg + errorDetails }));
       console.error('Personnel import error:', error);
     } finally {
       setImportingPersonnel(false);
@@ -277,9 +289,13 @@ export default function Dashboard() {
         setImportReport(response.data);
         setShowImportReport(true);
         const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\nErrors: ${response.data.errors.slice(0, 5).join('\n')}`
+          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
           : '';
-        alert(`Import successful! ${response.data.recordsImported} records imported from ${response.data.filesProcessed} files.${errorMsg}\n\nClick "View Import Report" to see detailed information.`);
+        alert(t('importSuccessfulMessage', { 
+          imported: response.data.recordsImported, 
+          files: response.data.filesProcessed, 
+          errors: errorMsg 
+        }));
         // Clear selected files after successful import
         setSelectedFiles([]);
         // Reset file input
@@ -289,14 +305,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(`Import completed with errors:\n\n${errorMsg}`);
+        alert(t('importCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(`Import failed: ${errorMsg}${errorDetails}`);
+      alert(t('importFailedMessage', { error: errorMsg + errorDetails }));
       console.error('Import error:', error);
     } finally {
       setImporting(false);
@@ -304,7 +320,7 @@ export default function Dashboard() {
   };
   
   const handleClearDatabase = async () => {
-    if (!confirm('Are you sure you want to clear all imported data? This action cannot be undone!')) {
+    if (!confirm(t('confirmClearDatabase'))) {
       return;
     }
     
@@ -312,14 +328,18 @@ export default function Dashboard() {
     try {
       const response = await axios.delete(`${API_BASE_URL}/import/clear`);
       if (response.data.success) {
-        alert(`Database cleared successfully!\n\nDeleted:\n- ${response.data.deleted.salaryRecords} salary records\n- ${response.data.deleted.employees} employees\n- ${response.data.deleted.importLogs} import logs`);
+        alert(t('databaseClearedSuccessfully', { 
+          salaryRecords: response.data.deleted.salaryRecords, 
+          employees: response.data.deleted.employees, 
+          importLogs: response.data.deleted.importLogs 
+        }));
         setLastImport(null);
       } else {
-        alert(`Failed to clear database: ${response.data.error || 'Unknown error'}`);
+        alert(t('failedToClearDatabase', { error: response.data.error || 'Unknown error' }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-      alert(`Failed to clear database: ${errorMsg}`);
+      alert(t('failedToClearDatabase', { error: errorMsg }));
       console.error('Clear database error:', error);
     } finally {
       setClearing(false);
@@ -335,11 +355,11 @@ export default function Dashboard() {
         setSelectedPairs(new Set());
         setShowPreview(true);
       } else {
-        alert(`Failed to preview duplicates: ${response.data.error || 'Unknown error'}`);
+        alert(t('failedToPreviewDuplicates', { error: response.data.error || 'Unknown error' }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-      alert(`Failed to preview duplicates: ${errorMsg}`);
+      alert(t('failedToPreviewDuplicates', { error: errorMsg }));
       console.error('Preview duplicates error:', error);
     } finally {
       setMerging(false);
@@ -347,7 +367,7 @@ export default function Dashboard() {
   };
 
   const handleMergeDuplicates = async () => {
-    if (!confirm('This will merge duplicate employees based on normalized names. Continue?')) {
+    if (!confirm(t('confirmMerge'))) {
       return;
     }
     
@@ -360,13 +380,16 @@ export default function Dashboard() {
       if (response.data.success) {
         setMergeReport(response.data);
         setShowMergeReport(true);
-        alert(`Duplicate merge completed!\n\n- ${response.data.merged} employees merged\n- ${response.data.duplicates} total duplicates found\n\nClick "View Merge Report" to see detailed information.`);
+        alert(t('duplicateMergeCompleted', { 
+          merged: response.data.merged, 
+          duplicates: response.data.duplicates 
+        }));
       } else {
-        alert(`Failed to merge duplicates: ${response.data.error || 'Unknown error'}`);
+        alert(t('failedToMergeDuplicates', { error: response.data.error || 'Unknown error' }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-      alert(`Failed to merge duplicates: ${errorMsg}`);
+      alert(t('failedToMergeDuplicates', { error: errorMsg }));
       console.error('Merge duplicates error:', error);
     } finally {
       setMerging(false);
@@ -375,11 +398,11 @@ export default function Dashboard() {
   
   const handleConfirmSelectedMerges = async () => {
     if (selectedPairs.size === 0) {
-      alert('Please select at least one pair to merge');
+      alert(t('pleaseSelectAtLeastOnePair'));
       return;
     }
     
-    if (!confirm(`Merge ${selectedPairs.size} selected pair(s)?`)) {
+    if (!confirm(t('mergeSelectedPairsConfirm', { count: selectedPairs.size }))) {
       return;
     }
     
@@ -400,14 +423,18 @@ export default function Dashboard() {
         setShowMergeReport(true);
         setShowPreview(false);
         setSelectedPairs(new Set());
-        alert(`Merge completed!\n\n- ${response.data.merged} pairs merged\n- ${response.data.recordsMoved} records moved\n- ${response.data.recordsSkipped} records skipped`);
+        alert(t('mergeCompleted', { 
+          merged: response.data.merged, 
+          moved: response.data.recordsMoved, 
+          skipped: response.data.recordsSkipped 
+        }));
         // Refresh the page or reload data
         window.location.reload();
       } else {
-        alert(`Failed to merge: ${response.data.error || 'Unknown error'}`);
+        alert(t('mergeFailedMessage', { error: response.data.error || 'Unknown error' }));
       }
     } catch (error: any) {
-      alert(`Failed to merge: ${error.response?.data?.error || error.message}`);
+      alert(t('mergeFailedMessage', { error: error.response?.data?.error || error.message }));
       console.error('Merge error:', error);
     } finally {
       setMerging(false);
@@ -484,7 +511,7 @@ export default function Dashboard() {
             </Tooltip>
           </div>
           <div className="mb-4">
-            <p className="text-sm text-gray-600">{t('lastImported')}: {lastImport || 'Never'}</p>
+            <p className="text-sm text-gray-600">{t('lastImported')}: {lastImport || t('never')}</p>
           </div>
           
           {/* File Upload Section */}
@@ -498,20 +525,20 @@ export default function Dashboard() {
                     onChange={(e) => setUseFileUpload(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-sm font-medium">Upload files from my computer</span>
+                  <span className="text-sm font-medium">{t('uploadFilesFromComputer')}</span>
                 </label>
               </Tooltip>
               <p className="text-xs text-gray-500 ml-6">
                 {useFileUpload 
-                  ? 'Select Excel files (.xlsx) from your computer to import'
-                  : 'Use files from server Sheets directory (legacy method)'}
+                  ? t('selectExcelFiles')
+                  : t('useServerFiles')}
               </p>
             </div>
             
             {useFileUpload && (
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Select Excel Files (.xlsx)
+                  {t('selectExcelFilesLabel')}
                 </label>
                 <input
                   id="file-input"
@@ -525,7 +552,7 @@ export default function Dashboard() {
                 {selectedFiles.length > 0 && (
                   <div className="mt-2">
                     <p className="text-sm text-gray-600 mb-1">
-                      <strong>{selectedFiles.length}</strong> file(s) selected:
+                      <strong>{selectedFiles.length}</strong> {t('filesSelected')}
                     </p>
                     <ul className="text-xs text-gray-500 list-disc list-inside max-h-32 overflow-y-auto">
                       {selectedFiles.map((file, idx) => (
@@ -536,7 +563,7 @@ export default function Dashboard() {
                 )}
                 {useFileUpload && selectedFiles.length === 0 && (
                   <p className="text-xs text-yellow-600 mt-1">
-                    ⚠️ Please select at least one Excel file to import
+                    ⚠️ {t('pleaseSelectFile')}
                   </p>
                 )}
               </div>
@@ -550,7 +577,7 @@ export default function Dashboard() {
                 disabled={importing || clearing || merging || (useFileUpload && selectedFiles.length === 0)}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
               >
-                {importing ? 'Importing...' : 'Import Salaries'}
+                {importing ? t('importing') : t('importSalaries')}
               </button>
             </Tooltip>
             <Tooltip content="Import annual bonus data from Excel files">
@@ -559,7 +586,7 @@ export default function Dashboard() {
                 disabled={importing || clearing || merging}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
               >
-                Import Bonuses
+                {t('importBonuses')}
               </button>
             </Tooltip>
             <Tooltip content="Preview duplicate employees before merging">
@@ -568,7 +595,7 @@ export default function Dashboard() {
                 disabled={importing || clearing || merging}
                 className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
               >
-                {merging ? 'Loading...' : 'Preview Duplicates'}
+                {merging ? t('loading') : t('previewDuplicates')}
               </button>
             </Tooltip>
             <Tooltip content={tooltips.dashboard.mergeDuplicates}>
@@ -577,7 +604,7 @@ export default function Dashboard() {
                 disabled={importing || clearing || merging}
                 className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
               >
-                {merging ? 'Merging...' : 'Auto Merge All'}
+                {merging ? t('merging') : t('autoMergeAll')}
               </button>
             </Tooltip>
             <Tooltip content={tooltips.dashboard.clearData}>
@@ -586,7 +613,7 @@ export default function Dashboard() {
                 disabled={importing || clearing || merging}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
               >
-                {clearing ? 'Clearing...' : 'Clear Database'}
+                {clearing ? t('clearing') : t('clearDatabase')}
               </button>
             </Tooltip>
             {importReport && (
@@ -595,7 +622,7 @@ export default function Dashboard() {
                   onClick={() => setShowImportReport(!showImportReport)}
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                 >
-                  {showImportReport ? 'Hide' : 'View'} Import Report
+                  {showImportReport ? t('hideImportReport') : t('viewImportReport')}
                 </button>
               </Tooltip>
             )}
@@ -605,7 +632,7 @@ export default function Dashboard() {
                   onClick={() => setShowMergeReport(!showMergeReport)}
                   className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                 >
-                  {showMergeReport ? 'Hide' : 'View'} Merge Report
+                  {showMergeReport ? t('hideMergeReport') : t('viewMergeReport')}
                 </button>
               </Tooltip>
             )}
@@ -615,10 +642,10 @@ export default function Dashboard() {
 
       {/* Employee Import Section */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Employee Import</h2>
+        <h2 className="text-2xl font-bold mb-4">{t('employeeImport')}</h2>
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-4">
-            Import employee data from SEPEmployees.xlsx (AllOffice sheet). This will create or update employee records with all available information.
+            {t('employeeImportDescription')}
           </p>
           
           {/* File Upload Section */}
@@ -631,12 +658,12 @@ export default function Dashboard() {
                   onChange={(e) => setUseEmployeeFileUpload(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-sm font-medium">Upload file from my computer</span>
+                <span className="text-sm font-medium">{t('uploadFilesFromComputer')}</span>
               </label>
               <p className="text-xs text-gray-500 ml-6">
                 {useEmployeeFileUpload 
-                  ? 'Select SEPEmployees.xlsx from your computer to import'
-                  : 'Use SEPEmployees.xlsx from server Sheets directory (legacy method)'}
+                  ? t('selectExcelFiles')
+                  : t('useServerFiles')}
               </p>
             </div>
             
@@ -676,7 +703,7 @@ export default function Dashboard() {
                 disabled={importingEmployees || importingPersonnel || importing || clearing || merging || (useEmployeeFileUpload && !selectedEmployeeFile)}
                 className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
               >
-                {importingEmployees ? 'Importing Employees...' : 'Import Employees'}
+                {importingEmployees ? t('importingEmployees') : t('importEmployees')}
               </button>
             </Tooltip>
             {employeeImportReport && (
@@ -685,7 +712,7 @@ export default function Dashboard() {
                   onClick={() => setShowEmployeeImportReport(!showEmployeeImportReport)}
                   className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                 >
-                  {showEmployeeImportReport ? 'Hide' : 'View'} Import Report
+                  {showEmployeeImportReport ? t('hide') : t('view')} {t('importReport')}
                 </button>
               </Tooltip>
             )}
@@ -696,7 +723,7 @@ export default function Dashboard() {
       {/* Employee Import Report */}
       {showEmployeeImportReport && employeeImportReport && (
         <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h3 className="text-xl font-bold mb-4">Employee Import Report</h3>
+          <h3 className="text-xl font-bold mb-4">{t('employeeImport')} {t('reports')}</h3>
           <div className="mb-4">
             <p><strong>Records Created:</strong> {employeeImportReport.recordsImported}</p>
             <p><strong>Records Updated:</strong> {employeeImportReport.recordsUpdated}</p>
@@ -712,7 +739,7 @@ export default function Dashboard() {
               </div>
             )}
             {employeeImportReport.errors && employeeImportReport.errors.length === 0 && (
-              <p className="text-green-600 mt-2">✅ No errors during import!</p>
+              <p className="text-green-600 mt-2">✅ {t('noErrors')}</p>
             )}
           </div>
         </div>
@@ -781,7 +808,7 @@ export default function Dashboard() {
                 disabled={importingContracts || importingPersonnel || importing || clearing || merging || (useContractsFileUpload && !selectedContractsFile)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
               >
-                {importingContracts ? 'Importing Contracts...' : 'Import Contracts'}
+                {importingContracts ? t('importingContracts') : t('importContracts')}
               </button>
             </Tooltip>
             {contractsImportReport && (
@@ -790,7 +817,7 @@ export default function Dashboard() {
                   onClick={() => setShowContractsImportReport(!showContractsImportReport)}
                   className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
                 >
-                  {showContractsImportReport ? 'Hide' : 'View'} Import Report
+                  {showContractsImportReport ? t('hide') : t('view')} {t('importReport')}
                 </button>
               </Tooltip>
             )}
@@ -801,14 +828,14 @@ export default function Dashboard() {
       {/* Contracts Import Report */}
       {showContractsImportReport && contractsImportReport && (
         <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h3 className="text-xl font-bold mb-4">Contracts Import Report</h3>
+          <h3 className="text-xl font-bold mb-4">{t('contractsImport')} {t('reports')}</h3>
           <div className="mb-4">
-            <p><strong>Records Imported:</strong> {contractsImportReport.recordsImported}</p>
-            <p><strong>Records Linked:</strong> {contractsImportReport.recordsLinked}</p>
-            <p><strong>Employees Updated:</strong> {contractsImportReport.recordsUpdated}</p>
+            <p><strong>{t('recordsImported')}:</strong> {contractsImportReport.recordsImported}</p>
+            <p><strong>{t('recordsLinked')}:</strong> {contractsImportReport.recordsLinked}</p>
+            <p><strong>{t('employeesUpdated')}:</strong> {contractsImportReport.recordsUpdated}</p>
             {contractsImportReport.errors && contractsImportReport.errors.length > 0 && (
               <div className="mt-2">
-                <p><strong>Errors:</strong> {contractsImportReport.errors.length}</p>
+                <p><strong>{t('errors')}:</strong> {contractsImportReport.errors.length}</p>
                 <ul className="list-disc list-inside text-red-600 text-sm max-h-48 overflow-y-auto">
                   {contractsImportReport.errors.map((error: string, idx: number) => (
                     <li key={idx}>{error}</li>
@@ -817,7 +844,7 @@ export default function Dashboard() {
               </div>
             )}
             {contractsImportReport.errors && contractsImportReport.errors.length === 0 && (
-              <p className="text-green-600 mt-2">✅ No errors during import!</p>
+              <p className="text-green-600 mt-2">✅ {t('noErrors')}</p>
             )}
           </div>
         </div>
@@ -832,15 +859,15 @@ export default function Dashboard() {
               onClick={() => navigate('/personnel-diagnostics')}
               className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm font-medium"
             >
-              🔍 Run Diagnostics
+              🔍 {t('runDiagnostics')}
             </button>
           </Tooltip>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-4">
-            Import personnel data from SEPEmployees.xlsx (Personnel sheet). This will create/update HR document checklist and asset tracking records for employees.
+            {t('personnelImportDescription')}
             <span className="block mt-2 text-xs text-blue-600">
-              💡 Having import errors? Use "Run Diagnostics" to identify missing employees and potential name matches.
+              💡 {t('havingImportErrors')}
             </span>
           </p>
           
@@ -899,7 +926,7 @@ export default function Dashboard() {
                 disabled={importingPersonnel || importing || clearing || merging || (usePersonnelFileUpload && !selectedPersonnelFile)}
                 className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
               >
-                {importingPersonnel ? 'Importing Personnel...' : 'Import Personnel'}
+                {importingPersonnel ? t('importingPersonnel') : t('importPersonnel')}
               </button>
             </Tooltip>
             {personnelImportReport && (
@@ -908,7 +935,7 @@ export default function Dashboard() {
                   onClick={() => setShowPersonnelImportReport(!showPersonnelImportReport)}
                   className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                 >
-                  {showPersonnelImportReport ? 'Hide' : 'View'} Import Report
+                  {showPersonnelImportReport ? t('hide') : t('view')} {t('importReport')}
                 </button>
               </Tooltip>
             )}
@@ -919,7 +946,7 @@ export default function Dashboard() {
       {/* Personnel Import Report */}
       {showPersonnelImportReport && personnelImportReport && (
         <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h3 className="text-xl font-bold mb-4">Personnel Import Report</h3>
+          <h3 className="text-xl font-bold mb-4">{t('personnelImport')} {t('reports')}</h3>
           <div className="mb-4">
             <p><strong>Records Updated:</strong> {personnelImportReport.recordsUpdated}</p>
             {personnelImportReport.errors && personnelImportReport.errors.length > 0 && (
@@ -933,7 +960,7 @@ export default function Dashboard() {
               </div>
             )}
             {personnelImportReport.errors && personnelImportReport.errors.length === 0 && (
-              <p className="text-green-600 mt-2">✅ No errors during import!</p>
+              <p className="text-green-600 mt-2">✅ {t('noErrors')}</p>
             )}
           </div>
         </div>
@@ -942,7 +969,7 @@ export default function Dashboard() {
       {/* Import Report */}
       {showImportReport && importReport && (
         <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h3 className="text-xl font-bold mb-4">Import Report</h3>
+          <h3 className="text-xl font-bold mb-4">{t('import')} {t('reports')}</h3>
           <div className="mb-4">
             <p><strong>Files Processed:</strong> {importReport.filesProcessed}</p>
             <p><strong>Records Imported:</strong> {importReport.recordsImported}</p>

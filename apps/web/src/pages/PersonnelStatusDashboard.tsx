@@ -128,7 +128,7 @@ export default function PersonnelStatusDashboard() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading...</div>
+        <div className="text-lg">{t('loading')}</div>
       </div>
     );
   }
@@ -174,7 +174,7 @@ export default function PersonnelStatusDashboard() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6 no-print">
-        <h2 className="text-3xl font-bold">Personnel Status Dashboard</h2>
+        <h2 className="text-3xl font-bold">{t('personnelStatusDashboard')}</h2>
         <div className="flex gap-2">
           <Tooltip content={tooltips.reports.print}>
             <button
@@ -206,7 +206,7 @@ export default function PersonnelStatusDashboard() {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Total Employees</div>
+          <div className="text-sm text-gray-600 mb-1">{t('totalEmployees')}</div>
           <div className="text-3xl font-bold text-gray-900">{data.totalEmployees}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">

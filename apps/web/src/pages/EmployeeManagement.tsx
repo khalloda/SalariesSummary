@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
@@ -18,6 +19,7 @@ interface Employee {
 }
 
 export default function EmployeeManagement() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -54,7 +56,7 @@ export default function EmployeeManagement() {
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
-      alert('Failed to load employees');
+      alert(t('failedToLoadEmployees'));
     } finally {
       setLoading(false);
     }
@@ -73,16 +75,16 @@ export default function EmployeeManagement() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete employee "${name}"? This will also delete all related salary, bonus, and contract records.`)) {
+    if (!confirm(t('deleteEmployeeConfirm', { name }))) {
       return;
     }
 
     try {
       await axios.delete(`${API_BASE_URL}/employees/${id}`);
-      alert('Employee deleted successfully');
+      alert(t('employeeDeletedSuccessfully'));
       fetchEmployees();
     } catch (error: any) {
-      alert(`Failed to delete employee: ${error.response?.data?.error || error.message}`);
+      alert(t('failedToDeleteEmployee', { error: error.response?.data?.error || error.message }));
     }
   };
 
@@ -93,16 +95,16 @@ export default function EmployeeManagement() {
     try {
       if (editingEmployee) {
         await axios.put(`${API_BASE_URL}/employees/${editingEmployee.id}`, formData);
-        alert('Employee updated successfully');
+        alert(t('employeeUpdatedSuccessfully'));
       } else {
         await axios.post(`${API_BASE_URL}/employees`, formData);
-        alert('Employee created successfully');
+        alert(t('employeeCreatedSuccessfully'));
       }
       setShowForm(false);
       setFormData({});
       fetchEmployees();
     } catch (error: any) {
-      alert(`Failed to save employee: ${error.response?.data?.error || error.message}`);
+      alert(t('failedToSaveEmployee', { error: error.response?.data?.error || error.message }));
     } finally {
       setSaving(false);
     }
@@ -133,15 +135,15 @@ export default function EmployeeManagement() {
     <div className="bg-gray-50 min-h-screen">
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Employee Management</h1>
-          <p className="text-gray-600">Create, update, and manage employee records</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('employeeManagement')}</h1>
+          <p className="text-gray-600">{t('createUpdateManageEmployees')}</p>
         </div>
         <Tooltip content={tooltips.management.create}>
           <button
             onClick={handleCreate}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
-            + New Employee
+            + {t('newEmployee')}
           </button>
         </Tooltip>
       </div>
@@ -151,7 +153,7 @@ export default function EmployeeManagement() {
         <Tooltip content={tooltips.common.search}>
           <input
             type="text"
-            placeholder="Search by name, ID, job title..."
+            placeholder={t('searchEmployees')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -164,13 +166,13 @@ export default function EmployeeManagement() {
         <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('category')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('jobTitle')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('department')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -212,7 +214,7 @@ export default function EmployeeManagement() {
                           onClick={() => navigate(`/employees/${employee.id}`)}
                           className="text-indigo-600 hover:text-indigo-900"
                         >
-                          View
+                          {t('view')}
                         </button>
                       </Tooltip>
                       <Tooltip content={tooltips.management.edit}>
@@ -220,7 +222,7 @@ export default function EmployeeManagement() {
                           onClick={() => handleEdit(employee)}
                           className="text-blue-600 hover:text-blue-900"
                         >
-                          Edit
+                          {t('edit')}
                         </button>
                       </Tooltip>
                       <Tooltip content={tooltips.management.delete}>
@@ -228,7 +230,7 @@ export default function EmployeeManagement() {
                           onClick={() => handleDelete(employee.id, employee.name)}
                           className="text-red-600 hover:text-red-900"
                         >
-                          Delete
+                          {t('delete')}
                         </button>
                       </Tooltip>
                     </div>
@@ -239,7 +241,7 @@ export default function EmployeeManagement() {
           </table>
           {filtered.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500">No employees found</p>
+              <p className="text-gray-500">{t('noEmployeesFound')}</p>
             </div>
           )}
         </div>
@@ -250,7 +252,7 @@ export default function EmployeeManagement() {
             <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingEmployee ? 'Edit Employee' : 'Create New Employee'}
+                  {editingEmployee ? t('editEmployee') : t('createNewEmployee')}
                 </h2>
                 <Tooltip content={tooltips.common.close}>
                   <button
@@ -272,10 +274,10 @@ export default function EmployeeManagement() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <div className="md:col-span-2">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('basicInformation')}</h3>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name (English) *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('nameEnglish')} *</label>
                     <input
                       type="text"
                       required
@@ -285,7 +287,7 @@ export default function EmployeeManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name (Arabic)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('nameArabic')}</label>
                     <input
                       type="text"
                       value={formData.nameArabic || ''}
@@ -294,7 +296,7 @@ export default function EmployeeManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">System ID</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('systemId')}</label>
                     <input
                       type="text"
                       value={formData.employeeCode || ''}
@@ -303,13 +305,13 @@ export default function EmployeeManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('category')}</label>
                     <select
                       value={formData.category || ''}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">Select Category</option>
+                      <option value="">{t('selectCategory')}</option>
                       <option value="Partners/شركاء">Partners/شركاء</option>
                       <option value="Lawyers/محامين">Lawyers/محامين</option>
                       <option value="Admins/عاملين">Admins/عاملين</option>
@@ -317,7 +319,7 @@ export default function EmployeeManagement() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('jobTitle')}</label>
                     <input
                       type="text"
                       value={formData.jobTitle || ''}
@@ -326,7 +328,7 @@ export default function EmployeeManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('department')}</label>
                     <input
                       type="text"
                       value={formData.department || ''}
@@ -335,7 +337,7 @@ export default function EmployeeManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('dateOfBirth')}</label>
                     <input
                       type="date"
                       value={formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : ''}
@@ -344,7 +346,7 @@ export default function EmployeeManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('joiningDate')}</label>
                     <input
                       type="date"
                       value={formData.joiningDate ? new Date(formData.joiningDate).toISOString().split('T')[0] : ''}
@@ -353,7 +355,7 @@ export default function EmployeeManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('status')}</label>
                     <select
                       value={formData.status || 'Active'}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
