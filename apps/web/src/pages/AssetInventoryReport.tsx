@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
+import { normalizeForSearch, groupAndSortEmployeesByCategory, sortCategories } from '../utils/employee-utils';
 
 interface AssetData {
   employeeId: string;
@@ -34,11 +36,16 @@ interface AssetReport {
 
 export default function AssetInventoryReport() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [data, setData] = useState<AssetReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [assetFilter, setAssetFilter] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   
   // Add print styles
   useEffect(() => {
@@ -58,6 +65,19 @@ export default function AssetInventoryReport() {
         .bg-white {
           background: white !important;
         }
+        span[role="button"] {
+          color: #000 !important;
+          text-decoration: none !important;
+          cursor: default !important;
+        }
+        button {
+          background: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+          color: #000 !important;
+          text-decoration: none !important;
+          cursor: default !important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -66,7 +86,7 @@ export default function AssetInventoryReport() {
 
   useEffect(() => {
     fetchData();
-  }, [categoryFilter]);
+  }, [categoryFilter, statusFilter, departmentFilter]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,9 +99,11 @@ export default function AssetInventoryReport() {
       const response = await axios.get(`${API_BASE_URL}/personnel/assets/report?${params.toString()}`);
       setData(response.data);
       
-      // Extract unique categories
+      // Extract unique categories and departments
       const uniqueCategories = Array.from(new Set(response.data.employees.map((e: AssetData) => e.category).filter(Boolean)));
-      setCategories(uniqueCategories.sort());
+      const uniqueDepartments = Array.from(new Set(response.data.employees.map((e: AssetData) => e.department).filter(Boolean)));
+      setCategories(uniqueCategories);
+      setDepartments(uniqueDepartments.sort());
     } catch (error) {
       console.error('Error fetching asset report:', error);
     } finally {
@@ -175,13 +197,33 @@ export default function AssetInventoryReport() {
     );
   }
 
-  const filteredEmployees = assetFilter === 'all'
-    ? data.employees
-    : data.employees.filter(emp => {
-        const asset = emp.assetType || 'None';
-        if (assetFilter === 'none') return asset === 'None' || !asset;
-        return asset === assetFilter;
-      });
+  // Filter employees
+  const filtered = data.employees.filter(emp => {
+    // Search filter
+    const normalizedSearch = normalizeForSearch(search);
+    const normalizedName = normalizeForSearch(emp.employeeName);
+    const matchesSearch = !search || normalizedName.includes(normalizedSearch);
+    
+    // Status filter
+    const matchesStatus = !statusFilter || statusFilter === 'all' || (emp.status || 'Active') === statusFilter;
+    
+    // Department filter
+    const matchesDepartment = departmentFilter === 'all' || emp.department === departmentFilter;
+    
+    // Category filter
+    const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
+    
+    // Asset filter
+    const asset = emp.assetType || 'None';
+    const matchesAsset = assetFilter === 'all' || 
+      (assetFilter === 'none' ? (asset === 'None' || !asset) : asset === assetFilter);
+    
+    return matchesSearch && matchesStatus && matchesDepartment && matchesCategory && matchesAsset;
+  });
+
+  // Group by category
+  const employeesByCategory = groupAndSortEmployeesByCategory(filtered);
+  const sortedCategories = Object.keys(employeesByCategory).sort(sortCategories);
 
   return (
     <div className="p-6">
@@ -280,111 +322,178 @@ export default function AssetInventoryReport() {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search */}
           <div>
-            <Tooltip content={tooltips.reports.filterByCategory}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <Tooltip content={tooltips.common.search}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('search')}</label>
             </Tooltip>
-            <Tooltip content={tooltips.reports.filterByCategory}>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="all">{t('allCategories')}</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </Tooltip>
+            <input
+              type="text"
+              placeholder={t('search')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('status')}</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('all')}</option>
+              <option value="Active">{t('statusActive')}</option>
+              <option value="Resigned">{t('statusResigned')}</option>
+            </select>
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <Tooltip content={tooltips.reports.filterByCategory}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('category')}</label>
+            </Tooltip>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('allCategories')}</option>
+              {categories.sort(sortCategories).map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Department Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('department')}</label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('all')}</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Asset Filter */}
           <div>
             <Tooltip content={tooltips.reports.assetType}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('assetType')}</label>
             </Tooltip>
-            <Tooltip content={tooltips.reports.assetType}>
-              <select
-                value={assetFilter}
-                onChange={(e) => setAssetFilter(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              >
+            <select
+              value={assetFilter}
+              onChange={(e) => setAssetFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
               <option value="all">{t('allAssets')}</option>
               <option value="Laptop">{t('laptop')}</option>
               <option value="PC">{t('pc')}</option>
               <option value="Tablet">{t('tablet')}</option>
               <option value="none">{t('none')}</option>
-              </select>
-            </Tooltip>
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Asset Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Employee Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Asset Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    No employees found
-                  </td>
-                </tr>
-              ) : (
-                filteredEmployees.map((emp) => (
-                  <tr key={emp.employeeId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {emp.employeeCode}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {emp.employeeName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {emp.category}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {emp.department || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getAssetColor(emp.assetType || 'None')}`}>
-                        {emp.assetType || 'None'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        emp.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {emp.status === 'Active' ? t('statusActive') : t('statusResigned')}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Asset Tables by Category */}
+      <div className="space-y-6">
+        {sortedCategories.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+            No employees found
+          </div>
+        ) : (
+          sortedCategories.map(category => {
+            const categoryEmployees = employeesByCategory[category];
+            if (categoryEmployees.length === 0) return null;
+
+            return (
+              <div key={category} className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {category} ({categoryEmployees.length})
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '10%' }}>
+                          {t('id')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '25%' }}>
+                          {t('name')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '12%' }}>
+                          {t('category')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '18%' }}>
+                          {t('department')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '15%' }}>
+                          {t('assetType')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '10%' }}>
+                          {t('status')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {categoryEmployees.map((emp) => (
+                        <tr key={emp.employeeId} className="hover:bg-gray-50">
+                          <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                            {emp.employeeCode}
+                          </td>
+                          <td className="px-3 py-4 text-sm">
+                            <span 
+                              onClick={() => navigate(`/employees/${emp.employeeId}`)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer print:text-black print:no-underline print:cursor-default"
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  navigate(`/employees/${emp.employeeId}`);
+                                }
+                              }}
+                            >
+                              {emp.employeeName || ''}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {emp.category}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {emp.department || 'N/A'}
+                          </td>
+                          <td className="px-3 py-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getAssetColor(emp.assetType || 'None')}`}>
+                              {emp.assetType || 'None'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              emp.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {emp.status === 'Active' ? t('statusActive') : t('statusResigned')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

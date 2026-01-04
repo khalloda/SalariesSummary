@@ -5,6 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
+import { normalizeForSearch, groupAndSortEmployeesByCategory, sortCategories, compareEmployeeCodes, getCategoryPriority } from '../utils/employee-utils';
 
 interface Employee {
   id: string;
@@ -18,31 +19,6 @@ interface Employee {
   _count: {
     salaries: number;
   };
-}
-
-/**
- * Normalize text for search comparison
- * Handles Arabic character variations to ensure "امي" matches "أمي"
- */
-function normalizeForSearch(text: string): string {
-  if (!text || typeof text !== 'string') return '';
-  
-  let normalized = text.trim();
-  
-  // Normalize Arabic character variations
-  // Normalize all alif variations (أ, ا, إ, آ) to ا
-  normalized = normalized.replace(/[أإآ]/g, 'ا');
-  
-  // ة (ta marbuta) -> ه (ha)
-  normalized = normalized.replace(/ة/g, 'ه');
-  
-  // Remove special characters
-  normalized = normalized.replace(/[ـ_]/g, '');
-  
-  // Normalize whitespace
-  normalized = normalized.replace(/\s+/g, ' ').trim();
-  
-  return normalized.toLowerCase();
 }
 
 export default function Employees() {
@@ -131,43 +107,8 @@ export default function Employees() {
   const categories = Array.from(new Set(employees.map(e => e.category).filter(Boolean))) as string[];
   const departments = Array.from(new Set(employees.map(e => e.department).filter(Boolean))) as string[];
   
-  // Define category display order: Partners, Lawyers, Admins, Consultants, then others
-  // Handle variations in category names
-  const categoryOrder = [
-    'Partners/شركاء',
-    'Partner',
-    'Partners',
-    'Lawyers/محامين',
-    'Lawyer',
-    'Lawyers',
-    'Admins/عاملين',
-    'Admin',
-    'Admins',
-    'Consultants/مستشارين',
-    'Consultant',
-    'Consultants'
-  ];
-  
-  // Helper function to find category priority
-  const getCategoryPriority = (cat: string): number => {
-    const lower = cat.toLowerCase();
-    if (lower.includes('partner')) return 1;
-    if (lower.includes('lawyer')) return 2;
-    if (lower.includes('admin')) return 3;
-    if (lower.includes('consultant')) return 4;
-    return 999; // Others go to the end
-  };
-  
   // Sort categories: Partners first, then Lawyers, Admins, Consultants, then others
-  const sortedCategories = [...categories].sort((a, b) => {
-    const priorityA = getCategoryPriority(a);
-    const priorityB = getCategoryPriority(b);
-    if (priorityA !== priorityB) {
-      return priorityA - priorityB;
-    }
-    // If same priority, sort alphabetically
-    return a.localeCompare(b);
-  });
+  const sortedCategories = [...categories].sort(sortCategories);
   
   const filtered = employees.filter(e => {
     // Search filter
@@ -188,59 +129,7 @@ export default function Employees() {
   });
   
   // Group employees by category and sort by employee code within each category
-  const employeesByCategory: Record<string, Employee[]> = {};
-  filtered.forEach(emp => {
-    const category = emp.category || 'Uncategorized';
-    if (!employeesByCategory[category]) {
-      employeesByCategory[category] = [];
-    }
-    employeesByCategory[category].push(emp);
-  });
-
-  // Sort employees within each category by employee code (numeric sorting)
-  // Handles formats like "2-1", "2-2", "2-14" correctly
-  const sortEmployeeCode = (codeA: string, codeB: string): number => {
-    if (!codeA && !codeB) return 0;
-    if (!codeA) return 1; // Empty codes go to end
-    if (!codeB) return -1;
-    
-    // Split by hyphen and compare parts numerically
-    const partsA = codeA.split('-').map(part => {
-      const num = parseInt(part, 10);
-      return isNaN(num) ? part : num;
-    });
-    const partsB = codeB.split('-').map(part => {
-      const num = parseInt(part, 10);
-      return isNaN(num) ? part : num;
-    });
-    
-    // Compare each part
-    const maxLength = Math.max(partsA.length, partsB.length);
-    for (let i = 0; i < maxLength; i++) {
-      const partA = partsA[i] ?? '';
-      const partB = partsB[i] ?? '';
-      
-      if (typeof partA === 'number' && typeof partB === 'number') {
-        if (partA !== partB) return partA - partB;
-      } else if (typeof partA === 'number') {
-        return -1; // Numbers come before strings
-      } else if (typeof partB === 'number') {
-        return 1;
-      } else {
-        const comparison = String(partA).localeCompare(String(partB));
-        if (comparison !== 0) return comparison;
-      }
-    }
-    return 0;
-  };
-  
-  Object.keys(employeesByCategory).forEach(category => {
-    employeesByCategory[category].sort((a, b) => {
-      const codeA = a.employeeCode || '';
-      const codeB = b.employeeCode || '';
-      return sortEmployeeCode(codeA, codeB);
-    });
-  });
+  const employeesByCategory = groupAndSortEmployeesByCategory(filtered);
   
   if (loading) return <div>{t('loading')}</div>;
   

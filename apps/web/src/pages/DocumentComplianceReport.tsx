@@ -5,6 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
+import { normalizeForSearch, groupAndSortEmployeesByCategory, sortCategories, compareEmployeeCodes, getCategoryPriority } from '../utils/employee-utils';
 
 interface ComplianceData {
   employeeId: string;
@@ -216,52 +217,6 @@ export default function DocumentComplianceReport() {
     );
   }
 
-  // Normalize search text for robust matching
-  const normalizeForSearch = (text: string): string => {
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w\s]/g, '')
-      .trim();
-  };
-
-  // Category sorting: Partners first, then Lawyers, Admins, Consultants
-  const getCategoryPriority = (category: string | undefined): number => {
-    if (!category) return 999;
-    const lowerCaseCategory = category.toLowerCase();
-    if (lowerCaseCategory.includes('partner')) return 1;
-    if (lowerCaseCategory.includes('lawyer')) return 2;
-    if (lowerCaseCategory.includes('admin')) return 3;
-    if (lowerCaseCategory.includes('consultant')) return 4;
-    return 999;
-  };
-
-  const sortCategories = (a: string, b: string) => {
-    const priorityA = getCategoryPriority(a);
-    const priorityB = getCategoryPriority(b);
-    if (priorityA !== priorityB) {
-      return priorityA - priorityB;
-    }
-    return a.localeCompare(b);
-  };
-
-  // Sort employee codes numerically (e.g., "2-1", "2-2", "2-14")
-  const compareEmployeeCodes = (codeA: string | undefined, codeB: string | undefined) => {
-    if (!codeA && !codeB) return 0;
-    if (!codeA) return 1;
-    if (!codeB) return -1;
-
-    const partsA = codeA.split('-').map(Number);
-    const partsB = codeB.split('-').map(Number);
-
-    for (let i = 0; i < Math.min(partsA.length, partsB.length); i++) {
-      if (partsA[i] !== partsB[i]) {
-        return partsA[i] - partsB[i];
-      }
-    }
-    return partsA.length - partsB.length;
-  };
 
   // Filter employees
   const filtered = data.employees.filter(emp => {
@@ -285,23 +240,9 @@ export default function DocumentComplianceReport() {
     return matchesSearch && matchesStatus && matchesDepartment && matchesCategory && matchesMinCompliance;
   });
 
-  // Group by category
-  const employeesByCategory: Record<string, ComplianceData[]> = {};
-  filtered.forEach(emp => {
-    const category = emp.category || 'Uncategorized';
-    if (!employeesByCategory[category]) {
-      employeesByCategory[category] = [];
-    }
-    employeesByCategory[category].push(emp);
-  });
-
-  // Sort categories
+  // Group by category and sort
+  const employeesByCategory = groupAndSortEmployeesByCategory(filtered);
   const sortedCategories = Object.keys(employeesByCategory).sort(sortCategories);
-
-  // Sort employees within each category by employee code
-  sortedCategories.forEach(category => {
-    employeesByCategory[category].sort((a, b) => compareEmployeeCodes(a.employeeCode, b.employeeCode));
-  });
 
   return (
     <div className="p-6">

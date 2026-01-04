@@ -1,22 +1,27 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { sortCategories, normalizeForSearch, compareEmployeeCodes } from '../utils/employee-utils';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function EmployeeTenure() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
-  const [sortBy, setSortBy] = useState<'tenure' | 'name'>('tenure');
+  const [sortBy, setSortBy] = useState<'tenure' | 'name' | 'systemId'>('tenure');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/available-years`)
@@ -55,21 +60,63 @@ export default function EmployeeTenure() {
     value: count as number
   }));
 
-  // Get unique categories
+  // Get unique categories, departments
   const categories = Array.from(new Set(data.employees.map((e: any) => e.employee.category).filter(Boolean)));
+  const departments = Array.from(new Set(data.employees.map((e: any) => e.employee.department).filter(Boolean)));
 
-  // Filter and sort employees
+  // Filter employees
   let filteredEmployees = [...data.employees];
   
+  // Search filter
+  const normalizedSearch = normalizeForSearch(search);
+  filteredEmployees = filteredEmployees.filter((e: any) => {
+    const normalizedName = normalizeForSearch(e.employee.name);
+    return normalizedName.includes(normalizedSearch);
+  });
+  
+  // Status filter
+  if (statusFilter && statusFilter !== 'all') {
+    filteredEmployees = filteredEmployees.filter((e: any) => (e.employee.status || 'Active') === statusFilter);
+  }
+  
+  // Department filter
+  if (departmentFilter !== 'all') {
+    filteredEmployees = filteredEmployees.filter((e: any) => e.employee.department === departmentFilter);
+  }
+  
+  // Category filter
   if (filterCategory !== 'all') {
     filteredEmployees = filteredEmployees.filter((e: any) => e.employee.category === filterCategory);
   }
   
-  if (sortBy === 'tenure') {
-    filteredEmployees.sort((a: any, b: any) => b.monthsOfService - a.monthsOfService);
-  } else {
-    filteredEmployees.sort((a: any, b: any) => a.employee.name.localeCompare(b.employee.name));
-  }
+  // Group by category first
+  const employeesByCategoryRaw: Record<string, any[]> = {};
+  filteredEmployees.forEach((item: any) => {
+    const category = item.employee.category || 'Uncategorized';
+    if (!employeesByCategoryRaw[category]) {
+      employeesByCategoryRaw[category] = [];
+    }
+    employeesByCategoryRaw[category].push(item);
+  });
+  
+  // Sort within each category
+  Object.keys(employeesByCategoryRaw).forEach(category => {
+    if (sortBy === 'tenure') {
+      employeesByCategoryRaw[category].sort((a: any, b: any) => b.monthsOfService - a.monthsOfService);
+    } else if (sortBy === 'systemId') {
+      // Sort by employee code (System ID)
+      employeesByCategoryRaw[category].sort((a: any, b: any) => {
+        const codeA = a.employee.employeeCode || '';
+        const codeB = b.employee.employeeCode || '';
+        return compareEmployeeCodes(codeA, codeB);
+      });
+    } else {
+      // Sort by name
+      employeesByCategoryRaw[category].sort((a: any, b: any) => a.employee.name.localeCompare(b.employee.name));
+    }
+  });
+  
+  const sortedCategories = Object.keys(employeesByCategoryRaw).sort(sortCategories);
 
   return (
     <div className="print:hidden">
@@ -170,56 +217,175 @@ export default function EmployeeTenure() {
         </div>
       )}
 
-      {/* Controls */}
-      <div className="mb-4 flex items-center space-x-4 flex-wrap">
-        <div>
-          <label className="text-gray-700 mr-2">Filter by Category:</label>
-          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="border rounded px-3 py-2">
-            <option value="all">{t('allCategories')}</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-gray-700 mr-2">Sort by:</label>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="border rounded px-3 py-2">
-            <option value="tenure">Tenure (Longest First)</option>
-            <option value="name">Name (A-Z)</option>
-          </select>
+      {/* Filters */}
+      <div className="mb-4 bg-white rounded-lg shadow-sm p-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search */}
+          <div className="md:col-span-1">
+            <input
+              type="text"
+              placeholder={t('search')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          
+          {/* Status Filter */}
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('allStatuses')}</option>
+              <option value="Active">{t('active')}</option>
+              <option value="Resigned">{t('resigned')}</option>
+            </select>
+          </div>
+          
+          {/* Department Filter */}
+          <div>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('allDepartments')}</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Category Filter */}
+          <div>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('allCategories')}</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Sort */}
+          <div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="tenure">Tenure (Longest First)</option>
+              <option value="name">Name (A-Z)</option>
+              <option value="systemId">System ID</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Employees Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Record</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Months</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Years</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Range</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredEmployees.map((item: any, index: number) => (
-              <tr key={index} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-medium">{item.employee.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.employee.category || '-'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.startDate.monthName} {item.startDate.year}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.endDate.monthName} {item.endDate.year}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.monthsOfService}</td>
-                <td className="px-6 py-4 whitespace-nowrap font-semibold">{item.yearsOfService}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">{item.tenureRange}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Employees Tables by Category */}
+      <div className="space-y-6">
+        {sortedCategories.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+            No employees found
+          </div>
+        ) : (
+          sortedCategories.map(category => {
+            const categoryEmployees = employeesByCategoryRaw[category];
+            if (categoryEmployees.length === 0) return null;
+
+            return (
+              <div key={category} className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {category} ({categoryEmployees.length})
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '8%' }}>
+                          System ID
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '18%' }}>
+                          Employee
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '10%' }}>
+                          Category
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '13%' }}>
+                          Start Date
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '13%' }}>
+                          Last Record
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '9%' }}>
+                          Months
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '12%' }}>
+                          Years
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '17%' }}>
+                          Range
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {categoryEmployees.map((item: any, index: number) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                            {item.employee.employeeCode || '-'}
+                          </td>
+                          <td className="px-3 py-4 text-sm">
+                            <span 
+                              onClick={() => navigate(`/employees/${item.employee.id}`)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer print:text-black print:no-underline print:cursor-default"
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  navigate(`/employees/${item.employee.id}`);
+                                }
+                              }}
+                            >
+                              {item.employee.name || ''}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {item.employee.category || '-'}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {item.startDate.monthName} {item.startDate.year}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {item.endDate.monthName} {item.endDate.year}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {item.monthsOfService}
+                          </td>
+                          <td className="px-3 py-4 text-sm font-semibold text-gray-900">
+                            {item.tenureYears !== undefined && item.tenureMonths !== undefined && item.tenureDays !== undefined
+                              ? `Y${item.tenureYears}, M${item.tenureMonths}, D${item.tenureDays}`
+                              : item.yearsOfService}
+                          </td>
+                          <td className="px-3 py-4 text-sm">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">{item.tenureRange}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

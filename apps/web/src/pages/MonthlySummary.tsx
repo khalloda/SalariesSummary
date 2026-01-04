@@ -13,6 +13,7 @@ export default function MonthlySummary() {
   const [loading, setLoading] = useState(true);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [chartMetric, setChartMetric] = useState<'net' | 'gross' | 'basicSalary'>('net');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/available-years`)
@@ -53,8 +54,6 @@ export default function MonthlySummary() {
     net: month.net,
     employees: month.employeeCount
   }));
-
-  const [exporting, setExporting] = useState(false);
 
   const handleExportPDF = async () => {
     setExporting(true);

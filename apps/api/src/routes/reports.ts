@@ -973,6 +973,174 @@ reportsRouter.get('/additions-deductions-breakdown', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reports/employee-tenure?year=YYYY
+ * Get employee tenure report
+ */
+reportsRouter.get('/employee-tenure', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    
+    // Get all employees (not filtered by year - we want all employees with joining dates)
+    const employees = await prisma.employee.findMany({
+      include: {
+        salaries: {
+          // Get all salary records to find the earliest one if joiningDate is missing
+          orderBy: [
+            { year: 'asc' },
+            { month: 'asc' }
+          ],
+          select: {
+            month: true,
+            year: true
+          },
+          take: 1 // Only need the first one for fallback
+        }
+      },
+      where: {
+        // Only include employees who have a joining date OR have salary records
+        OR: [
+          { joiningDate: { not: null } },
+          { salaries: { some: {} } }
+        ]
+      }
+    });
+    
+    const employeeTenureData: any[] = [];
+    const tenureRanges: Record<string, number> = {};
+    const categoryTotals: Record<string, { totalMonths: number; count: number }> = {};
+    
+    for (const employee of employees) {
+      // Calculate tenure based on joining date or first salary record
+      let startDate: Date;
+      let startDateMonth: number;
+      let startDateYear: number;
+      
+      if (employee.joiningDate) {
+        startDate = new Date(employee.joiningDate);
+        startDateMonth = startDate.getMonth() + 1;
+        startDateYear = startDate.getFullYear();
+      } else if (employee.salaries.length > 0) {
+        // Use first salary record date as fallback
+        const firstSalary = employee.salaries[0];
+        startDate = new Date(firstSalary.year, firstSalary.month - 1, 1);
+        startDateMonth = firstSalary.month;
+        startDateYear = firstSalary.year;
+      } else {
+        // Skip employees with no joining date and no salary records
+        continue;
+      }
+      
+      // End date is today (to match employee detail page calculation)
+      const endDate = new Date(); // Today's date
+      
+      // Calculate years, months, and days of service
+      let years = endDate.getFullYear() - startDate.getFullYear();
+      let months = endDate.getMonth() - startDate.getMonth();
+      let days = endDate.getDate() - startDate.getDate();
+      
+      // Adjust for negative days
+      if (days < 0) {
+        months--;
+        const lastDayOfPrevMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 0).getDate();
+        days += lastDayOfPrevMonth;
+      }
+      
+      // Adjust for negative months
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      
+      // Calculate total months for sorting/grouping
+      const monthsOfService = years * 12 + months;
+      const yearsOfService = years + (months / 12);
+      
+      // Determine tenure range
+      let tenureRange: string;
+      if (yearsOfService < 1) {
+        tenureRange = '< 1 year';
+      } else if (yearsOfService < 2) {
+        tenureRange = '1-2 years';
+      } else if (yearsOfService < 5) {
+        tenureRange = '2-5 years';
+      } else if (yearsOfService < 10) {
+        tenureRange = '5-10 years';
+      } else if (yearsOfService < 15) {
+        tenureRange = '10-15 years';
+      } else {
+        tenureRange = '15+ years';
+      }
+      
+      // Count tenure ranges
+      tenureRanges[tenureRange] = (tenureRanges[tenureRange] || 0) + 1;
+      
+      // Track category totals
+      const category = employee.category || 'Uncategorized';
+      if (!categoryTotals[category]) {
+        categoryTotals[category] = { totalMonths: 0, count: 0 };
+      }
+      categoryTotals[category].totalMonths += monthsOfService;
+      categoryTotals[category].count += 1;
+      
+      employeeTenureData.push({
+        employee: {
+          id: employee.id,
+          name: employee.name,
+          category: employee.category,
+          department: employee.department,
+          status: employee.status,
+          employeeCode: employee.employeeCode
+        },
+        startDate: {
+          month: startDateMonth,
+          monthName: getMonthName(startDateMonth),
+          year: startDateYear
+        },
+        endDate: {
+          month: endDate.getMonth() + 1,
+          monthName: getMonthName(endDate.getMonth() + 1),
+          year: endDate.getFullYear()
+        },
+        monthsOfService,
+        yearsOfService: Math.round(yearsOfService * 100) / 100,
+        tenureYears: years,
+        tenureMonths: months,
+        tenureDays: days,
+        tenureRange
+      });
+    }
+    
+    // Calculate summary
+    const totalEmployees = employeeTenureData.length;
+    const totalMonths = employeeTenureData.reduce((sum, e) => sum + e.monthsOfService, 0);
+    const averageTenure = totalEmployees > 0 ? Math.round((totalMonths / totalEmployees / 12) * 100) / 100 : 0;
+    
+    // Calculate category averages
+    const categoryAverages: Record<string, { averageYears: number; count: number }> = {};
+    Object.entries(categoryTotals).forEach(([category, stats]) => {
+      categoryAverages[category] = {
+        averageYears: stats.count > 0 ? Math.round((stats.totalMonths / stats.count / 12) * 100) / 100 : 0,
+        count: stats.count
+      };
+    });
+    
+    res.json({
+      year,
+      summary: {
+        totalEmployees,
+        averageTenure
+      },
+      tenureRanges,
+      categoryAverages,
+      employees: employeeTenureData
+    });
+  } catch (error: any) {
+    console.error('Error fetching employee tenure report:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 function getMonthName(month: number): string {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
