@@ -151,6 +151,45 @@ function generateDocumentComplianceReportHTML(data: any, categoryFilter: string,
     return 'Good';
   };
   
+  // Sort employees by category, then by employee code
+  const getCategoryPriority = (category: string | undefined): number => {
+    if (!category) return 999;
+    const lowerCaseCategory = category.toLowerCase();
+    if (lowerCaseCategory.includes('partner')) return 1;
+    if (lowerCaseCategory.includes('lawyer')) return 2;
+    if (lowerCaseCategory.includes('admin')) return 3;
+    if (lowerCaseCategory.includes('consultant')) return 4;
+    return 999;
+  };
+  
+  const compareEmployeeCodes = (codeA: string | undefined, codeB: string | undefined): number => {
+    if (!codeA && !codeB) return 0;
+    if (!codeA) return 1;
+    if (!codeB) return -1;
+
+    const partsA = codeA.split('-').map(Number);
+    const partsB = codeB.split('-').map(Number);
+
+    for (let i = 0; i < Math.min(partsA.length, partsB.length); i++) {
+      if (partsA[i] !== partsB[i]) {
+        return partsA[i] - partsB[i];
+      }
+    }
+    return partsA.length - partsB.length;
+  };
+  
+  // Sort employees for display
+  const sortedEmployees = [...data.employees].sort((a: any, b: any) => {
+    // First sort by category priority
+    const priorityA = getCategoryPriority(a.category);
+    const priorityB = getCategoryPriority(b.category);
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    // Then sort by employee code numerically
+    return compareEmployeeCodes(a.employeeCode, b.employeeCode);
+  });
+  
   return `
 <!DOCTYPE html>
 <html dir="ltr" lang="en">
@@ -306,11 +345,11 @@ function generateDocumentComplianceReportHTML(data: any, categoryFilter: string,
       </tr>
     </thead>
     <tbody>
-      ${data.employees.map((emp: any) => `
+      ${sortedEmployees.map((emp: any) => `
         <tr>
-          <td>${emp.employeeCode}</td>
-          <td>${emp.employeeName}</td>
-          <td>${emp.category}</td>
+          <td>${emp.employeeCode || ''}</td>
+          <td>${emp.employeeName || ''}</td>
+          <td>${emp.category || ''}</td>
           <td>${emp.department || 'N/A'}</td>
           <td>
             <span class="compliance-badge" style="${getComplianceColor(emp.compliancePercentage)}">

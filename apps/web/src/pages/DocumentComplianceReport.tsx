@@ -64,6 +64,20 @@ export default function DocumentComplianceReport() {
         .bg-white {
           background: white !important;
         }
+        span[role="button"] {
+          color: #000 !important;
+          text-decoration: none !important;
+          cursor: default !important;
+        }
+        button {
+          background: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          color: #000 !important;
+          text-decoration: none !important;
+          cursor: default !important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -141,9 +155,26 @@ export default function DocumentComplianceReport() {
         window.URL.revokeObjectURL(url);
       } else if (format === 'pdf') {
         try {
+          // Sort employees for PDF export: by category, then by employee code
+          const sortedEmployees = [...data.employees].sort((a, b) => {
+            // First sort by category priority
+            const priorityA = getCategoryPriority(a.category);
+            const priorityB = getCategoryPriority(b.category);
+            if (priorityA !== priorityB) {
+              return priorityA - priorityB;
+            }
+            // Then sort by employee code numerically
+            return compareEmployeeCodes(a.employeeCode, b.employeeCode);
+          });
+          
+          const sortedData = {
+            ...data,
+            employees: sortedEmployees
+          };
+          
           const response = await axios.post(
             `${API_BASE_URL}/exports/document-compliance/pdf`,
-            { data, categoryFilter, minComplianceFilter },
+            { data: sortedData, categoryFilter, minComplianceFilter },
             { responseType: 'blob' }
           );
           
@@ -468,12 +499,20 @@ export default function DocumentComplianceReport() {
                             {emp.employeeCode}
                           </td>
                           <td className="px-3 py-4 text-sm">
-                            <button
+                            <span 
                               onClick={() => navigate(`/employees/${emp.employeeId}`)}
-                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer print:text-black print:no-underline print:cursor-default"
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  navigate(`/employees/${emp.employeeId}`);
+                                }
+                              }}
                             >
-                              {emp.employeeName}
-                            </button>
+                              {emp.employeeName || ''}
+                            </span>
                           </td>
                           <td className="px-3 py-4 text-sm text-gray-500">
                             {emp.category}
