@@ -8,6 +8,7 @@ import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { parseWorkbook } from './excel-parser.js';
 import { parseMonthYearFromFilename, getMonthName, normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
+import { compareSalaryRecords, type SalaryRecordData, type ComparisonResult } from '../utils/record-comparison.js';
 
 const prisma = new PrismaClient();
 
@@ -27,11 +28,24 @@ const SHEETS_DIR = getSheetsDir();
 // Log the sheets directory for debugging
 console.log('Sheets directory:', SHEETS_DIR);
 
+export interface ConflictRecord {
+  employeeId: string;
+  employeeName: string;
+  year: number;
+  month: number;
+  existingRecord: any;
+  incomingRecord: any;
+  comparison: ComparisonResult;
+}
+
 export interface ImportResult {
   success: boolean;
   filesProcessed: number;
   recordsImported: number;
+  recordsSkipped: number; // 100% identical records
+  recordsWithConflicts: number; // Records needing review
   errors: string[];
+  conflicts?: ConflictRecord[]; // Records that need user review
   similarNameMatches?: Array<{
     newName: string;
     existingName: string;
@@ -47,6 +61,8 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
     success: true,
     filesProcessed: 0,
     recordsImported: 0,
+    recordsSkipped: 0,
+    recordsWithConflicts: 0,
     errors: []
   };
   
@@ -188,9 +204,7 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
               }
             }
             
-            // Create or update salary record
-            // Note: Prisma doesn't support composite unique constraints in where clause for upsert
-            // So we'll use findFirst and then create/update
+            // Check for existing salary record
             const existingRecord = await prisma.salaryRecord.findFirst({
               where: {
                 employeeId: employee.id,
@@ -200,28 +214,78 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
             });
             
             if (existingRecord) {
-              await prisma.salaryRecord.update({
-                where: { id: existingRecord.id },
-                data: {
-                  basicSalary: record.basicSalary,
-                  directAdditions: record.directAdditions,
-                  indirectAdditions: record.indirectAdditions,
-                  yearlyIncrease: record.yearlyIncrease,
-                  bonuses: record.bonuses,
-                  salaryDeductions: record.salaryDeductions,
-                  grossDeductions: record.grossDeductions,
-                  gross: record.gross,
-                  net: record.net,
-                  additionsBreakdown: JSON.stringify(record.additionsBreakdown),
-                  deductionsBreakdown: JSON.stringify(record.deductionsBreakdown),
-                  paymentMethod: record.paymentMethod,
-                  accountNumber: record.accountNumber,
-                  notes: record.notes,
-                  category: record.category, // Save category from the sheet
-                  sourceFile: fileName
+              // Compare existing record with incoming record
+              const existingData: SalaryRecordData = {
+                employeeId: existingRecord.employeeId,
+                year: existingRecord.year,
+                month: existingRecord.month,
+                basicSalary: existingRecord.basicSalary,
+                directAdditions: existingRecord.directAdditions,
+                indirectAdditions: existingRecord.indirectAdditions,
+                yearlyIncrease: existingRecord.yearlyIncrease,
+                bonuses: existingRecord.bonuses,
+                salaryDeductions: existingRecord.salaryDeductions,
+                grossDeductions: existingRecord.grossDeductions,
+                gross: existingRecord.gross,
+                net: existingRecord.net,
+                additionsBreakdown: existingRecord.additionsBreakdown ? JSON.parse(existingRecord.additionsBreakdown) : undefined,
+                deductionsBreakdown: existingRecord.deductionsBreakdown ? JSON.parse(existingRecord.deductionsBreakdown) : undefined,
+                paymentMethod: existingRecord.paymentMethod,
+                accountNumber: existingRecord.accountNumber,
+                notes: existingRecord.notes,
+                category: existingRecord.category
+              };
+              
+              const incomingData: SalaryRecordData = {
+                employeeId: employee.id,
+                year: parsed.year,
+                month: parsed.month,
+                basicSalary: record.basicSalary,
+                directAdditions: record.directAdditions,
+                indirectAdditions: record.indirectAdditions,
+                yearlyIncrease: record.yearlyIncrease,
+                bonuses: record.bonuses,
+                salaryDeductions: record.salaryDeductions,
+                grossDeductions: record.grossDeductions,
+                gross: record.gross,
+                net: record.net,
+                additionsBreakdown: record.additionsBreakdown,
+                deductionsBreakdown: record.deductionsBreakdown,
+                paymentMethod: record.paymentMethod,
+                accountNumber: record.accountNumber,
+                notes: record.notes,
+                category: record.category
+              };
+              
+              const comparison = compareSalaryRecords(existingData, incomingData);
+              
+              if (comparison.isIdentical) {
+                // 100% identical - skip this record
+                result.recordsSkipped++;
+                console.log(`  ⏭️  Skipped identical record for ${record.employeeName} (${parsed.year}-${parsed.month})`);
+              } else {
+                // Different - add to conflicts for user review
+                if (!result.conflicts) {
+                  result.conflicts = [];
                 }
-              });
+                result.conflicts.push({
+                  employeeId: employee.id,
+                  employeeName: employee.name,
+                  year: parsed.year,
+                  month: parsed.month,
+                  existingRecord: existingRecord,
+                  incomingRecord: {
+                    ...incomingData,
+                    monthName: parsed.monthName || getMonthName(parsed.month),
+                    sourceFile: fileName
+                  },
+                  comparison
+                });
+                result.recordsWithConflicts++;
+                console.log(`  ⚠️  Conflict detected for ${record.employeeName} (${parsed.year}-${parsed.month}): ${comparison.similarity}% similar`);
+              }
             } else {
+              // New record - import it
               await prisma.salaryRecord.create({
                 data: {
                   employeeId: employee.id,
@@ -242,13 +306,12 @@ export async function importAllWorkbooks(): Promise<ImportResult> {
                   paymentMethod: record.paymentMethod,
                   accountNumber: record.accountNumber,
                   notes: record.notes,
-                  category: record.category, // Save category from the sheet
+                  category: record.category,
                   sourceFile: fileName
                 }
               });
+              imported++;
             }
-            
-            imported++;
             
             // Update record count for similar name matches
             if (employee && result.similarNameMatches) {
@@ -339,6 +402,8 @@ export async function importUploadedFiles(files: Array<{ path: string; originalN
     success: true,
     filesProcessed: 0,
     recordsImported: 0,
+    recordsSkipped: 0,
+    recordsWithConflicts: 0,
     errors: []
   };
   
@@ -481,7 +546,7 @@ export async function importUploadedFiles(files: Array<{ path: string; originalN
               }
             }
             
-            // Create or update salary record
+            // Check for existing salary record
             const existingRecord = await prisma.salaryRecord.findFirst({
               where: {
                 employeeId: employee.id,
@@ -491,28 +556,78 @@ export async function importUploadedFiles(files: Array<{ path: string; originalN
             });
             
             if (existingRecord) {
-              await prisma.salaryRecord.update({
-                where: { id: existingRecord.id },
-                data: {
-                  basicSalary: record.basicSalary,
-                  directAdditions: record.directAdditions,
-                  indirectAdditions: record.indirectAdditions,
-                  yearlyIncrease: record.yearlyIncrease,
-                  bonuses: record.bonuses,
-                  salaryDeductions: record.salaryDeductions,
-                  grossDeductions: record.grossDeductions,
-                  gross: record.gross,
-                  net: record.net,
-                  additionsBreakdown: JSON.stringify(record.additionsBreakdown),
-                  deductionsBreakdown: JSON.stringify(record.deductionsBreakdown),
-                  paymentMethod: record.paymentMethod,
-                  accountNumber: record.accountNumber,
-                  notes: record.notes,
-                  category: record.category,
-                  sourceFile: fileName
+              // Compare existing record with incoming record
+              const existingData: SalaryRecordData = {
+                employeeId: existingRecord.employeeId,
+                year: existingRecord.year,
+                month: existingRecord.month,
+                basicSalary: existingRecord.basicSalary,
+                directAdditions: existingRecord.directAdditions,
+                indirectAdditions: existingRecord.indirectAdditions,
+                yearlyIncrease: existingRecord.yearlyIncrease,
+                bonuses: existingRecord.bonuses,
+                salaryDeductions: existingRecord.salaryDeductions,
+                grossDeductions: existingRecord.grossDeductions,
+                gross: existingRecord.gross,
+                net: existingRecord.net,
+                additionsBreakdown: existingRecord.additionsBreakdown ? JSON.parse(existingRecord.additionsBreakdown) : undefined,
+                deductionsBreakdown: existingRecord.deductionsBreakdown ? JSON.parse(existingRecord.deductionsBreakdown) : undefined,
+                paymentMethod: existingRecord.paymentMethod,
+                accountNumber: existingRecord.accountNumber,
+                notes: existingRecord.notes,
+                category: existingRecord.category
+              };
+              
+              const incomingData: SalaryRecordData = {
+                employeeId: employee.id,
+                year: parsed.year,
+                month: parsed.month,
+                basicSalary: record.basicSalary,
+                directAdditions: record.directAdditions,
+                indirectAdditions: record.indirectAdditions,
+                yearlyIncrease: record.yearlyIncrease,
+                bonuses: record.bonuses,
+                salaryDeductions: record.salaryDeductions,
+                grossDeductions: record.grossDeductions,
+                gross: record.gross,
+                net: record.net,
+                additionsBreakdown: record.additionsBreakdown,
+                deductionsBreakdown: record.deductionsBreakdown,
+                paymentMethod: record.paymentMethod,
+                accountNumber: record.accountNumber,
+                notes: record.notes,
+                category: record.category
+              };
+              
+              const comparison = compareSalaryRecords(existingData, incomingData);
+              
+              if (comparison.isIdentical) {
+                // 100% identical - skip this record
+                result.recordsSkipped++;
+                console.log(`  ⏭️  Skipped identical record for ${record.employeeName} (${parsed.year}-${parsed.month})`);
+              } else {
+                // Different - add to conflicts for user review
+                if (!result.conflicts) {
+                  result.conflicts = [];
                 }
-              });
+                result.conflicts.push({
+                  employeeId: employee.id,
+                  employeeName: employee.name,
+                  year: parsed.year,
+                  month: parsed.month,
+                  existingRecord: existingRecord,
+                  incomingRecord: {
+                    ...incomingData,
+                    monthName: getMonthName(parsed.month),
+                    sourceFile: fileName
+                  },
+                  comparison
+                });
+                result.recordsWithConflicts++;
+                console.log(`  ⚠️  Conflict detected for ${record.employeeName} (${parsed.year}-${parsed.month}): ${comparison.similarity}% similar`);
+              }
             } else {
+              // New record - import it
               await prisma.salaryRecord.create({
                 data: {
                   employeeId: employee.id,
@@ -537,9 +652,8 @@ export async function importUploadedFiles(files: Array<{ path: string; originalN
                   sourceFile: fileName
                 }
               });
+              imported++;
             }
-            
-            imported++;
           } catch (recordError: any) {
             const errorMsg = recordError.message || 'Unknown error';
             console.error(`Error importing record for ${record.employeeName}:`, errorMsg);

@@ -8,6 +8,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName } from '../utils/normalize.js';
+import { compareContractRecords, type ContractData, type ComparisonResult } from '../utils/contract-comparison.js';
 
 const prisma = new PrismaClient();
 
@@ -20,12 +21,25 @@ const getSheetsDir = () => {
   return join(cwd, 'Sheets');
 };
 
+export interface ContractConflictRecord {
+  contractId?: string;
+  employeeId: string | null;
+  employeeName: string | null;
+  employeeCode: string | null;
+  existingRecord: any;
+  incomingRecord: any;
+  comparison: ComparisonResult;
+}
+
 export interface ContractsImportResult {
   success: boolean;
   recordsImported: number;
   recordsUpdated: number;
   recordsLinked: number;
+  recordsSkipped: number; // 100% identical records
+  recordsWithConflicts: number; // Records needing review
   errors: string[];
+  conflicts?: ContractConflictRecord[]; // Records that need user review
 }
 
 /**
@@ -129,6 +143,8 @@ export async function importContracts(filePath?: string): Promise<ContractsImpor
     recordsImported: 0,
     recordsUpdated: 0,
     recordsLinked: 0,
+    recordsSkipped: 0,
+    recordsWithConflicts: 0,
     errors: []
   };
 
@@ -267,28 +283,82 @@ export async function importContracts(filePath?: string): Promise<ContractsImpor
           }
         }
         
-        // Create contract record
-        const contractData = {
+        // Check for existing contract record
+        // Try to find by employeeId + contractDate + contractDuration
+        let existingContract = null;
+        if (currentEmployee?.id && contractDate) {
+          existingContract = await prisma.contractRecord.findFirst({
+            where: {
+              employeeId: currentEmployee.id,
+              contractDate: contractDate,
+              contractDuration: contractDuration || null
+            }
+          });
+        }
+
+        const contractData: ContractData = {
           employeeId: currentEmployee?.id || null,
           employeeName: currentEmployeeName,
           employeeCode: currentEmployeeCode,
           contractDate,
           contractDuration: contractDuration || null,
-          comments,
-          sourceFile: 'SEPEmployees.xlsx'
+          comments
         };
-        
-        await prisma.contractRecord.create({
-          data: contractData
-        });
-        
-        if (currentEmployee) {
-          result.recordsLinked++;
-        }
-        
-        result.recordsImported++;
-        if (result.recordsImported <= 5) {
-          console.log(`  ✅ Row ${i + 1}: Imported ${contractDuration || 'N/A'} ${contractDate ? `(Date: ${contractDate.toISOString().split('T')[0]})` : '(No date)'} ${currentEmployee ? `(Linked to ${currentEmployee.name})` : `(Employee: ${currentEmployeeCode || 'N/A'})`}`);
+
+        if (existingContract) {
+          // Compare existing contract with incoming contract
+          const existingData: ContractData = {
+            employeeId: existingContract.employeeId,
+            employeeName: existingContract.employeeName,
+            employeeCode: existingContract.employeeCode,
+            contractDate: existingContract.contractDate,
+            contractDuration: existingContract.contractDuration,
+            comments: existingContract.comments
+          };
+
+          const comparison = compareContractRecords(existingData, contractData);
+
+          if (comparison.isIdentical) {
+            // 100% identical - skip this record
+            result.recordsSkipped++;
+            console.log(`  ⏭️  Skipped identical contract for ${currentEmployeeName || currentEmployeeCode} (${contractDate ? contractDate.toISOString().split('T')[0] : 'No date'})`);
+          } else {
+            // Different - add to conflicts for user review
+            if (!result.conflicts) {
+              result.conflicts = [];
+            }
+            result.conflicts.push({
+              contractId: existingContract.id,
+              employeeId: currentEmployee?.id || null,
+              employeeName: currentEmployeeName,
+              employeeCode: currentEmployeeCode,
+              existingRecord: existingContract,
+              incomingRecord: {
+                ...contractData,
+                sourceFile: 'SEPEmployees.xlsx'
+              },
+              comparison
+            });
+            result.recordsWithConflicts++;
+            console.log(`  ⚠️  Conflict detected for ${currentEmployeeName || currentEmployeeCode}: ${comparison.similarity}% similar`);
+          }
+        } else {
+          // New contract - import it
+          await prisma.contractRecord.create({
+            data: {
+              ...contractData,
+              sourceFile: 'SEPEmployees.xlsx'
+            }
+          });
+          
+          if (currentEmployee) {
+            result.recordsLinked++;
+          }
+          
+          result.recordsImported++;
+          if (result.recordsImported <= 5) {
+            console.log(`  ✅ Row ${i + 1}: Imported ${contractDuration || 'N/A'} ${contractDate ? `(Date: ${contractDate.toISOString().split('T')[0]})` : '(No date)'} ${currentEmployee ? `(Linked to ${currentEmployee.name})` : `(Employee: ${currentEmployeeCode || 'N/A'})`}`);
+          }
         }
 
       } catch (error: any) {

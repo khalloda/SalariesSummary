@@ -5,6 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
+import ConflictResolutionModal from '../components/ConflictResolutionModal';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -39,6 +40,9 @@ export default function Dashboard() {
   const [usePersonnelFileUpload, setUsePersonnelFileUpload] = useState(true);
   const [personnelImportReport, setPersonnelImportReport] = useState<any>(null);
   const [showPersonnelImportReport, setShowPersonnelImportReport] = useState(false);
+  const [importConflicts, setImportConflicts] = useState<any[]>([]);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictType, setConflictType] = useState<'salary' | 'employee' | 'contract' | 'personnel'>('salary');
   
   useEffect(() => {
     // Fetch available years from database
@@ -117,19 +121,29 @@ export default function Dashboard() {
       if (response.data.success) {
         setEmployeeImportReport(response.data);
         setShowEmployeeImportReport(true);
-        const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
-          : '';
-        alert(t('employeeImportSuccessful', { 
-          created: response.data.recordsImported, 
-          updated: response.data.recordsUpdated, 
-          errors: errorMsg 
-        }));
-        // Clear selected file after successful import
-        setSelectedEmployeeFile(null);
-        // Reset file input
-        const fileInput = document.getElementById('employee-file-input') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+        
+        // Check for conflicts
+        if (response.data.conflicts && response.data.conflicts.length > 0) {
+          setImportConflicts(response.data.conflicts);
+          setShowConflictModal(true);
+        } else {
+          const errorMsg = response.data.errors && response.data.errors.length > 0
+            ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
+            : '';
+          const skippedMsg = response.data.recordsSkipped > 0
+            ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
+            : '';
+          alert(t('employeeImportSuccessful', { 
+            created: response.data.recordsImported, 
+            updated: response.data.recordsUpdated, 
+            errors: errorMsg + skippedMsg
+          }));
+          // Clear selected file after successful import
+          setSelectedEmployeeFile(null);
+          // Reset file input
+          const fileInput = document.getElementById('employee-file-input') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        }
       } else {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
@@ -173,20 +187,31 @@ export default function Dashboard() {
       if (response.data.success) {
         setContractsImportReport(response.data);
         setShowContractsImportReport(true);
-        const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
-          : '';
-        alert(t('contractsImportSuccessful', { 
-          imported: response.data.recordsImported, 
-          linked: response.data.recordsLinked, 
-          updated: response.data.recordsUpdated, 
-          errors: errorMsg 
-        }));
-        // Clear selected file after successful import
-        setSelectedContractsFile(null);
-        // Reset file input
-        const fileInput = document.getElementById('contracts-file-input') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+        
+        // Check for conflicts
+        if (response.data.conflicts && response.data.conflicts.length > 0) {
+          setConflictType('contract');
+          setImportConflicts(response.data.conflicts);
+          setShowConflictModal(true);
+        } else {
+          const errorMsg = response.data.errors && response.data.errors.length > 0
+            ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
+            : '';
+          const skippedMsg = response.data.recordsSkipped > 0
+            ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
+            : '';
+          alert(t('contractsImportSuccessful', { 
+            imported: response.data.recordsImported, 
+            linked: response.data.recordsLinked, 
+            updated: response.data.recordsUpdated, 
+            errors: errorMsg + skippedMsg
+          }));
+          // Clear selected file after successful import
+          setSelectedContractsFile(null);
+          // Reset file input
+          const fileInput = document.getElementById('contracts-file-input') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        }
       } else {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
@@ -230,18 +255,29 @@ export default function Dashboard() {
       if (response.data.success) {
         setPersonnelImportReport(response.data);
         setShowPersonnelImportReport(true);
-        const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
-          : '';
-        alert(t('personnelImportSuccessful', { 
-          updated: response.data.recordsUpdated, 
-          errors: errorMsg 
-        }));
-        // Clear selected file after successful import
-        setSelectedPersonnelFile(null);
-        // Reset file input
-        const fileInput = document.getElementById('personnel-file-input') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+        
+        // Check for conflicts
+        if (response.data.conflicts && response.data.conflicts.length > 0) {
+          setConflictType('personnel');
+          setImportConflicts(response.data.conflicts);
+          setShowConflictModal(true);
+        } else {
+          const errorMsg = response.data.errors && response.data.errors.length > 0
+            ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
+            : '';
+          const skippedMsg = response.data.recordsSkipped > 0
+            ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
+            : '';
+          alert(t('personnelImportSuccessful', { 
+            updated: response.data.recordsUpdated, 
+            errors: errorMsg + skippedMsg
+          }));
+          // Clear selected file after successful import
+          setSelectedPersonnelFile(null);
+          // Reset file input
+          const fileInput = document.getElementById('personnel-file-input') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        }
       } else {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
@@ -288,19 +324,30 @@ export default function Dashboard() {
         setLastImport(new Date().toISOString());
         setImportReport(response.data);
         setShowImportReport(true);
-        const errorMsg = response.data.errors && response.data.errors.length > 0
-          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
-          : '';
-        alert(t('importSuccessfulMessage', { 
-          imported: response.data.recordsImported, 
-          files: response.data.filesProcessed, 
-          errors: errorMsg 
-        }));
-        // Clear selected files after successful import
-        setSelectedFiles([]);
-        // Reset file input
-        const fileInput = document.getElementById('file-input') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+        
+        // Check for conflicts
+        if (response.data.conflicts && response.data.conflicts.length > 0) {
+          setConflictType('salary');
+          setImportConflicts(response.data.conflicts);
+          setShowConflictModal(true);
+        } else {
+          const errorMsg = response.data.errors && response.data.errors.length > 0
+            ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
+            : '';
+          const skippedMsg = response.data.recordsSkipped > 0
+            ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
+            : '';
+          alert(t('importSuccessfulMessage', { 
+            imported: response.data.recordsImported, 
+            files: response.data.filesProcessed, 
+            errors: errorMsg + skippedMsg
+          }));
+          // Clear selected files after successful import
+          setSelectedFiles([]);
+          // Reset file input
+          const fileInput = document.getElementById('file-input') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        }
       } else {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
@@ -316,6 +363,59 @@ export default function Dashboard() {
       console.error('Import error:', error);
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleResolveConflicts = async (resolutions: any[]) => {
+    try {
+      // Determine which endpoint to use based on conflict type
+      let endpoint = '/import/resolve-conflicts';
+      if (conflictType === 'employee') {
+        endpoint = '/import/resolve-employee-conflicts';
+      } else if (conflictType === 'contract') {
+        endpoint = '/import/resolve-contract-conflicts';
+      } else if (conflictType === 'personnel') {
+        endpoint = '/import/resolve-personnel-conflicts';
+      }
+
+      const response = await axios.post(`${API_BASE_URL}${endpoint}`, {
+        resolutions
+      });
+      
+      if (response.data.success) {
+        const errorMsg = response.data.errors && response.data.errors.length > 0
+          ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
+          : '';
+        alert(t('conflictsResolved', {
+          kept: response.data.kept,
+          updated: response.data.updated,
+          skipped: response.data.skipped,
+          errors: errorMsg
+        }));
+        setImportConflicts([]);
+        setShowConflictModal(false);
+        setConflictType('salary');
+        // Refresh import report
+        setLastImport(new Date().toISOString());
+        // Clear selected files after successful import
+        setSelectedFiles([]);
+        setSelectedEmployeeFile(null);
+        setSelectedContractsFile(null);
+        setSelectedPersonnelFile(null);
+        // Reset file inputs
+        const fileInput = document.getElementById('file-input') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+        const employeeFileInput = document.getElementById('employee-file-input') as HTMLInputElement;
+        if (employeeFileInput) employeeFileInput.value = '';
+        const contractsFileInput = document.getElementById('contracts-file-input') as HTMLInputElement;
+        if (contractsFileInput) contractsFileInput.value = '';
+        const personnelFileInput = document.getElementById('personnel-file-input') as HTMLInputElement;
+        if (personnelFileInput) personnelFileInput.value = '';
+      } else {
+        alert(t('failedToResolveConflicts', { error: response.data.error || 'Unknown error' }));
+      }
+    } catch (error: any) {
+      alert(t('failedToResolveConflicts', { error: error.response?.data?.error || error.message }));
     }
   };
   
@@ -973,6 +1073,12 @@ export default function Dashboard() {
           <div className="mb-4">
             <p><strong>Files Processed:</strong> {importReport.filesProcessed}</p>
             <p><strong>Records Imported:</strong> {importReport.recordsImported}</p>
+            {importReport.recordsSkipped !== undefined && importReport.recordsSkipped > 0 && (
+              <p><strong>{t('recordsSkipped')}:</strong> {importReport.recordsSkipped}</p>
+            )}
+            {importReport.recordsWithConflicts !== undefined && importReport.recordsWithConflicts > 0 && (
+              <p><strong>{t('importConflicts')}:</strong> {importReport.recordsWithConflicts}</p>
+            )}
             {importReport.errors && importReport.errors.length > 0 && (
               <div className="mt-2">
                 <p><strong>Errors:</strong> {importReport.errors.length}</p>
@@ -1162,6 +1268,20 @@ export default function Dashboard() {
           <p className="text-gray-600">{t('viewSalaryChanges')}</p>
         </div>
       </div>
+
+      {/* Conflict Resolution Modal */}
+      {showConflictModal && importConflicts.length > 0 && (
+        <ConflictResolutionModal
+          conflicts={importConflicts}
+          onResolve={handleResolveConflicts}
+          onClose={() => {
+            setShowConflictModal(false);
+            setImportConflicts([]);
+            setConflictType('salary');
+          }}
+          conflictType={conflictType}
+        />
+      )}
     </div>
   );
 }

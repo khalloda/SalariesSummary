@@ -594,8 +594,8 @@ export default function EmployeeDetail() {
                   { label: 'Birth Certificate', value: employee.personnelRecord.birthCertificate, type: 'document' },
                   { label: 'Recommendation Letter', value: employee.personnelRecord.recommendationLetter ? 'Present' : 'Missing', type: 'status' },
                   { label: 'Personal Photos', value: employee.personnelRecord.personalPhotos ? 'Present' : 'Missing', type: 'status' },
-                  { label: 'Tax Card', value: employee.personnelRecord.taxCard ? 'Present' : 'Missing', type: 'status' },
-                  { label: 'Association ID', value: employee.personnelRecord.associationId ? 'Present' : 'Missing', type: 'status' },
+                  { label: 'Tax Card', value: employee.personnelRecord.taxCard === null ? 'N/A' : (employee.personnelRecord.taxCard ? 'Present' : 'Missing'), type: 'status' },
+                  { label: 'Association ID', value: employee.personnelRecord.associationId === null ? 'N/A' : (employee.personnelRecord.associationId ? 'Present' : 'Missing'), type: 'status' },
                   { label: 'Form 6', value: employee.personnelRecord.form6 || 'N/A', type: 'text' },
                   { label: 'Work Stub', value: employee.personnelRecord.workStub || 'N/A', type: 'text' }
                 ].map((doc, idx) => {
@@ -684,8 +684,9 @@ export default function EmployeeDetail() {
                   { name: 'Birth Certificate', status: pr.birthCertificate },
                   { name: 'Recommendation Letter', status: pr.recommendationLetter ? 'Present' : 'Missing' },
                   { name: 'Personal Photos', status: pr.personalPhotos ? 'Present' : 'Missing' },
-                  { name: 'Tax Card', status: pr.taxCard ? 'Present' : 'Missing' },
-                  { name: 'Association ID', status: pr.associationId ? 'Present' : 'Missing' }
+                  { name: 'Tax Card', status: pr.taxCard === null ? 'N/A' : (pr.taxCard ? 'Present' : 'Missing') },
+                  { name: 'Association ID', status: pr.associationId === null ? 'N/A' : (pr.associationId ? 'Present' : 'Missing') },
+                  { name: 'Work Stub', status: !pr.workStub || pr.workStub === 'N/A' || pr.workStub.trim() === '' ? 'N/A' : (pr.workStub === 'Missing' || pr.workStub === 'X' ? 'Missing' : 'Present') }
                 ];
 
                 const completed = documents.filter(doc => {
@@ -695,7 +696,8 @@ export default function EmployeeDetail() {
 
                 const applicable = documents.filter(doc => {
                   const status = doc.status;
-                  return status !== 'N/A' && status !== null;
+                  // Exclude N/A documents from applicable count
+                  return status !== 'N/A' && status !== null && status !== undefined;
                 }).length;
 
                 const compliancePercentage = applicable > 0 ? Math.round((completed / applicable) * 100) : 0;

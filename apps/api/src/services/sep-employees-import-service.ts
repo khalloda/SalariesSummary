@@ -8,6 +8,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName } from '../utils/normalize.js';
+import { compareEmployeeRecords, type EmployeeData, type ComparisonResult } from '../utils/employee-comparison.js';
 
 const prisma = new PrismaClient();
 
@@ -20,11 +21,22 @@ const getSheetsDir = () => {
   return join(cwd, 'Sheets');
 };
 
+export interface EmployeeConflictRecord {
+  employeeId: string;
+  employeeName: string;
+  existingRecord: any;
+  incomingRecord: any;
+  comparison: ComparisonResult;
+}
+
 export interface SEPEmployeeImportResult {
   success: boolean;
   recordsImported: number;
   recordsUpdated: number;
+  recordsSkipped: number; // 100% identical records
+  recordsWithConflicts: number; // Records needing review
   errors: string[];
+  conflicts?: EmployeeConflictRecord[]; // Records that need user review
 }
 
 /**
@@ -181,6 +193,8 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
     success: true,
     recordsImported: 0,
     recordsUpdated: 0,
+    recordsSkipped: 0,
+    recordsWithConflicts: 0,
     errors: []
   };
 
@@ -651,16 +665,66 @@ export async function importSEPEmployees(filePath?: string): Promise<SEPEmployee
         };
 
         if (employee) {
-          // Update existing employee
-          const updated = await prisma.employee.update({
-            where: { id: employee.id },
-            data: employeeData
-          });
-          result.recordsUpdated++;
-          
-          console.log(`  ✅ Updated: ${primaryName}`);
-          console.log(`     - employeeCode: "${updated.employeeCode || 'null'}" (from column A)`);
-          console.log(`     - nationalId: "${updated.nationalId || 'null'}" (from NationalID column)`);
+          // Compare existing employee with incoming data
+          const existingData: EmployeeData = {
+            name: employee.name,
+            normalizedName: employee.normalizedName,
+            employeeCode: employee.employeeCode,
+            category: employee.category,
+            nameArabic: employee.nameArabic,
+            jobTitle: employee.jobTitle,
+            department: employee.department,
+            dateOfBirth: employee.dateOfBirth,
+            joiningDate: employee.joiningDate,
+            graduationCertificate: employee.graduationCertificate,
+            graduationSection: employee.graduationSection,
+            graduationUniversity: employee.graduationUniversity,
+            graduationYear: employee.graduationYear,
+            socialInsurance: employee.socialInsurance,
+            barAssociation: employee.barAssociation,
+            barAssociationValidTill: employee.barAssociationValidTill,
+            barAssociationDegree: employee.barAssociationDegree,
+            taxCard: employee.taxCard,
+            nationalId: employee.nationalId,
+            nationalIdValidTill: employee.nationalIdValidTill,
+            address: employee.address,
+            addressRegion: employee.addressRegion,
+            addressGovernorate: employee.addressGovernorate,
+            extension: employee.extension,
+            mobileNumber: employee.mobileNumber,
+            contractType: employee.contractType,
+            contractDuration: employee.contractDuration,
+            contractRenewalDate: employee.contractRenewalDate,
+            status: employee.status,
+            experienceInYears: employee.experienceInYears,
+            experienceInMonths: employee.experienceInMonths,
+            experienceOutYears: employee.experienceOutYears,
+            experienceOutMonths: employee.experienceOutMonths
+          };
+
+          const incomingData: EmployeeData = employeeData;
+
+          const comparison = compareEmployeeRecords(existingData, incomingData);
+
+          if (comparison.isIdentical) {
+            // 100% identical - skip this record
+            result.recordsSkipped++;
+            console.log(`  ⏭️  Skipped identical record for ${primaryName}`);
+          } else {
+            // Different - add to conflicts for user review
+            if (!result.conflicts) {
+              result.conflicts = [];
+            }
+            result.conflicts.push({
+              employeeId: employee.id,
+              employeeName: employee.name,
+              existingRecord: employee,
+              incomingRecord: employeeData,
+              comparison
+            });
+            result.recordsWithConflicts++;
+            console.log(`  ⚠️  Conflict detected for ${primaryName}: ${comparison.similarity}% similar`);
+          }
         } else {
           // Create new employee
           const created = await prisma.employee.create({

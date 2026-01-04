@@ -522,8 +522,8 @@ export default function EmployeeCard() {
                         <div><span className="font-semibold text-gray-600">Birth Certificate:</span> {selectedEmployee.personnelRecord.birthCertificate || 'N/A'}</div>
                         <div><span className="font-semibold text-gray-600">Recommendation Letter:</span> {selectedEmployee.personnelRecord.recommendationLetter ? 'Present' : 'Missing'}</div>
                         <div><span className="font-semibold text-gray-600">Personal Photos:</span> {selectedEmployee.personnelRecord.personalPhotos ? 'Present' : 'Missing'}</div>
-                        <div><span className="font-semibold text-gray-600">Tax Card:</span> {selectedEmployee.personnelRecord.taxCard ? 'Present' : 'Missing'}</div>
-                        <div><span className="font-semibold text-gray-600">Association ID:</span> {selectedEmployee.personnelRecord.associationId ? 'Present' : 'Missing'}</div>
+                        <div><span className="font-semibold text-gray-600">Tax Card:</span> {selectedEmployee.personnelRecord.taxCard === null ? 'N/A' : (selectedEmployee.personnelRecord.taxCard ? 'Present' : 'Missing')}</div>
+                        <div><span className="font-semibold text-gray-600">Association ID:</span> {selectedEmployee.personnelRecord.associationId === null ? 'N/A' : (selectedEmployee.personnelRecord.associationId ? 'Present' : 'Missing')}</div>
                         <div><span className="font-semibold text-gray-600">Form 6:</span> {selectedEmployee.personnelRecord.form6 || 'N/A'}</div>
                       </div>
                       <div className="border-t pt-2 mt-2">

@@ -8,6 +8,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
+import { comparePersonnelRecords, type PersonnelData, type ComparisonResult } from '../utils/personnel-comparison.js';
 
 const prisma = new PrismaClient();
 
@@ -20,11 +21,22 @@ const getSheetsDir = () => {
   return join(cwd, 'Sheets');
 };
 
+export interface PersonnelConflictRecord {
+  employeeId: string;
+  employeeName: string;
+  existingRecord: any;
+  incomingRecord: any;
+  comparison: ComparisonResult;
+}
+
 export interface PersonnelImportResult {
   success: boolean;
   recordsImported: number;
   recordsUpdated: number;
+  recordsSkipped: number; // 100% identical records
+  recordsWithConflicts: number; // Records needing review
   errors: string[];
+  conflicts?: PersonnelConflictRecord[]; // Records that need user review
 }
 
 /**
@@ -159,6 +171,8 @@ export async function importPersonnel(filePath?: string): Promise<PersonnelImpor
     success: true,
     recordsImported: 0,
     recordsUpdated: 0,
+    recordsSkipped: 0,
+    recordsWithConflicts: 0,
     errors: []
   };
 
@@ -342,65 +356,126 @@ export async function importPersonnel(filePath?: string): Promise<PersonnelImpor
         const birthCert = parseDocumentStatus(getValue('Birth Certificate', row));
         const recommendationLetterValue = parseStatusIndicator(getValue('Recommendation Letter', row));
         const personalPhotosValue = parseStatusIndicator(getValue('Personal Photos', row));
-        const taxCardValue = parseStatusIndicator(getValue('Tax Card', row));
-        const associationIdValue = parseStatusIndicator(getValue('Association ID', row));
+        
+        // For Tax Card and Association ID, check if value is "N/A" first
+        const taxCardRaw = getValue('Tax Card', row);
+        const taxCardValue = taxCardRaw && String(taxCardRaw).trim().toUpperCase() === 'N/A' 
+          ? null 
+          : parseStatusIndicator(taxCardRaw);
+        
+        const associationIdRaw = getValue('Association ID', row);
+        const associationIdValue = associationIdRaw && String(associationIdRaw).trim().toUpperCase() === 'N/A'
+          ? null
+          : parseStatusIndicator(associationIdRaw);
         const form6Value = parseString(getValue('Form 6', row)) || 'N/A';
         // Try multiple variations for Laptop/PC/Tablet column
         const laptopPcTabletRaw = getValue('Laptop / PC / Tablet', row);
         const laptopPcTabletValue = parseAssetType(laptopPcTabletRaw);
-        const workStubValue = parseString(getValue('كعب العمل', row)) || 'N/A';
+        // Parse Work Stub - "X" means Missing, empty/null means N/A
+        const workStubRaw = getValue('كعب العمل', row);
+        let workStubValue: string | null = null;
+        if (workStubRaw) {
+          const workStubStr = String(workStubRaw).trim();
+          if (workStubStr === 'X' || workStubStr === '✗') {
+            workStubValue = 'Missing';
+          } else if (workStubStr === '' || workStubStr === '-' || workStubStr.toUpperCase() === 'N/A') {
+            workStubValue = 'N/A';
+          } else {
+            workStubValue = workStubStr;
+          }
+        } else {
+          workStubValue = 'N/A';
+        }
         const insuranceStartDateValue = parseInsuranceDate(getValue('تاريخ بداية التأمين', row));
         const statusValue = parseString(getValue('Status', row));
 
         if (employee) {
-          // Update or create PersonnelRecord
-          await prisma.personnelRecord.upsert({
-            where: { employeeId: employee.id },
-            create: {
-              employeeId: employee.id,
-              criminalRecord,
-              militaryCertificate: militaryCert,
-              idCopy: idCopyValue === 'Present',
-              educationCertificate: educationCert,
-              birthCertificate: birthCert,
-              recommendationLetter: recommendationLetterValue === 'Present',
-              personalPhotos: personalPhotosValue === 'Present',
-              taxCard: taxCardValue === 'Present',
-              associationId: associationIdValue === 'Present',
-              form6: form6Value,
-              laptopPcTablet: laptopPcTabletValue,
-              workStub: workStubValue,
-              insuranceStartDate: insuranceStartDateValue,
-              sourceFile: 'SEPEmployees.xlsx - Personnel'
-            },
-            update: {
-              criminalRecord,
-              militaryCertificate: militaryCert,
-              idCopy: idCopyValue === 'Present',
-              educationCertificate: educationCert,
-              birthCertificate: birthCert,
-              recommendationLetter: recommendationLetterValue === 'Present',
-              personalPhotos: personalPhotosValue === 'Present',
-              taxCard: taxCardValue === 'Present',
-              associationId: associationIdValue === 'Present',
-              form6: form6Value,
-              laptopPcTablet: laptopPcTabletValue,
-              workStub: workStubValue,
-              insuranceStartDate: insuranceStartDateValue,
-              sourceFile: 'SEPEmployees.xlsx - Personnel'
-            }
+          // Check for existing personnel record
+          const existingPersonnel = await prisma.personnelRecord.findUnique({
+            where: { employeeId: employee.id }
           });
 
-          // Update employee status if provided
-          if (statusValue) {
-            await prisma.employee.update({
-              where: { id: employee.id },
-              data: { status: statusValue }
-            });
-          }
+          const incomingPersonnelData: PersonnelData = {
+            employeeId: employee.id,
+            criminalRecord,
+            militaryCertificate: militaryCert,
+            idCopy: idCopyValue === 'Present',
+            educationCertificate: educationCert,
+            birthCertificate: birthCert,
+            recommendationLetter: recommendationLetterValue === 'Present',
+            personalPhotos: personalPhotosValue === 'Present',
+            taxCard: taxCardValue === null ? null : (taxCardValue === 'Present'),
+            associationId: associationIdValue === null ? null : (associationIdValue === 'Present'),
+            form6: form6Value,
+            laptopPcTablet: laptopPcTabletValue,
+            workStub: workStubValue,
+            insuranceStartDate: insuranceStartDateValue
+          };
 
-          result.recordsUpdated++;
-          console.log(`  ✅ Updated: ${employee.name} (Personnel data)`);
+          if (existingPersonnel) {
+            // Compare existing personnel record with incoming data
+            const existingData: PersonnelData = {
+              employeeId: existingPersonnel.employeeId,
+              criminalRecord: existingPersonnel.criminalRecord,
+              militaryCertificate: existingPersonnel.militaryCertificate,
+              idCopy: existingPersonnel.idCopy,
+              educationCertificate: existingPersonnel.educationCertificate,
+              birthCertificate: existingPersonnel.birthCertificate,
+              recommendationLetter: existingPersonnel.recommendationLetter,
+              personalPhotos: existingPersonnel.personalPhotos,
+              taxCard: existingPersonnel.taxCard,
+              associationId: existingPersonnel.associationId,
+              form6: existingPersonnel.form6,
+              laptopPcTablet: existingPersonnel.laptopPcTablet,
+              workStub: existingPersonnel.workStub,
+              insuranceStartDate: existingPersonnel.insuranceStartDate
+            };
+
+            const comparison = comparePersonnelRecords(existingData, incomingPersonnelData);
+
+            if (comparison.isIdentical) {
+              // 100% identical - skip this record
+              result.recordsSkipped++;
+              console.log(`  ⏭️  Skipped identical personnel record for ${employee.name}`);
+            } else {
+              // Different - add to conflicts for user review
+              if (!result.conflicts) {
+                result.conflicts = [];
+              }
+              result.conflicts.push({
+                employeeId: employee.id,
+                employeeName: employee.name,
+                existingRecord: existingPersonnel,
+                incomingRecord: {
+                  ...incomingPersonnelData,
+                  sourceFile: 'SEPEmployees.xlsx - Personnel',
+                  status: statusValue
+                },
+                comparison
+              });
+              result.recordsWithConflicts++;
+              console.log(`  ⚠️  Conflict detected for ${employee.name}: ${comparison.similarity}% similar`);
+            }
+          } else {
+            // New personnel record - import it
+            await prisma.personnelRecord.create({
+              data: {
+                ...incomingPersonnelData,
+                sourceFile: 'SEPEmployees.xlsx - Personnel'
+              }
+            });
+            result.recordsImported++;
+
+            // Update employee status if provided
+            if (statusValue) {
+              await prisma.employee.update({
+                where: { id: employee.id },
+                data: { status: statusValue }
+              });
+            }
+
+            console.log(`  ✅ Created: ${employee.name} (Personnel data)`);
+          }
         } else {
           // Try to find potential matches for better error reporting
           let potentialMatches: string[] = [];

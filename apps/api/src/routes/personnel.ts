@@ -20,10 +20,10 @@ personnelRouter.get('/compliance/report', async (req, res) => {
     const minComplianceNum = minCompliance ? parseFloat(minCompliance as string) : 0;
 
     // Get all employees with personnel records
+    // Note: We'll filter by status on the client side to allow showing Resigned employees if needed
     const employees = await prisma.employee.findMany({
       where: {
-        ...(category ? { category: category as string } : {}),
-        status: { not: 'Resigned' }
+        ...(category ? { category: category as string } : {})
       },
       include: {
         personnelRecord: true
@@ -74,6 +74,7 @@ personnelRouter.get('/compliance/report', async (req, res) => {
           employeeCode: emp.employeeCode || '',
           category: emp.category || '',
           department: emp.department || '',
+          status: emp.status || 'Active',
           compliancePercentage: Math.round(compliancePercentage * 100) / 100,
           completedDocuments: completed,
           totalApplicableDocuments: applicable,

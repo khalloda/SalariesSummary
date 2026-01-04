@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
@@ -11,6 +12,7 @@ interface ComplianceData {
   employeeCode: string;
   category: string;
   department: string;
+  status?: string;
   compliancePercentage: number;
   completedDocuments: number;
   totalApplicableDocuments: number;
@@ -33,11 +35,16 @@ interface ComplianceReport {
 
 export default function DocumentComplianceReport() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [data, setData] = useState<ComplianceReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [minComplianceFilter, setMinComplianceFilter] = useState<string>('0');
   const [categories, setCategories] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   
   // Add print styles
   useEffect(() => {
@@ -65,7 +72,7 @@ export default function DocumentComplianceReport() {
 
   useEffect(() => {
     fetchData();
-  }, [categoryFilter, minComplianceFilter]);
+  }, [categoryFilter, minComplianceFilter, statusFilter, departmentFilter]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,9 +86,11 @@ export default function DocumentComplianceReport() {
       const response = await axios.get(`${API_BASE_URL}/personnel/compliance/report?${params.toString()}`);
       setData(response.data);
       
-      // Extract unique categories
+      // Extract unique categories and departments
       const uniqueCategories = Array.from(new Set(response.data.employees.map((e: ComplianceData) => e.category).filter(Boolean)));
-      setCategories(uniqueCategories.sort());
+      const uniqueDepartments = Array.from(new Set(response.data.employees.map((e: ComplianceData) => e.department).filter(Boolean)));
+      setCategories(uniqueCategories);
+      setDepartments(uniqueDepartments.sort());
     } catch (error) {
       console.error('Error fetching compliance report:', error);
     } finally {
@@ -176,7 +185,92 @@ export default function DocumentComplianceReport() {
     );
   }
 
-  const filteredEmployees = data.employees;
+  // Normalize search text for robust matching
+  const normalizeForSearch = (text: string): string => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .trim();
+  };
+
+  // Category sorting: Partners first, then Lawyers, Admins, Consultants
+  const getCategoryPriority = (category: string | undefined): number => {
+    if (!category) return 999;
+    const lowerCaseCategory = category.toLowerCase();
+    if (lowerCaseCategory.includes('partner')) return 1;
+    if (lowerCaseCategory.includes('lawyer')) return 2;
+    if (lowerCaseCategory.includes('admin')) return 3;
+    if (lowerCaseCategory.includes('consultant')) return 4;
+    return 999;
+  };
+
+  const sortCategories = (a: string, b: string) => {
+    const priorityA = getCategoryPriority(a);
+    const priorityB = getCategoryPriority(b);
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    return a.localeCompare(b);
+  };
+
+  // Sort employee codes numerically (e.g., "2-1", "2-2", "2-14")
+  const compareEmployeeCodes = (codeA: string | undefined, codeB: string | undefined) => {
+    if (!codeA && !codeB) return 0;
+    if (!codeA) return 1;
+    if (!codeB) return -1;
+
+    const partsA = codeA.split('-').map(Number);
+    const partsB = codeB.split('-').map(Number);
+
+    for (let i = 0; i < Math.min(partsA.length, partsB.length); i++) {
+      if (partsA[i] !== partsB[i]) {
+        return partsA[i] - partsB[i];
+      }
+    }
+    return partsA.length - partsB.length;
+  };
+
+  // Filter employees
+  const filtered = data.employees.filter(emp => {
+    // Search filter
+    const normalizedSearch = normalizeForSearch(search);
+    const normalizedName = normalizeForSearch(emp.employeeName);
+    const matchesSearch = !search || normalizedName.includes(normalizedSearch);
+    
+    // Status filter
+    const matchesStatus = !statusFilter || statusFilter === 'all' || (emp.status || 'Active') === statusFilter;
+    
+    // Department filter
+    const matchesDepartment = departmentFilter === 'all' || emp.department === departmentFilter;
+    
+    // Category filter
+    const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
+    
+    // Min compliance filter
+    const matchesMinCompliance = parseFloat(minComplianceFilter) === 0 || emp.compliancePercentage >= parseFloat(minComplianceFilter);
+    
+    return matchesSearch && matchesStatus && matchesDepartment && matchesCategory && matchesMinCompliance;
+  });
+
+  // Group by category
+  const employeesByCategory: Record<string, ComplianceData[]> = {};
+  filtered.forEach(emp => {
+    const category = emp.category || 'Uncategorized';
+    if (!employeesByCategory[category]) {
+      employeesByCategory[category] = [];
+    }
+    employeesByCategory[category].push(emp);
+  });
+
+  // Sort categories
+  const sortedCategories = Object.keys(employeesByCategory).sort(sortCategories);
+
+  // Sort employees within each category by employee code
+  sortedCategories.forEach(category => {
+    employeesByCategory[category].sort((a, b) => compareEmployeeCodes(a.employeeCode, b.employeeCode));
+  });
 
   return (
     <div className="p-6">
@@ -242,124 +336,185 @@ export default function DocumentComplianceReport() {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search */}
+          <div>
+            <Tooltip content={tooltips.common.search}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('search')}</label>
+            </Tooltip>
+            <input
+              type="text"
+              placeholder={t('search')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('status')}</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('all')}</option>
+              <option value="Active">{t('statusActive')}</option>
+              <option value="Resigned">{t('statusResigned')}</option>
+            </select>
+          </div>
+
+          {/* Category Filter */}
           <div>
             <Tooltip content={tooltips.reports.filterByCategory}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('filterByCategory')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('category')}</label>
             </Tooltip>
-            <Tooltip content={tooltips.reports.filterByCategory}>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="all">{t('allCategories')}</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </Tooltip>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('allCategories')}</option>
+              {categories.sort(sortCategories).map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </div>
+
+          {/* Department Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('department')}</label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('all')}</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Min Compliance Filter */}
           <div>
             <Tooltip content={tooltips.reports.minCompliance}>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('minCompliance')}</label>
             </Tooltip>
-            <Tooltip content={tooltips.reports.minCompliance}>
-              <select
-                value={minComplianceFilter}
-                onChange={(e) => setMinComplianceFilter(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="0">{t('all')}</option>
-                <option value="70">≥70%</option>
-                <option value="80">≥80%</option>
-                <option value="90">≥90%</option>
-              </select>
-            </Tooltip>
+            <select
+              value={minComplianceFilter}
+              onChange={(e) => setMinComplianceFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="0">{t('all')}</option>
+              <option value="70">≥70%</option>
+              <option value="80">≥80%</option>
+              <option value="90">≥90%</option>
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Compliance Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Employee Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Compliance
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Documents
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Missing
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                    No employees found
-                  </td>
-                </tr>
-              ) : (
-                filteredEmployees.map((emp) => (
-                  <tr key={emp.employeeId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {emp.employeeCode}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {emp.employeeName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {emp.category}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {emp.department || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`px-3 py-1 rounded-full text-sm font-semibold inline-block ${getComplianceColor(emp.compliancePercentage)}`}>
-                        {emp.compliancePercentage.toFixed(1)}% ({getComplianceBadge(emp.compliancePercentage)})
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {emp.completedDocuments} / {emp.totalApplicableDocuments}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {emp.missingDocuments.length > 0 ? (
-                        <div className="max-w-xs">
-                          <div className="text-red-600 font-medium">{emp.missingDocuments.length} missing</div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            {emp.missingDocuments.slice(0, 2).join(', ')}
-                            {emp.missingDocuments.length > 2 && ` +${emp.missingDocuments.length - 2} more`}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-green-600 font-medium">Complete</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Compliance Tables by Category */}
+      <div className="space-y-6">
+        {sortedCategories.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+            No employees found
+          </div>
+        ) : (
+          sortedCategories.map(category => {
+            const categoryEmployees = employeesByCategory[category];
+            if (categoryEmployees.length === 0) return null;
+
+            return (
+              <div key={category} className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {category} ({categoryEmployees.length})
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '8%' }}>
+                          {t('id')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '22%' }}>
+                          {t('name')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '12%' }}>
+                          {t('category')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '15%' }}>
+                          {t('department')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '15%' }}>
+                          {t('compliancePercentage')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '10%' }}>
+                          {t('documents')}
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '18%' }}>
+                          {t('missingDocuments')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {categoryEmployees.map((emp) => (
+                        <tr key={emp.employeeId} className="hover:bg-gray-50">
+                          <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                            {emp.employeeCode}
+                          </td>
+                          <td className="px-3 py-4 text-sm">
+                            <button
+                              onClick={() => navigate(`/employees/${emp.employeeId}`)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
+                            >
+                              {emp.employeeName}
+                            </button>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {emp.category}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {emp.department || 'N/A'}
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className={`px-2 py-1 rounded-full text-xs font-semibold inline-block ${getComplianceColor(emp.compliancePercentage)}`}>
+                              {emp.compliancePercentage.toFixed(1)}% ({getComplianceBadge(emp.compliancePercentage)})
+                            </div>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {emp.completedDocuments} / {emp.totalApplicableDocuments}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {emp.missingDocuments.length > 0 ? (
+                              <div>
+                                <div className="text-red-600 font-medium">{emp.missingDocuments.length} missing</div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  {emp.missingDocuments.slice(0, 2).join(', ')}
+                                  {emp.missingDocuments.length > 2 && ` +${emp.missingDocuments.length - 2} more`}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-green-600 font-medium">Complete</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
 }
+
+
 

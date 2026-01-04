@@ -61,7 +61,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </nav>
       </header>
-      <main className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 ${location.pathname.startsWith('/manage/') || location.pathname === '/employees' ? 'max-w-full' : 'max-w-7xl'}`}>
+      <main className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 ${location.pathname.startsWith('/manage/') || location.pathname === '/employees' || location.pathname === '/reports/document-compliance' ? 'max-w-full' : 'max-w-7xl'}`}>
         {children}
       </main>
     </div>

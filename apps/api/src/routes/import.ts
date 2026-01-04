@@ -265,6 +265,404 @@ importRouter.post('/merge-duplicates', async (req, res) => {
 });
 
 /**
+ * POST /api/import/resolve-conflicts
+ * Resolve salary import conflicts by choosing to keep existing, update with incoming, or skip
+ * Body: { 
+ *   resolutions: Array<{
+ *     employeeId: string,
+ *     year: number,
+ *     month: number,
+ *     action: 'keep' | 'update' | 'skip'
+ *     incomingRecord?: any
+ *   }>
+ * }
+ */
+importRouter.post('/resolve-conflicts', async (req, res) => {
+  try {
+    const { resolutions } = req.body;
+    
+    if (!resolutions || !Array.isArray(resolutions)) {
+      return res.status(400).json({
+        success: false,
+        error: 'resolutions array is required'
+      });
+    }
+    
+    console.log(`Resolving ${resolutions.length} conflicts`);
+    
+    let kept = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    
+    for (const resolution of resolutions) {
+      try {
+        const { employeeId, year, month, action, incomingRecord } = resolution;
+        
+        if (!employeeId || !year || !month || !action) {
+          errors.push(`Invalid resolution: missing required fields`);
+          continue;
+        }
+        
+        const existingRecord = await prisma.salaryRecord.findFirst({
+          where: {
+            employeeId,
+            year,
+            month
+          }
+        });
+        
+        if (!existingRecord) {
+          errors.push(`Record not found for employee ${employeeId}, ${year}-${month}`);
+          continue;
+        }
+        
+        if (action === 'keep') {
+          // Keep existing record - do nothing
+          kept++;
+        } else if (action === 'update' && incomingRecord) {
+          // Update with incoming data
+          await prisma.salaryRecord.update({
+            where: { id: existingRecord.id },
+            data: {
+              basicSalary: incomingRecord.basicSalary,
+              directAdditions: incomingRecord.directAdditions,
+              indirectAdditions: incomingRecord.indirectAdditions,
+              yearlyIncrease: incomingRecord.yearlyIncrease,
+              bonuses: incomingRecord.bonuses,
+              salaryDeductions: incomingRecord.salaryDeductions,
+              grossDeductions: incomingRecord.grossDeductions,
+              gross: incomingRecord.gross,
+              net: incomingRecord.net,
+              additionsBreakdown: incomingRecord.additionsBreakdown ? JSON.stringify(incomingRecord.additionsBreakdown) : null,
+              deductionsBreakdown: incomingRecord.deductionsBreakdown ? JSON.stringify(incomingRecord.deductionsBreakdown) : null,
+              paymentMethod: incomingRecord.paymentMethod,
+              accountNumber: incomingRecord.accountNumber,
+              notes: incomingRecord.notes,
+              category: incomingRecord.category,
+              sourceFile: incomingRecord.sourceFile || existingRecord.sourceFile
+            }
+          });
+          updated++;
+        } else if (action === 'skip') {
+          // Skip - delete the existing record (or do nothing if you want to keep it)
+          // For now, we'll just skip without deleting
+          skipped++;
+        }
+      } catch (error: any) {
+        errors.push(`Error resolving conflict: ${error.message}`);
+      }
+    }
+    
+    await prisma.$disconnect();
+    
+    res.json({
+      success: errors.length === 0,
+      kept,
+      updated,
+      skipped,
+      errors
+    });
+  } catch (error: any) {
+    console.error('Resolve conflicts error:', error);
+    await prisma.$disconnect();
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/import/resolve-employee-conflicts
+ * Resolve employee import conflicts
+ * Body: { 
+ *   resolutions: Array<{
+ *     employeeId: string,
+ *     action: 'keep' | 'update' | 'skip'
+ *     incomingRecord?: any
+ *   }>
+ * }
+ */
+importRouter.post('/resolve-employee-conflicts', async (req, res) => {
+  try {
+    const { resolutions } = req.body;
+    
+    if (!resolutions || !Array.isArray(resolutions)) {
+      return res.status(400).json({
+        success: false,
+        error: 'resolutions array is required'
+      });
+    }
+    
+    console.log(`Resolving ${resolutions.length} employee conflicts`);
+    
+    let kept = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    
+    for (const resolution of resolutions) {
+      try {
+        const { employeeId, action, incomingRecord } = resolution;
+        
+        if (!employeeId || !action) {
+          errors.push(`Invalid resolution: missing required fields`);
+          continue;
+        }
+        
+        const existingEmployee = await prisma.employee.findUnique({
+          where: { id: employeeId }
+        });
+        
+        if (!existingEmployee) {
+          errors.push(`Employee not found: ${employeeId}`);
+          continue;
+        }
+        
+        if (action === 'keep') {
+          kept++;
+        } else if (action === 'update' && incomingRecord) {
+          await prisma.employee.update({
+            where: { id: employeeId },
+            data: incomingRecord
+          });
+          updated++;
+        } else if (action === 'skip') {
+          skipped++;
+        }
+      } catch (error: any) {
+        errors.push(`Error resolving conflict: ${error.message}`);
+      }
+    }
+    
+    await prisma.$disconnect();
+    
+    res.json({
+      success: errors.length === 0,
+      kept,
+      updated,
+      skipped,
+      errors
+    });
+  } catch (error: any) {
+    console.error('Resolve employee conflicts error:', error);
+    await prisma.$disconnect();
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/import/resolve-contract-conflicts
+ * Resolve contract import conflicts
+ * Body: { 
+ *   resolutions: Array<{
+ *     contractId?: string,
+ *     employeeId: string | null,
+ *     employeeCode: string | null,
+ *     contractDate: Date | null,
+ *     action: 'keep' | 'update' | 'skip'
+ *     incomingRecord?: any
+ *   }>
+ * }
+ */
+importRouter.post('/resolve-contract-conflicts', async (req, res) => {
+  try {
+    const { resolutions } = req.body;
+    
+    if (!resolutions || !Array.isArray(resolutions)) {
+      return res.status(400).json({
+        success: false,
+        error: 'resolutions array is required'
+      });
+    }
+    
+    console.log(`Resolving ${resolutions.length} contract conflicts`);
+    
+    let kept = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    
+    for (const resolution of resolutions) {
+      try {
+        const { contractId, employeeId, contractDate, contractDuration, action, incomingRecord } = resolution;
+        
+        if (!action) {
+          errors.push(`Invalid resolution: missing action`);
+          continue;
+        }
+        
+        let existingContract = null;
+        if (contractId) {
+          existingContract = await prisma.contractRecord.findUnique({
+            where: { id: contractId }
+          });
+        } else if (employeeId && contractDate) {
+          existingContract = await prisma.contractRecord.findFirst({
+            where: {
+              employeeId,
+              contractDate,
+              contractDuration: contractDuration || null
+            }
+          });
+        }
+        
+        if (!existingContract) {
+          errors.push(`Contract not found`);
+          continue;
+        }
+        
+        if (action === 'keep') {
+          kept++;
+        } else if (action === 'update' && incomingRecord) {
+          await prisma.contractRecord.update({
+            where: { id: existingContract.id },
+            data: {
+              contractDate: incomingRecord.contractDate,
+              contractDuration: incomingRecord.contractDuration,
+              comments: incomingRecord.comments,
+              sourceFile: incomingRecord.sourceFile || existingContract.sourceFile
+            }
+          });
+          updated++;
+        } else if (action === 'skip') {
+          skipped++;
+        }
+      } catch (error: any) {
+        errors.push(`Error resolving conflict: ${error.message}`);
+      }
+    }
+    
+    await prisma.$disconnect();
+    
+    res.json({
+      success: errors.length === 0,
+      kept,
+      updated,
+      skipped,
+      errors
+    });
+  } catch (error: any) {
+    console.error('Resolve contract conflicts error:', error);
+    await prisma.$disconnect();
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/import/resolve-personnel-conflicts
+ * Resolve personnel import conflicts
+ * Body: { 
+ *   resolutions: Array<{
+ *     employeeId: string,
+ *     action: 'keep' | 'update' | 'skip'
+ *     incomingRecord?: any
+ *   }>
+ * }
+ */
+importRouter.post('/resolve-personnel-conflicts', async (req, res) => {
+  try {
+    const { resolutions } = req.body;
+    
+    if (!resolutions || !Array.isArray(resolutions)) {
+      return res.status(400).json({
+        success: false,
+        error: 'resolutions array is required'
+      });
+    }
+    
+    console.log(`Resolving ${resolutions.length} personnel conflicts`);
+    
+    let kept = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    
+    for (const resolution of resolutions) {
+      try {
+        const { employeeId, action, incomingRecord } = resolution;
+        
+        if (!employeeId || !action) {
+          errors.push(`Invalid resolution: missing required fields`);
+          continue;
+        }
+        
+        const existingPersonnel = await prisma.personnelRecord.findUnique({
+          where: { employeeId }
+        });
+        
+        if (!existingPersonnel) {
+          errors.push(`Personnel record not found for employee: ${employeeId}`);
+          continue;
+        }
+        
+        if (action === 'keep') {
+          kept++;
+        } else if (action === 'update' && incomingRecord) {
+          await prisma.personnelRecord.update({
+            where: { employeeId },
+            data: {
+              criminalRecord: incomingRecord.criminalRecord,
+              militaryCertificate: incomingRecord.militaryCertificate,
+              idCopy: incomingRecord.idCopy,
+              educationCertificate: incomingRecord.educationCertificate,
+              birthCertificate: incomingRecord.birthCertificate,
+              recommendationLetter: incomingRecord.recommendationLetter,
+              personalPhotos: incomingRecord.personalPhotos,
+              taxCard: incomingRecord.taxCard,
+              associationId: incomingRecord.associationId,
+              form6: incomingRecord.form6,
+              laptopPcTablet: incomingRecord.laptopPcTablet,
+              workStub: incomingRecord.workStub,
+              insuranceStartDate: incomingRecord.insuranceStartDate,
+              sourceFile: incomingRecord.sourceFile || existingPersonnel.sourceFile
+            }
+          });
+          
+          // Update employee status if provided
+          if (incomingRecord.status) {
+            await prisma.employee.update({
+              where: { id: employeeId },
+              data: { status: incomingRecord.status }
+            });
+          }
+          
+          updated++;
+        } else if (action === 'skip') {
+          skipped++;
+        }
+      } catch (error: any) {
+        errors.push(`Error resolving conflict: ${error.message}`);
+      }
+    }
+    
+    await prisma.$disconnect();
+    
+    res.json({
+      success: errors.length === 0,
+      kept,
+      updated,
+      skipped,
+      errors
+    });
+  } catch (error: any) {
+    console.error('Resolve personnel conflicts error:', error);
+    await prisma.$disconnect();
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /api/import/manual-merge
  * Manually merge specific employees into a target employee
  * Body: { targetEmployeeId: string, employeeIdsToMerge: string[] }
