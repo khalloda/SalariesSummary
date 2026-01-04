@@ -36,7 +36,7 @@ additionsDeductionsExportRouter.post('/additions-deductions/pdf', async (req, re
     const html = generateAdditionsDeductionsHTML(year, detailView, data);
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
@@ -246,6 +246,13 @@ function generateAdditionsDeductionsHTML(year: number, detailView: string, data:
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Additions & Deductions Breakdown - ${year}</title>
   <style>
+    @page {
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+    }
     body {
       font-family: Arial, sans-serif;
       margin: 0;

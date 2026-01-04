@@ -53,6 +53,13 @@ export default function EmployeeTenure() {
     const style = document.createElement('style');
     style.textContent = `
       @media print {
+        @page {
+          @bottom-center {
+            content: "P " counter(page) " of " counter(pages);
+            font-size: 10px;
+            color: #666;
+          }
+        }
         .no-print {
           display: none !important;
         }

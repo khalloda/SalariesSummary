@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
+import { normalizeForSearch, groupAndSortEmployeesByCategory, sortCategories, compareEmployeeCodes } from '../utils/employee-utils';
 
 const logo = '/logo.png';
 
@@ -15,6 +16,7 @@ interface Employee {
   employeeCode?: string;
   jobTitle?: string;
   department?: string;
+  status?: string;
   dateOfBirth?: string;
   joiningDate?: string;
   mobileNumber?: string;
@@ -63,9 +65,12 @@ export default function EmployeeCard() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'systemId'>('systemId');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -73,31 +78,52 @@ export default function EmployeeCard() {
     fetchEmployees();
   }, []);
 
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredEmployees(employees);
+  // Get unique categories, departments
+  const categories = Array.from(new Set(employees.map(e => e.category).filter(Boolean))) as string[];
+  const departments = Array.from(new Set(employees.map(e => e.department).filter(Boolean))) as string[];
+
+  // Filter employees
+  const filtered = employees.filter(emp => {
+    // Search filter
+    const normalizedSearch = normalizeForSearch(searchTerm);
+    const normalizedName = normalizeForSearch(emp.name);
+    const normalizedNameArabic = normalizeForSearch(emp.nameArabic || '');
+    const normalizedCode = normalizeForSearch(emp.employeeCode || '');
+    const matchesSearch = !searchTerm || 
+      normalizedName.includes(normalizedSearch) || 
+      normalizedNameArabic.includes(normalizedSearch) || 
+      normalizedCode.includes(normalizedSearch);
+    
+    // Status filter
+    const matchesStatus = !statusFilter || statusFilter === 'all' || (emp.status || 'Active') === statusFilter;
+    
+    // Department filter
+    const matchesDepartment = departmentFilter === 'all' || emp.department === departmentFilter;
+    
+    // Category filter
+    const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
+    
+    return matchesSearch && matchesStatus && matchesDepartment && matchesCategory;
+  });
+
+  // Group employees by category and sort
+  const employeesByCategory = groupAndSortEmployeesByCategory(filtered);
+  const sortedCategories = Object.keys(employeesByCategory).sort(sortCategories);
+
+  // Sort within each category
+  Object.keys(employeesByCategory).forEach(category => {
+    if (sortBy === 'systemId') {
+      employeesByCategory[category].sort((a, b) => compareEmployeeCodes(a.employeeCode, b.employeeCode));
     } else {
-      const term = searchTerm.toLowerCase();
-      const filtered = employees.filter(emp => {
-        const name = (emp.name || '').toLowerCase();
-        const nameArabic = (emp.nameArabic || '').toLowerCase();
-        const employeeCode = (emp.employeeCode || '').toLowerCase();
-        const id = (emp.id || '').toLowerCase();
-        return name.includes(term) || 
-               nameArabic.includes(term) || 
-               employeeCode.includes(term) ||
-               id.includes(term);
-      });
-      setFilteredEmployees(filtered);
+      employeesByCategory[category].sort((a, b) => a.name.localeCompare(b.name));
     }
-  }, [searchTerm, employees]);
+  });
 
   const fetchEmployees = async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/employees`);
       setEmployees(response.data);
-      setFilteredEmployees(response.data);
     } catch (error: any) {
       console.error('Error fetching employees:', error);
       alert('Failed to load employees: ' + (error.response?.data?.error || error.message));
@@ -249,10 +275,74 @@ export default function EmployeeCard() {
     return parts.length > 0 ? parts.join(', ') : 'Less than 1 day';
   };
 
+  // Handle print header repetition
+  useEffect(() => {
+    if (!selectedEmployee) return;
+
+    const handleBeforePrint = () => {
+      const printContainer = document.querySelector('.print-container');
+      const printHeader = document.querySelector('.print-header');
+      
+      if (!printContainer || !printHeader) return;
+
+      // Calculate approximate page height (A4: 297mm = ~1123px at 96dpi, minus margins)
+      const pageHeight = 1123 - 60; // A4 height minus top margin
+      const elements = printContainer.querySelectorAll('.print-top-box, .print-table, table');
+      
+      // Insert header before elements that might cause page breaks
+      elements.forEach((el, index) => {
+        const rect = (el as HTMLElement).getBoundingClientRect();
+        const containerRect = printContainer.getBoundingClientRect();
+        const relativeTop = rect.top - containerRect.top;
+        
+        // If element is likely on a new page (every ~1000px), insert header
+        if (index > 0 && relativeTop > pageHeight * 0.8) {
+          const headerClone = printHeader.cloneNode(true) as HTMLElement;
+          headerClone.classList.add('print-header-repeat');
+          el.parentNode?.insertBefore(headerClone, el);
+        }
+      });
+    };
+
+    const handleAfterPrint = () => {
+      // Remove all repeated headers
+      const repeatedHeaders = document.querySelectorAll('.print-header-repeat');
+      repeatedHeaders.forEach(header => header.remove());
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      handleAfterPrint(); // Clean up on unmount
+    };
+  }, [selectedEmployee]);
+
   return (
     <div className="p-6">
       <style>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 10mm 15mm 15mm 15mm;
+            @bottom-center {
+              content: "P " counter(page) " of " counter(pages);
+              font-size: 10px;
+              color: #666;
+            }
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            background: white !important;
+          }
           .no-print {
             display: none !important;
           }
@@ -261,6 +351,81 @@ export default function EmployeeCard() {
           }
           header {
             display: none !important;
+          }
+          .p-6 {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          /* Hide the main header in print */
+          .employee-card-header:not(.print-header) {
+            display: none !important;
+          }
+          .print-header,
+          .print-header-repeat {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid #000;
+            page-break-after: avoid;
+            break-after: avoid;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .print-container {
+            margin: 0;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: white !important;
+          }
+          .print-top-box {
+            margin-top: 0 !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          /* Ensure header appears on first page with content */
+          .print-container > .print-header:first-child {
+            margin-top: 0;
+            display: flex !important;
+          }
+          .print-top-box {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            margin-bottom: 1rem;
+            margin-top: 0;
+          }
+          .print-table {
+            page-break-inside: auto;
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0;
+          }
+          .print-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+            break-inside: avoid;
+          }
+          .print-table thead {
+            display: table-header-group;
+          }
+          .print-table tbody {
+            display: table-row-group;
+          }
+          .print-table td,
+          .print-table th {
+            border: 1px solid #000 !important;
+            padding: 8px !important;
+            font-size: 11px !important;
+          }
+          table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          table td,
+          table th {
+            border: 1px solid #000 !important;
           }
         }
         .employee-card-header {
@@ -284,8 +449,8 @@ export default function EmployeeCard() {
         }
       `}</style>
       
-      {/* Custom Header */}
-      <div className={`employee-card-header ${isRTL ? 'rtl' : ''}`}>
+      {/* Custom Header - Hidden in print */}
+      <div className={`employee-card-header ${isRTL ? 'rtl' : ''} no-print`}>
         <div className="logo-container">
           <img 
             src={logo} 
@@ -308,41 +473,129 @@ export default function EmployeeCard() {
         
         {/* Search/Filter Section */}
         <div className="bg-white p-4 rounded-lg shadow mb-4 no-print">
-          <label className="block text-sm font-medium mb-2">
-            {t('searchEmployee')}
-          </label>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t('typeToSearch')}
-            className="w-full border rounded px-3 py-2 mb-3"
-          />
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+            {/* Search */}
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium mb-2">
+                {t('searchEmployee')}
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t('typeToSearch')}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            {/* Status Filter */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {t('status')}
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">{t('allStatuses')}</option>
+                <option value="Active">{t('active')}</option>
+                <option value="Resigned">{t('resigned')}</option>
+              </select>
+            </div>
+            
+            {/* Department Filter */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {t('department')}
+              </label>
+              <select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">{t('allDepartments')}</option>
+                {departments.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Category Filter */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {t('category')}
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">{t('allCategories')}</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Sort */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {t('sortBy') || 'Sort By'}
+              </label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'name' | 'systemId')}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="systemId">System ID</option>
+                <option value="name">Name (A-Z)</option>
+              </select>
+            </div>
+          </div>
           
           {loading ? (
             <p className="text-gray-500">{t('loadingEmployees')}</p>
           ) : (
-            <div className="max-h-60 overflow-y-auto border rounded">
-              {filteredEmployees.length === 0 ? (
+            <div className="max-h-96 overflow-y-auto border rounded">
+              {sortedCategories.length === 0 ? (
                 <p className="p-3 text-gray-500 text-center">{t('noEmployeesFoundList')}</p>
               ) : (
-                <ul className="divide-y">
-                  {filteredEmployees.map(emp => (
-                    <li
-                      key={emp.id}
-                      onClick={() => handleEmployeeSelect(emp)}
-                      className={`p-3 cursor-pointer hover:bg-blue-50 ${
-                        selectedEmployee?.id === emp.id ? 'bg-blue-100' : ''
-                      }`}
-                    >
-                      <div className="font-medium">{emp.name}</div>
-                      <div className="text-sm text-gray-600">
-                        {emp.employeeCode && `ID: ${emp.employeeCode} | `}
-                        {emp.category && `Category: ${emp.category}`}
+                <div className="divide-y">
+                  {sortedCategories.map(category => {
+                    const categoryEmployees = employeesByCategory[category];
+                    if (categoryEmployees.length === 0) return null;
+                    
+                    return (
+                      <div key={category}>
+                        <div className="bg-gray-100 px-3 py-2 border-b border-gray-200 sticky top-0 z-10">
+                          <h3 className="text-sm font-semibold text-gray-800">
+                            {category} ({categoryEmployees.length})
+                          </h3>
+                        </div>
+                        <ul className="divide-y">
+                          {categoryEmployees.map(emp => (
+                            <li
+                              key={emp.id}
+                              onClick={() => handleEmployeeSelect(emp)}
+                              className={`p-3 cursor-pointer hover:bg-blue-50 ${
+                                selectedEmployee?.id === emp.id ? 'bg-blue-100' : ''
+                              }`}
+                            >
+                              <div className="font-medium">{emp.name}</div>
+                              <div className="text-sm text-gray-600">
+                                {emp.employeeCode && `ID: ${emp.employeeCode} | `}
+                                {emp.category && `Category: ${emp.category}`}
+                                {emp.department && ` | Department: ${emp.department}`}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -384,22 +637,42 @@ export default function EmployeeCard() {
       {/* Employee Card Display */}
       {selectedEmployee ? (
         <div className="bg-white p-6 rounded-lg shadow print-container">
-          {/* Top Box */}
-          <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 rounded-lg mb-6 print-top-box">
-            <div className="flex justify-between items-center mb-3">
-              <div>
-                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">{t('systemId')}</div>
-                <div className="text-lg font-bold">{selectedEmployee.employeeCode || 'N/A'}</div>
-              </div>
-              <div>
-                <div className="text-xs opacity-90 mb-1 uppercase tracking-wide">{t('category')}</div>
-                <div className="text-lg font-bold">{selectedEmployee.category || 'N/A'}</div>
+          {/* Header - will repeat on each page */}
+          <div className="employee-card-header print-header">
+            <div className="logo-container">
+              <img 
+                src={logo} 
+                alt="Logo" 
+                className="h-8 w-auto"
+              />
+            </div>
+            <div className="title-container">
+              <h1 className="text-xl font-bold text-gray-900">{t('employeeCard')}</h1>
+            </div>
+            <div className="logo-container">
+              <div className="text-xs text-gray-600 text-right" style={isRTL ? { textAlign: 'left' } : { textAlign: 'right' }}>
+                <div className="font-semibold">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                <div className="text-xs">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
               </div>
             </div>
-            <div className="text-center border-t border-purple-400 pt-3 mt-3">
-              <div className="text-3xl font-bold">{selectedEmployee.name || 'N/A'}</div>
+          </div>
+          
+          {/* Top Box */}
+          <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-3 rounded-lg mb-4 print-top-box">
+            <div className="flex justify-between items-center mb-2">
+              <div>
+                <div className="text-xs opacity-90 mb-0.5 uppercase tracking-wide">{t('systemId')}</div>
+                <div className="text-sm font-bold">{selectedEmployee.employeeCode || 'N/A'}</div>
+              </div>
+              <div>
+                <div className="text-xs opacity-90 mb-0.5 uppercase tracking-wide">{t('category')}</div>
+                <div className="text-sm font-bold">{selectedEmployee.category || 'N/A'}</div>
+              </div>
+            </div>
+            <div className="text-center border-t border-purple-400 pt-2 mt-2">
+              <div className="text-xl font-bold">{selectedEmployee.name || 'N/A'}</div>
               {selectedEmployee.nameArabic && (
-                <div className="text-xl mt-1 opacity-95">{selectedEmployee.nameArabic}</div>
+                <div className="text-base mt-0.5 opacity-95">{selectedEmployee.nameArabic}</div>
               )}
             </div>
           </div>

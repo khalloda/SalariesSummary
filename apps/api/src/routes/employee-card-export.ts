@@ -58,15 +58,69 @@ employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
     
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
+    
+    // Wait a bit for layout to settle
+    await page.waitForTimeout(500);
+    
+    // Add JavaScript to duplicate header on each page and prevent empty pages
+    await page.evaluate(() => {
+      const header = document.querySelector('.header');
+      if (!header) return;
+      
+      const cardContainer = document.querySelector('.card-container');
+      if (!cardContainer) return;
+      
+      // Get all info-table sections (each table is a major section)
+      const tables = cardContainer.querySelectorAll('.info-table');
+      if (tables.length === 0) return;
+      
+      // Get the top box position as reference for first page
+      const topBox = cardContainer.querySelector('.top-box');
+      const topBoxBottom = topBox ? (topBox.getBoundingClientRect().bottom - cardContainer.getBoundingClientRect().top) : 0;
+      
+      // Calculate page height in pixels (A4: 297mm = ~1123px at 96dpi)
+      // Margins: 10mm top + 20mm bottom = 30mm = ~113px
+      const pageHeight = 1123 - 113; // ~1010px usable height per page
+      
+      let lastElementBottom = topBoxBottom;
+      
+      tables.forEach((table, index) => {
+        const tableTop = table.getBoundingClientRect().top - cardContainer.getBoundingClientRect().top;
+        const distanceFromLast = tableTop - lastElementBottom;
+        
+        // If this table would start on a new page (more than 85% of page height from last element)
+        if (distanceFromLast > pageHeight * 0.85) {
+          // Clone the header and insert it before this table
+          const headerClone = header.cloneNode(true) as HTMLElement;
+          headerClone.className = 'header header-repeat';
+          table.parentNode?.insertBefore(headerClone, table);
+          // Update last element bottom to account for the new header
+          const headerBottom = headerClone.getBoundingClientRect().bottom - cardContainer.getBoundingClientRect().top;
+          lastElementBottom = headerBottom;
+        }
+        
+        // Update last element bottom to the bottom of this table
+        lastElementBottom = table.getBoundingClientRect().bottom - cardContainer.getBoundingClientRect().top;
+      });
+      
+      // Remove any excessive padding/margin that might cause an empty page
+      cardContainer.style.paddingBottom = '5px';
+      cardContainer.style.marginBottom = '0';
+    });
+    
     const pdf = await page.pdf({ 
       format: 'A4', 
       printBackground: true,
-      margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' }
+      margin: { top: '10mm', right: '15mm', bottom: '20mm', left: '15mm' },
+      displayHeaderFooter: true,
+      headerTemplate: '<div style="font-size: 10px; color: #666; width: 100%; text-align: center; padding: 5px;"></div>',
+      footerTemplate: '<div style="font-size: 10px; color: #666; width: 100%; text-align: center; padding: 5px;">P <span class="pageNumber"></span> of <span class="totalPages"></span></div>',
+      preferCSSPageSize: false
     });
     await browser.close();
     
@@ -449,7 +503,7 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
 
 function generateEmployeeCardHTML(employee: any): string {
   const logoBase64 = getLogoBase64();
-  const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 40px;" />` : '';
+  const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 32px;" />` : '';
   
   // Get current date and time
   const now = new Date();
@@ -540,7 +594,7 @@ function generateEmployeeCardHTML(employee: any): string {
     @media print {
       @page {
         size: A4;
-        margin: 15mm;
+        margin: 10mm 15mm 20mm 15mm;
       }
       body { margin: 0; }
     }
@@ -553,8 +607,9 @@ function generateEmployeeCardHTML(employee: any): string {
     
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding: 20px;
-      background: #f5f5f5;
+      padding: 0;
+      margin: 0;
+      background: white;
       color: #333;
       line-height: 1.6;
     }
@@ -564,22 +619,45 @@ function generateEmployeeCardHTML(employee: any): string {
       max-width: 210mm;
       margin: 0 auto;
       padding: 20px;
+      padding-top: 0;
+      padding-bottom: 10px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       position: relative;
+      page-break-inside: avoid;
     }
     
-    .header {
+    .info-table {
+      page-break-inside: auto;
+    }
+    
+    .info-table tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+    
+    .header,
+    .header-repeat {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 15px;
+      padding: 12px;
       background: white;
       border-bottom: 1px solid #e5e7eb;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+    
+    .header-repeat {
+      margin-top: 20px;
     }
     
     .header-logo {
       flex-shrink: 0;
+    }
+    
+    .header-logo img {
+      height: 32px;
     }
     
     .header-title {
@@ -588,7 +666,7 @@ function generateEmployeeCardHTML(employee: any): string {
     }
     
     .header-title h1 {
-      font-size: 24px;
+      font-size: 20px;
       color: #2c3e50;
       margin: 0;
       font-weight: bold;
@@ -597,7 +675,7 @@ function generateEmployeeCardHTML(employee: any): string {
     .header-date {
       flex-shrink: 0;
       text-align: right;
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
     }
     
@@ -607,23 +685,23 @@ function generateEmployeeCardHTML(employee: any): string {
     }
     
     .header-date .time {
-      font-size: 11px;
+      font-size: 10px;
     }
     
     .top-box {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 15px 20px;
-      border-radius: 8px;
-      margin-bottom: 25px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .top-box-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 6px;
     }
     
     .top-box .info-item {
@@ -632,40 +710,50 @@ function generateEmployeeCardHTML(employee: any): string {
     }
     
     .top-box .label {
-      font-size: 11px;
+      font-size: 10px;
       opacity: 0.9;
-      margin-bottom: 5px;
+      margin-bottom: 1px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     
     .top-box .value {
-      font-size: 16px;
+      font-size: 12px;
       font-weight: bold;
     }
     
     .top-box-name {
       text-align: center;
       border-top: 1px solid rgba(255, 255, 255, 0.3);
-      padding-top: 15px;
-      margin-top: 15px;
+      padding-top: 6px;
+      margin-top: 6px;
     }
     
     .top-box-name .name {
-      font-size: 28px;
+      font-size: 18px;
       font-weight: bold;
-      margin-bottom: 5px;
+      margin-bottom: 2px;
     }
     
     .top-box-name .name-arabic {
-      font-size: 20px;
+      font-size: 14px;
       opacity: 0.95;
     }
     
     .info-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
+      page-break-inside: auto;
+    }
+    
+    .info-table tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+    
+    .info-table:last-child {
+      margin-bottom: 0;
     }
     
     .info-table td {

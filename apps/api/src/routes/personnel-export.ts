@@ -36,7 +36,7 @@ personnelExportRouter.post('/document-compliance/pdf', async (req, res) => {
     const html = generateDocumentComplianceReportHTML(data, categoryFilter, minComplianceFilter);
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
@@ -73,7 +73,7 @@ personnelExportRouter.post('/asset-inventory/pdf', async (req, res) => {
     const html = generateAssetInventoryReportHTML(data, categoryFilter, assetFilter);
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
@@ -110,7 +110,7 @@ personnelExportRouter.post('/personnel-dashboard/pdf', async (req, res) => {
     const html = generatePersonnelDashboardHTML(data);
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
@@ -201,6 +201,11 @@ function generateDocumentComplianceReportHTML(data: any, categoryFilter: string,
     @page {
       size: A4;
       margin: 15mm;
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
     }
     * {
       box-sizing: border-box;
@@ -410,6 +415,11 @@ function generateAssetInventoryReportHTML(data: any, categoryFilter: string, ass
     @page {
       size: A4;
       margin: 15mm;
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
     }
     * {
       box-sizing: border-box;
@@ -661,6 +671,11 @@ function generatePersonnelDashboardHTML(data: any): string {
     @page {
       size: A4 landscape;
       margin: 15mm;
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
     }
     * {
       box-sizing: border-box;
@@ -933,7 +948,7 @@ personnelExportRouter.post('/employee-tenure/pdf', async (req, res) => {
     const html = generateEmployeeTenureReportHTML({ year, summary, tenureRanges, categoryAverages, employees });
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
@@ -1132,6 +1147,11 @@ function generateEmployeeTenureReportHTML(data: any): string {
     @page {
       size: A4;
       margin: 15mm;
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
     }
     * {
       box-sizing: border-box;

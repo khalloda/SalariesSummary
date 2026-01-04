@@ -41,7 +41,7 @@ annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
     
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
@@ -577,6 +577,13 @@ function generateAnnualBonusReportHTML(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Annual Bonus Report - ${year}</title>
   <style>
+    @page {
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+    }
     body {
       font-family: Arial, sans-serif;
       margin: 0;

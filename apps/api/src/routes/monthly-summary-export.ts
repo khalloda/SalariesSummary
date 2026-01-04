@@ -36,7 +36,7 @@ monthlySummaryExportRouter.post('/monthly-summary/pdf', async (req, res) => {
     const html = generateMonthlySummaryHTML(year, data);
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
@@ -183,6 +183,13 @@ function generateMonthlySummaryHTML(year: number, data: any): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monthly Summary Report - ${year}</title>
   <style>
+    @page {
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+    }
     body {
       font-family: Arial, sans-serif;
       margin: 0;

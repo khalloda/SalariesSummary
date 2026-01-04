@@ -247,7 +247,7 @@ async function exportPDF(res: any, employee: any, salaries: any[], year: number)
     
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox'] // For server environments
     });
     const page = await browser.newPage();
@@ -306,6 +306,13 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
   <meta charset="UTF-8">
   <title>${employee.name} - ${year}</title>
   <style>
+    @page {
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+    }
     body { font-family: Arial, sans-serif; padding: 20px; }
     .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -436,7 +443,7 @@ async function exportSalaryChangesPDF(res: any, changes: any[], totals: any, yea
     const html = generateSalaryChangesHTML(changes, totals, year);
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
