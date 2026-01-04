@@ -96,7 +96,7 @@ export default function EmployeeTenure() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-blue-50 p-6 rounded-lg shadow border-2 border-blue-200">
-          <h3 className="text-lg font-semibold mb-2 text-blue-800">Total Employees</h3>
+          <h3 className="text-lg font-semibold mb-2 text-blue-800">{t('totalEmployeesLabel')}</h3>
           <p className="text-3xl font-bold text-blue-600">{data.summary.totalEmployees}</p>
         </div>
         <div className="bg-green-50 p-6 rounded-lg shadow border-2 border-green-200">
@@ -175,7 +175,7 @@ export default function EmployeeTenure() {
         <div>
           <label className="text-gray-700 mr-2">Filter by Category:</label>
           <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="border rounded px-3 py-2">
-            <option value="all">All Categories</option>
+            <option value="all">{t('allCategories')}</option>
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}

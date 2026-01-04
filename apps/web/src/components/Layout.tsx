@@ -20,7 +20,7 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/', label: i18n.t('dashboard') },
     { path: '/employees', label: i18n.t('employees') },
     { path: '/reports', label: i18n.t('reports') },
-    { path: '/manage/employees', label: 'Management' }
+    { path: '/manage/employees', label: i18n.t('management') }
   ];
   
   return (
@@ -61,7 +61,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </nav>
       </header>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 ${location.pathname.startsWith('/manage/') || location.pathname === '/employees' ? 'max-w-full' : 'max-w-7xl'}`}>
         {children}
       </main>
     </div>

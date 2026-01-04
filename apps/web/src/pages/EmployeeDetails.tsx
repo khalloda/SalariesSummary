@@ -212,7 +212,7 @@ export default function EmployeeDetails() {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Categories</option>
+                <option value="all">{t('allCategories')}</option>
                 {sortedCategories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
@@ -259,7 +259,7 @@ export default function EmployeeDetails() {
                                 )}
                                 {employee.status === 'Resigned' && (
                                   <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded">
-                                    Resigned
+                                    {t('statusResigned')}
                                   </span>
                                 )}
                               </div>

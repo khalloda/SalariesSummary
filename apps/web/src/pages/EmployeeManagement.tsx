@@ -25,6 +25,9 @@ export default function EmployeeManagement() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState<Partial<Employee>>({});
@@ -110,14 +113,30 @@ export default function EmployeeManagement() {
     }
   };
 
+  // Get unique departments and categories for filters
+  const departments = Array.from(new Set(employees.map(e => e.department).filter(Boolean))) as string[];
+  const categories = Array.from(new Set(employees.map(e => e.category).filter(Boolean))) as string[];
+
   const filtered = employees.filter(e => {
+    // Search filter
     const searchLower = search.toLowerCase();
-    return (
+    const matchesSearch = !search || (
       e.name.toLowerCase().includes(searchLower) ||
       (e.nameArabic && e.nameArabic.toLowerCase().includes(searchLower)) ||
       (e.employeeCode && e.employeeCode.toLowerCase().includes(searchLower)) ||
       (e.jobTitle && e.jobTitle.toLowerCase().includes(searchLower))
     );
+
+    // Status filter
+    const matchesStatus = !statusFilter || statusFilter === 'all' || (e.status || 'Active') === statusFilter;
+
+    // Department filter
+    const matchesDepartment = departmentFilter === 'all' || e.department === departmentFilter;
+
+    // Category filter
+    const matchesCategory = categoryFilter === 'all' || e.category === categoryFilter;
+
+    return matchesSearch && matchesStatus && matchesDepartment && matchesCategory;
   });
 
   if (loading) {
@@ -148,66 +167,120 @@ export default function EmployeeManagement() {
         </Tooltip>
       </div>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <Tooltip content={tooltips.common.search}>
-          <input
-            type="text"
-            placeholder={t('searchEmployees')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </Tooltip>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search */}
+          <div className="md:col-span-1">
+            <Tooltip content={tooltips.common.search}>
+              <input
+                type="text"
+                placeholder={t('searchEmployees')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </Tooltip>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('status')}</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('all')}</option>
+              <option value="Active">{t('statusActive')}</option>
+              <option value="Resigned">{t('statusResigned')}</option>
+            </select>
+          </div>
+
+          {/* Department Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('department')}</label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('all')}</option>
+              {departments.sort().map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('category')}</label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">{t('allCategories')}</option>
+              {categories.sort().map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Employee List */}
       <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed', width: '100%' }}>
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('category')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('jobTitle')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('department')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style={{ width: '22%' }}>{t('name')}</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style={{ width: '7%' }}>ID</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style={{ width: '12%' }}>{t('category')}</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style={{ width: '18%' }}>{t('jobTitle')}</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style={{ width: '15%' }}>{t('department')}</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style={{ width: '8%' }}>{t('status')}</th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style={{ width: '18%' }}>{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filtered.map(employee => (
                 <tr key={employee.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="font-medium text-gray-900">{employee.name}</div>
+                  <td className="px-3 py-4 whitespace-nowrap">
+                    <div className="truncate">
+                      <button
+                        onClick={() => navigate(`/employees/${employee.id}`)}
+                        className="font-medium text-gray-900 truncate hover:text-indigo-600 hover:underline text-left"
+                      >
+                        {employee.name}
+                      </button>
                       {employee.nameArabic && (
-                        <div className="text-sm text-gray-500">{employee.nameArabic}</div>
+                        <div className="text-sm text-gray-500 truncate">{employee.nameArabic}</div>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600">
                     {employee.employeeCode || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {employee.category || '-'}
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <div className="truncate">{employee.category || '-'}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {employee.jobTitle || '-'}
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <div className="truncate">{employee.jobTitle || '-'}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {employee.department || '-'}
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <div className="truncate">{employee.department || '-'}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded ${
                       employee.status === 'Resigned' 
                         ? 'bg-red-100 text-red-800' 
                         : 'bg-green-100 text-green-800'
                     }`}>
-                      {employee.status || 'Active'}
+                      {employee.status ? (employee.status === 'Resigned' ? t('statusResigned') : t('statusActive')) : t('statusActive')}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
                       <Tooltip content={tooltips.common.viewDetails}>
                         <button
@@ -361,8 +434,8 @@ export default function EmployeeManagement() {
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="Active">Active</option>
-                      <option value="Resigned">Resigned</option>
+                      <option value="Active">{t('statusActive')}</option>
+                      <option value="Resigned">{t('statusResigned')}</option>
                     </select>
                   </div>
 

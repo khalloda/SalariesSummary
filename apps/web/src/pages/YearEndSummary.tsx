@@ -80,11 +80,11 @@ export default function YearEndSummary() {
         <h3 className="text-2xl font-bold mb-4 text-gray-800">Executive Summary</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <div className="text-sm text-gray-600 mb-1">Total Employees</div>
+            <div className="text-sm text-gray-600 mb-1">{t('totalEmployeesLabel')}</div>
             <div className="text-3xl font-bold text-blue-600">{data.summary.totalEmployees}</div>
           </div>
           <div>
-            <div className="text-sm text-gray-600 mb-1">Total Payroll (Net)</div>
+            <div className="text-sm text-gray-600 mb-1">{t('totalPayrollLabel')} ({t('net')})</div>
             <div className="text-3xl font-bold text-green-600">{data.totals.net.toLocaleString()}</div>
           </div>
           <div>

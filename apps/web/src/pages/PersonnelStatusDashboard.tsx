@@ -344,7 +344,7 @@ export default function PersonnelStatusDashboard() {
             <thead>
               <tr className="border-b">
                 <th className="px-4 py-2 text-left">Category</th>
-                <th className="px-4 py-2 text-center">Total Employees</th>
+                <th className="px-4 py-2 text-center">{t('totalEmployeesLabel')}</th>
                 <th className="px-4 py-2 text-center">Average Compliance</th>
                 <th className="px-4 py-2 text-center">Status</th>
               </tr>

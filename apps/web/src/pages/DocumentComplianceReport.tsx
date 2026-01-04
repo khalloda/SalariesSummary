@@ -221,7 +221,7 @@ export default function DocumentComplianceReport() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Total Employees</div>
+          <div className="text-sm text-gray-600 mb-1">{t('totalEmployeesLabel')}</div>
           <div className="text-3xl font-bold text-gray-900">{data.summary.totalEmployees}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">

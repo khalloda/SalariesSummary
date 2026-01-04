@@ -271,7 +271,7 @@ export default function AnnualBonusReport() {
           <p className="text-3xl font-bold text-green-600">{totalsToShow.totalBonus.toLocaleString()}</p>
         </div>
         <div className="bg-blue-50 p-6 rounded-lg shadow border-2 border-blue-200">
-          <h3 className="text-lg font-semibold mb-2 text-blue-800">Total Employees</h3>
+          <h3 className="text-lg font-semibold mb-2 text-blue-800">{t('totalEmployeesLabel')}</h3>
           <p className="text-3xl font-bold text-blue-600">{totalsToShow.employeeCount}</p>
         </div>
         <div className="bg-purple-50 p-6 rounded-lg shadow border-2 border-purple-200">
@@ -501,7 +501,7 @@ export default function AnnualBonusReport() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     <tr className="font-bold">
-                      <td className="px-6 py-4 whitespace-nowrap">All Categories</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{t('allCategories')}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-green-600">{totalsToShow.totalBonus.toLocaleString()}</td>
                       {showHalves && (
                         <>
@@ -513,7 +513,7 @@ export default function AnnualBonusReport() {
                       <td className="px-6 py-4 whitespace-nowrap">{totalsToShow.totalPreviousYear.toLocaleString()}</td>
                     </tr>
                     <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">Total Employees</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{t('totalEmployeesLabel')}</td>
                       <td colSpan={showHalves ? 5 : 3} className="px-6 py-4 whitespace-nowrap font-semibold">{totalsToShow.employeeCount}</td>
                     </tr>
                   </tbody>

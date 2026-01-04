@@ -49,6 +49,7 @@ const resources = {
       manageBonusRecords: 'Manage bonus records',
       bulkSalaryEntry: 'Bulk Salary Entry',
       createMonthSalary: 'Create month salary for all employees',
+      salaries: 'Salaries',
       
       // Import Actions
       importSalaries: 'Import Salaries',
@@ -98,6 +99,7 @@ const resources = {
       name: 'Name',
       nameEnglish: 'Name (English)',
       nameArabic: 'Name (Arabic)',
+      id: 'ID',
       systemId: 'System ID',
       category: 'Category',
       selectCategory: 'Select Category',
@@ -547,6 +549,38 @@ const resources = {
       // View/Hide Toggle
       view: 'View',
       hide: 'Hide',
+      
+      // Dashboard Additional
+      selectSEPEmployeesFile: 'Select SEPEmployees.xlsx File',
+      selected: 'Selected',
+      viewAllEmployees: 'View all employees',
+      viewJoinersAndLeavers: 'View joiners and leavers',
+      viewSalaryChanges: 'View salary changes',
+      
+      // Reports Summary Statistics
+      totalEmployeesLabel: 'Total Employees',
+      totalPayrollLabel: 'Total Payroll',
+      averageSalaryLabel: 'Average Salary',
+      categoriesLabel: 'Categories',
+      netTotalForYear: 'Net total for {year}',
+      perMonthAverage: 'Per month average',
+      activeCategories: 'Active categories',
+      forYear: 'For {year}',
+      
+      // Status Values
+      statusActive: 'Active',
+      statusResigned: 'Resigned',
+      
+      // File Upload
+      noFileChosen: 'No file chosen',
+      chooseFile: 'Choose File',
+      chooseFiles: 'Choose Files',
+      selectSEPEmployeesFromComputer: 'Select SEPEmployees.xlsx from your computer to import',
+      
+      // Table Headers (uppercase versions)
+      categoryHeaderUppercase: 'CATEGORY',
+      recordsHeaderUppercase: 'RECORDS',
+      actionsHeaderUppercase: 'ACTIONS',
     }
   },
   ar: {
@@ -596,6 +630,7 @@ const resources = {
       manageBonusRecords: 'إدارة سجلات المكافآت',
       bulkSalaryEntry: 'إدخال الرواتب بالجملة',
       createMonthSalary: 'إنشاء راتب شهري لجميع الموظفين',
+      salaries: 'الرواتب',
       
       // Import Actions
       importSalaries: 'استيراد الرواتب',
@@ -645,6 +680,7 @@ const resources = {
       name: 'الاسم',
       nameEnglish: 'الاسم (بالإنجليزية)',
       nameArabic: 'الاسم (بالعربية)',
+      id: 'الرقم',
       systemId: 'رقم النظام',
       category: 'الفئة',
       selectCategory: 'اختر الفئة',
@@ -1095,6 +1131,38 @@ const resources = {
       // View/Hide Toggle
       view: 'عرض',
       hide: 'إخفاء',
+      
+      // Dashboard Additional
+      selectSEPEmployeesFile: 'اختر ملف SEPEmployees.xlsx',
+      selected: 'محدد',
+      viewAllEmployees: 'عرض جميع الموظفين',
+      viewJoinersAndLeavers: 'عرض المنضمين والمغادرين',
+      viewSalaryChanges: 'عرض تغييرات الرواتب',
+      
+      // Reports Summary Statistics
+      totalEmployeesLabel: 'إجمالي الموظفين',
+      totalPayrollLabel: 'إجمالي الرواتب',
+      averageSalaryLabel: 'متوسط الراتب',
+      categoriesLabel: 'الفئات',
+      netTotalForYear: 'إجمالي الصافي لسنة {year}',
+      perMonthAverage: 'متوسط شهري',
+      activeCategories: 'فئات نشطة',
+      forYear: 'لسنة {year}',
+      
+      // Status Values
+      statusActive: 'نشط',
+      statusResigned: 'استقال',
+      
+      // File Upload
+      noFileChosen: 'لم يتم اختيار ملف',
+      chooseFile: 'اختر ملف',
+      chooseFiles: 'اختر ملفات',
+      selectSEPEmployeesFromComputer: 'اختر SEPEmployees.xlsx من جهاز الكمبيوتر للاستيراد',
+      
+      // Table Headers (uppercase versions)
+      categoryHeaderUppercase: 'الفئة',
+      recordsHeaderUppercase: 'السجلات',
+      actionsHeaderUppercase: 'الإجراءات',
     }
   }
 };

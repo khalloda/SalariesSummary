@@ -232,7 +232,7 @@ export default function EmployeeDetail() {
                   )}
                   {employee.status && (
                     <span className={`font-medium ${employee.status === 'Resigned' ? 'text-red-600' : 'text-green-600'}`}>
-                      <strong>Status:</strong> {employee.status}
+                      <strong>{t('status')}:</strong> {employee.status === 'Resigned' ? t('statusResigned') : t('statusActive')}
                     </span>
                   )}
                 </div>
@@ -340,7 +340,7 @@ export default function EmployeeDetail() {
               <div className="flex justify-between py-2">
                 <span className="text-gray-600">Status:</span>
                 <span className={`font-medium ${employee.status === 'Resigned' ? 'text-red-600' : 'text-green-600'}`}>
-                  {employee.status || 'Active'}
+                  {employee.status ? (employee.status === 'Resigned' ? t('statusResigned') : t('statusActive')) : t('statusActive')}
                 </span>
               </div>
             </div>

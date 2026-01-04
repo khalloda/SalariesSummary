@@ -104,8 +104,8 @@ export default function AssetInventoryReport() {
           emp.employeeName,
           emp.category,
           emp.department,
-          emp.assetType || 'None',
-          emp.status
+          emp.assetType || t('none'),
+          emp.status === 'Active' ? t('statusActive') : t('statusResigned')
         ]);
         
         const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -376,7 +376,7 @@ export default function AssetInventoryReport() {
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
                         emp.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                       }`}>
-                        {emp.status}
+                        {emp.status === 'Active' ? t('statusActive') : t('statusResigned')}
                       </span>
                     </td>
                   </tr>

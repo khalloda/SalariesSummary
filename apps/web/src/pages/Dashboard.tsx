@@ -445,42 +445,42 @@ export default function Dashboard() {
     <div>
       {/* Quick Access to Management */}
       <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-sm border border-blue-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dataManagement')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <button
             onClick={() => navigate('/manage/employees')}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
           >
-            <div className="font-semibold text-gray-900 mb-1">👥 Employees</div>
-            <div className="text-sm text-gray-600">Manage employee records</div>
+            <div className="font-semibold text-gray-900 mb-1">👥 {t('employees')}</div>
+            <div className="text-sm text-gray-600">{t('manageEmployeeRecords')}</div>
           </button>
           <button
             onClick={() => navigate('/manage/contracts')}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
           >
-            <div className="font-semibold text-gray-900 mb-1">📄 Contracts</div>
-            <div className="text-sm text-gray-600">Manage contract records</div>
+            <div className="font-semibold text-gray-900 mb-1">📄 {t('contracts')}</div>
+            <div className="text-sm text-gray-600">{t('manageContractRecords')}</div>
           </button>
           <button
             onClick={() => navigate('/manage/salaries')}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
           >
-            <div className="font-semibold text-gray-900 mb-1">💰 Salaries</div>
-            <div className="text-sm text-gray-600">Manage salary records</div>
+            <div className="font-semibold text-gray-900 mb-1">💰 {t('salaries')}</div>
+            <div className="text-sm text-gray-600">{t('manageSalaryRecords')}</div>
           </button>
           <button
             onClick={() => navigate('/manage/bonuses')}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
           >
-            <div className="font-semibold text-gray-900 mb-1">🎁 Bonuses</div>
-            <div className="text-sm text-gray-600">Manage bonus records</div>
+            <div className="font-semibold text-gray-900 mb-1">🎁 {t('bonuses')}</div>
+            <div className="text-sm text-gray-600">{t('manageBonusRecords')}</div>
           </button>
           <button
             onClick={() => navigate('/manage/bulk-salary')}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border border-gray-200 hover:border-blue-400"
           >
-            <div className="font-semibold text-gray-900 mb-1">📊 Bulk Salary Entry</div>
-            <div className="text-sm text-gray-600">Create month salary for all employees</div>
+            <div className="font-semibold text-gray-900 mb-1">📊 {t('bulkSalaryEntry')}</div>
+            <div className="text-sm text-gray-600">{t('createMonthSalary')}</div>
           </button>
         </div>
       </div>
@@ -670,7 +670,7 @@ export default function Dashboard() {
             {useEmployeeFileUpload && (
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Select SEPEmployees.xlsx File
+                  {t('selectSEPEmployeesFile')}
                 </label>
                 <input
                   id="employee-file-input"
@@ -683,13 +683,13 @@ export default function Dashboard() {
                 {selectedEmployeeFile && (
                   <div className="mt-2">
                     <p className="text-sm text-gray-600">
-                      <strong>Selected:</strong> {selectedEmployeeFile.name} ({(selectedEmployeeFile.size / 1024).toFixed(1)} KB)
+                      <strong>{t('selected')}:</strong> {selectedEmployeeFile.name} ({(selectedEmployeeFile.size / 1024).toFixed(1)} KB)
                     </p>
                   </div>
                 )}
                 {useEmployeeFileUpload && !selectedEmployeeFile && (
                   <p className="text-xs text-yellow-600 mt-1">
-                    ⚠️ Please select SEPEmployees.xlsx file to import
+                    ⚠️ {t('pleaseSelectEmployeeFile')}
                   </p>
                 )}
               </div>
@@ -747,10 +747,10 @@ export default function Dashboard() {
 
       {/* Contracts Import Section */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Contracts Import</h2>
+        <h2 className="text-2xl font-bold mb-4">{t('contractsImport')}</h2>
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-sm text-gray-600 mb-4">
-            Import contract records from SEPEmployees.xlsx (Contracts sheet). This will create contract history records and update employee renewal dates.
+            {t('contractsImportDescription')}
           </p>
           
           {/* File Upload Section */}
@@ -763,11 +763,11 @@ export default function Dashboard() {
                   onChange={(e) => setUseContractsFileUpload(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-sm font-medium">Upload file from my computer</span>
+                <span className="text-sm font-medium">{t('uploadFilesFromComputer')}</span>
               </label>
               <p className="text-xs text-gray-500 ml-6">
                 {useContractsFileUpload 
-                  ? 'Select SEPEmployees.xlsx from your computer to import'
+                  ? t('selectSEPEmployeesFromComputer')
                   : 'Use SEPEmployees.xlsx from server Sheets directory (legacy method)'}
               </p>
             </div>
@@ -775,7 +775,7 @@ export default function Dashboard() {
             {useContractsFileUpload && (
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Select SEPEmployees.xlsx File
+                  {t('selectSEPEmployeesFile')}
                 </label>
                 <input
                   id="contracts-file-input"
@@ -788,13 +788,13 @@ export default function Dashboard() {
                 {selectedContractsFile && (
                   <div className="mt-2">
                     <p className="text-sm text-gray-600">
-                      <strong>Selected:</strong> {selectedContractsFile.name} ({(selectedContractsFile.size / 1024).toFixed(1)} KB)
+                      <strong>{t('selected')}:</strong> {selectedContractsFile.name} ({(selectedContractsFile.size / 1024).toFixed(1)} KB)
                     </p>
                   </div>
                 )}
                 {useContractsFileUpload && !selectedContractsFile && (
                   <p className="text-xs text-yellow-600 mt-1">
-                    ⚠️ Please select SEPEmployees.xlsx file to import
+                    ⚠️ {t('pleaseSelectEmployeeFile')}
                   </p>
                 )}
               </div>
@@ -853,7 +853,7 @@ export default function Dashboard() {
       {/* Personnel Import Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Personnel Import</h2>
+          <h2 className="text-2xl font-bold">{t('personnelImport')}</h2>
           <Tooltip content={tooltips.dashboard.runDiagnostics}>
             <button
               onClick={() => navigate('/personnel-diagnostics')}
@@ -881,11 +881,11 @@ export default function Dashboard() {
                   onChange={(e) => setUsePersonnelFileUpload(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-sm font-medium">Upload file from my computer</span>
+                <span className="text-sm font-medium">{t('uploadFilesFromComputer')}</span>
               </label>
               <p className="text-xs text-gray-500 ml-6">
                 {usePersonnelFileUpload 
-                  ? 'Select SEPEmployees.xlsx from your computer to import'
+                  ? t('selectSEPEmployeesFromComputer')
                   : 'Use SEPEmployees.xlsx from server Sheets directory (legacy method)'}
               </p>
             </div>
@@ -893,7 +893,7 @@ export default function Dashboard() {
             {usePersonnelFileUpload && (
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Select SEPEmployees.xlsx File
+                  {t('selectSEPEmployeesFile')}
                 </label>
                 <input
                   id="personnel-file-input"
@@ -906,13 +906,13 @@ export default function Dashboard() {
                 {selectedPersonnelFile && (
                   <div className="mt-2">
                     <p className="text-sm text-gray-600">
-                      <strong>Selected:</strong> {selectedPersonnelFile.name} ({(selectedPersonnelFile.size / 1024).toFixed(1)} KB)
+                      <strong>{t('selected')}:</strong> {selectedPersonnelFile.name} ({(selectedPersonnelFile.size / 1024).toFixed(1)} KB)
                     </p>
                   </div>
                 )}
                 {usePersonnelFileUpload && !selectedPersonnelFile && (
                   <p className="text-xs text-yellow-600 mt-1">
-                    ⚠️ Please select SEPEmployees.xlsx file to import
+                    ⚠️ {t('pleaseSelectEmployeeFile')}
                   </p>
                 )}
               </div>
@@ -1151,15 +1151,15 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-lg transition" onClick={() => navigate('/employees')}>
           <h3 className="text-lg font-semibold mb-2">{t('employees')}</h3>
-          <p className="text-gray-600">View all employees</p>
+          <p className="text-gray-600">{t('viewAllEmployees')}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-lg transition" onClick={() => navigate('/reports/joiners-leavers')}>
           <h3 className="text-lg font-semibold mb-2">{t('joinersLeavers')}</h3>
-          <p className="text-gray-600">View joiners and leavers</p>
+          <p className="text-gray-600">{t('viewJoinersAndLeavers')}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-lg transition" onClick={() => navigate('/reports/salary-changes')}>
           <h3 className="text-lg font-semibold mb-2">{t('salaryChanges')}</h3>
-          <p className="text-gray-600">View salary changes</p>
+          <p className="text-gray-600">{t('viewSalaryChanges')}</p>
         </div>
       </div>
     </div>

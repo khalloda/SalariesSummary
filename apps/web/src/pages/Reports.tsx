@@ -228,30 +228,30 @@ export default function Reports() {
       {quickStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Total Employees</div>
+            <div className="text-sm text-gray-600 mb-1">{t('totalEmployeesLabel')}</div>
             <div className="text-3xl font-bold text-gray-900">{quickStats.totalEmployees}</div>
-            <div className="text-xs text-gray-500 mt-1">For {year}</div>
+            <div className="text-xs text-gray-500 mt-1">{t('forYear', { year })}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Total Payroll</div>
+            <div className="text-sm text-gray-600 mb-1">{t('totalPayrollLabel')}</div>
             <div className="text-3xl font-bold text-green-600">
               {(quickStats.totalPayroll || quickStats.totalNet || 0).toLocaleString()}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Net total for {year}</div>
+            <div className="text-xs text-gray-500 mt-1">{t('netTotalForYear', { year })}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Average Salary</div>
+            <div className="text-sm text-gray-600 mb-1">{t('averageSalaryLabel')}</div>
             <div className="text-3xl font-bold text-blue-600">
               {quickStats.averageSalary ? Math.round(quickStats.averageSalary).toLocaleString() : 'N/A'}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Per month average</div>
+            <div className="text-xs text-gray-500 mt-1">{t('perMonthAverage')}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Categories</div>
+            <div className="text-sm text-gray-600 mb-1">{t('categoriesLabel')}</div>
             <div className="text-3xl font-bold text-purple-600">
               {Object.keys(quickStats.categoryDistribution || {}).length}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Active categories</div>
+            <div className="text-xs text-gray-500 mt-1">{t('activeCategories')}</div>
           </div>
         </div>
       )}
