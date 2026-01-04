@@ -22,6 +22,7 @@ export default function EmployeeTenure() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/available-years`)
@@ -47,8 +48,111 @@ export default function EmployeeTenure() {
       .finally(() => setLoading(false));
   }, [year]);
 
+  // Add print styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+        nav, header {
+          display: none !important;
+        }
+        body {
+          margin: 0;
+          padding: 20px;
+        }
+        .bg-white {
+          background: white !important;
+        }
+        span[role="button"] {
+          color: #000 !important;
+          text-decoration: none !important;
+          cursor: default !important;
+        }
+        button {
+          background: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          color: #000 !important;
+          text-decoration: none !important;
+          cursor: default !important;
+        }
+        table {
+          page-break-inside: auto;
+        }
+        tr {
+          page-break-inside: avoid;
+          page-break-after: auto;
+        }
+        thead {
+          display: table-header-group;
+        }
+        tfoot {
+          display: table-footer-group;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExport = async (format: 'pdf' | 'xlsx' | 'csv') => {
+    if (!data) return;
+    
+    setExporting(true);
+    try {
+      // Prepare export data with current filters applied
+      const exportData = {
+        year,
+        summary: data.summary,
+        tenureRanges: data.tenureRanges,
+        categoryAverages: data.categoryAverages,
+        employees: filteredEmployees.map((item: any) => ({
+          employeeCode: item.employee.employeeCode || '',
+          employeeName: item.employee.name,
+          category: item.employee.category || '',
+          department: item.employee.department || '',
+          status: item.employee.status || 'Active',
+          startDate: item.startDate,
+          endDate: item.endDate,
+          monthsOfService: item.monthsOfService,
+          tenureYears: item.tenureYears,
+          tenureMonths: item.tenureMonths,
+          tenureDays: item.tenureDays,
+          tenureRange: item.tenureRange
+        }))
+      };
+
+      const response = await axios.post(
+        `${API_BASE_URL}/exports/employee-tenure/${format}`,
+        exportData,
+        { responseType: 'blob' }
+      );
+
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const extension = format === 'pdf' ? 'pdf' : format === 'xlsx' ? 'xlsx' : 'csv';
+      link.setAttribute('download', `Employee_Tenure_Report_${year}.${extension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Export error:', error);
+      alert(`Failed to export ${format.toUpperCase()}: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) return <div>Loading...</div>;
@@ -119,8 +223,8 @@ export default function EmployeeTenure() {
   const sortedCategories = Object.keys(employeesByCategoryRaw).sort(sortCategories);
 
   return (
-    <div className="print:hidden">
-      <div className="flex justify-between items-center mb-4">
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-4 no-print">
         <h2 className="text-2xl font-bold">Employee Tenure Report - {year}</h2>
         <div className="flex items-center space-x-2">
           <select
@@ -136,12 +240,33 @@ export default function EmployeeTenure() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <button onClick={handlePrint} className="px-4 py-2 bg-gray-600 text-white rounded">{t('print')}</button>
+          <button onClick={handlePrint} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">{t('print')}</button>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            {exporting ? 'Exporting...' : t('exportPDF')}
+          </button>
+          <button
+            onClick={() => handleExport('xlsx')}
+            disabled={exporting}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            {exporting ? 'Exporting...' : t('exportXLSX')}
+          </button>
+          <button
+            onClick={() => handleExport('csv')}
+            disabled={exporting}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {exporting ? 'Exporting...' : t('exportCSV')}
+          </button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 print:grid-cols-3">
         <div className="bg-blue-50 p-6 rounded-lg shadow border-2 border-blue-200">
           <h3 className="text-lg font-semibold mb-2 text-blue-800">{t('totalEmployeesLabel')}</h3>
           <p className="text-3xl font-bold text-blue-600">{data.summary.totalEmployees}</p>
@@ -157,7 +282,7 @@ export default function EmployeeTenure() {
       </div>
 
       {/* Tenure Ranges Chart */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
+      <div className="bg-white p-6 rounded-lg shadow mb-6 no-print">
         <h3 className="text-xl font-semibold mb-4">Tenure Distribution</h3>
         <div className="mb-4">
           <label className="text-gray-700 mr-2">Chart Type:</label>
@@ -203,7 +328,7 @@ export default function EmployeeTenure() {
 
       {/* Category Averages */}
       {Object.keys(data.categoryAverages).length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
+        <div className="bg-white p-6 rounded-lg shadow mb-6 no-print">
           <h3 className="text-xl font-semibold mb-4">Average Tenure by Category</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(data.categoryAverages).map(([category, stats]: [string, any]) => (
@@ -218,7 +343,7 @@ export default function EmployeeTenure() {
       )}
 
       {/* Filters */}
-      <div className="mb-4 bg-white rounded-lg shadow-sm p-4">
+      <div className="mb-4 bg-white rounded-lg shadow-sm p-4 no-print">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Search */}
           <div className="md:col-span-1">

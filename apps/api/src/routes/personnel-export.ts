@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import puppeteer from 'puppeteer';
+import ExcelJS from 'exceljs';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -912,6 +913,385 @@ function generatePersonnelDashboardHTML(data: any): string {
       `).join('')}
     </div>
   ` : ''}
+</body>
+</html>
+  `;
+}
+
+/**
+ * POST /api/exports/employee-tenure/pdf
+ * Export Employee Tenure Report as PDF
+ */
+personnelExportRouter.post('/employee-tenure/pdf', async (req, res) => {
+  try {
+    const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
+    
+    if (!employees || !Array.isArray(employees)) {
+      return res.status(400).json({ error: 'Invalid report data' });
+    }
+    
+    const html = generateEmployeeTenureReportHTML({ year, summary, tenureRanges, categoryAverages, employees });
+    
+    const browser = await puppeteer.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdf = await page.pdf({ 
+      format: 'A4', 
+      printBackground: true,
+      margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' }
+    });
+    await browser.close();
+    
+    const filename = `Employee_Tenure_Report_${year}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(pdf);
+  } catch (error: any) {
+    console.error('PDF export error:', error);
+    res.status(500).json({ error: `Failed to generate PDF: ${error.message}` });
+  }
+});
+
+/**
+ * POST /api/exports/employee-tenure/xlsx
+ * Export Employee Tenure Report as XLSX
+ */
+personnelExportRouter.post('/employee-tenure/xlsx', async (req, res) => {
+  try {
+    const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
+    
+    if (!employees || !Array.isArray(employees)) {
+      return res.status(400).json({ error: 'Invalid report data' });
+    }
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Employee Tenure');
+    
+    // Add headers
+    worksheet.addRow(['System ID', 'Employee Name', 'Category', 'Department', 'Status', 'Start Date', 'Last Record', 'Total Months', 'Tenure (Y, M, D)', 'Years', 'Months', 'Days', 'Tenure Range']);
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF3F4F6' }
+    };
+    
+    // Add data rows
+    employees.forEach((emp: any) => {
+      worksheet.addRow([
+        emp.employeeCode || '',
+        emp.employeeName || '',
+        emp.category || '',
+        emp.department || '',
+        emp.status || 'Active',
+        `${emp.startDate.monthName} ${emp.startDate.year}`,
+        `${emp.endDate.monthName} ${emp.endDate.year}`,
+        emp.monthsOfService || 0,
+        emp.tenureYears !== undefined ? `Y${emp.tenureYears}, M${emp.tenureMonths}, D${emp.tenureDays}` : '',
+        emp.tenureYears || 0,
+        emp.tenureMonths || 0,
+        emp.tenureDays || 0,
+        emp.tenureRange || ''
+      ]);
+    });
+    
+    // Auto-fit columns
+    worksheet.columns.forEach((column, index) => {
+      column.width = index === 1 ? 30 : index === 2 ? 15 : 12;
+    });
+    
+    const filename = `Employee_Tenure_Report_${year}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('XLSX export error:', error);
+    res.status(500).json({ error: `Failed to generate XLSX: ${error.message}` });
+  }
+});
+
+/**
+ * POST /api/exports/employee-tenure/csv
+ * Export Employee Tenure Report as CSV
+ */
+personnelExportRouter.post('/employee-tenure/csv', async (req, res) => {
+  try {
+    const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
+    
+    if (!employees || !Array.isArray(employees)) {
+      return res.status(400).json({ error: 'Invalid report data' });
+    }
+    
+    const headers = ['System ID', 'Employee Name', 'Category', 'Department', 'Status', 'Start Date', 'Last Record', 'Total Months', 'Tenure (Y, M, D)', 'Years', 'Months', 'Days', 'Tenure Range'];
+    const csvRows = [headers.join(',')];
+    
+    employees.forEach((emp: any) => {
+      const row = [
+        `"${(emp.employeeCode || '').replace(/"/g, '""')}"`,
+        `"${(emp.employeeName || '').replace(/"/g, '""')}"`,
+        `"${(emp.category || '').replace(/"/g, '""')}"`,
+        `"${(emp.department || '').replace(/"/g, '""')}"`,
+        `"${(emp.status || 'Active').replace(/"/g, '""')}"`,
+        `"${emp.startDate.monthName} ${emp.startDate.year}"`,
+        `"${emp.endDate.monthName} ${emp.endDate.year}"`,
+        emp.monthsOfService || 0,
+        emp.tenureYears !== undefined ? `"Y${emp.tenureYears}, M${emp.tenureMonths}, D${emp.tenureDays}"` : '',
+        emp.tenureYears || 0,
+        emp.tenureMonths || 0,
+        emp.tenureDays || 0,
+        `"${(emp.tenureRange || '').replace(/"/g, '""')}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    const csvContent = csvRows.join('\n');
+    const filename = `Employee_Tenure_Report_${year}.csv`;
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(csvContent);
+  } catch (error: any) {
+    console.error('CSV export error:', error);
+    res.status(500).json({ error: `Failed to generate CSV: ${error.message}` });
+  }
+});
+
+function generateEmployeeTenureReportHTML(data: any): string {
+  const logoBase64 = getLogoBase64();
+  const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 40px;" />` : '';
+  const now = new Date();
+  const printDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const printTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  
+  // Helper functions for sorting
+  const getCategoryPriority = (cat: string): number => {
+    const lower = cat.toLowerCase();
+    if (lower.includes('partner')) return 1;
+    if (lower.includes('lawyer')) return 2;
+    if (lower.includes('admin')) return 3;
+    if (lower.includes('consultant')) return 4;
+    return 999;
+  };
+  
+  const compareEmployeeCodes = (codeA: string, codeB: string): number => {
+    if (!codeA && !codeB) return 0;
+    if (!codeA) return 1;
+    if (!codeB) return -1;
+    
+    const partsA = codeA.split('-').map(p => parseInt(p) || 0);
+    const partsB = codeB.split('-').map(p => parseInt(p) || 0);
+    
+    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+      const a = partsA[i] || 0;
+      const b = partsB[i] || 0;
+      if (a !== b) return a - b;
+    }
+    return 0;
+  };
+  
+  // Sort employees by category, then by employee code
+  const sortedEmployees = [...data.employees].sort((a: any, b: any) => {
+    const categoryComparison = getCategoryPriority(a.category || '') - getCategoryPriority(b.category || '');
+    if (categoryComparison !== 0) return categoryComparison;
+    return compareEmployeeCodes(a.employeeCode || '', b.employeeCode || '');
+  });
+  
+  // Group by category
+  const employeesByCategory: Record<string, any[]> = {};
+  sortedEmployees.forEach((emp: any) => {
+    const category = emp.category || 'Uncategorized';
+    if (!employeesByCategory[category]) {
+      employeesByCategory[category] = [];
+    }
+    employeesByCategory[category].push(emp);
+  });
+  
+  const escapeHtml = (text: string) => {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+  
+  return `
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Employee Tenure Report - ${data.year}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      color: #333;
+      line-height: 1.6;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .header-right {
+      text-align: right;
+      font-size: 12px;
+      color: #666;
+    }
+    .header-right .date {
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    h1 {
+      font-size: 24px;
+      color: #1f2937;
+      margin: 0;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .summary-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+    }
+    .summary-card .label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 5px;
+    }
+    .summary-card .value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1f2937;
+    }
+    .summary-card .value.blue { color: #2563eb; }
+    .summary-card .value.green { color: #16a34a; }
+    .summary-card .value.purple { color: #9333ea; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 10px;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 6px;
+      text-align: left;
+    }
+    th {
+      background-color: #f3f4f6;
+      font-weight: bold;
+      color: #374151;
+    }
+    tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+    .category-header {
+      background-color: #e5e7eb !important;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .tenure-range {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: bold;
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      ${logoImg}
+      <h1>Employee Tenure Report - ${data.year}</h1>
+    </div>
+    <div class="header-right">
+      <div class="date">${printDate}</div>
+      <div class="time">${printTime}</div>
+    </div>
+  </div>
+  
+  <div class="summary">
+    <div class="summary-card">
+      <div class="label">Total Employees</div>
+      <div class="value">${data.summary.totalEmployees}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Average Tenure</div>
+      <div class="value green">${data.summary.averageTenure} years</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Tenure Ranges</div>
+      <div class="value purple">${Object.keys(data.tenureRanges).length}</div>
+    </div>
+  </div>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>System ID</th>
+        <th>Employee</th>
+        <th>Category</th>
+        <th>Start Date</th>
+        <th>Last Record</th>
+        <th>Months</th>
+        <th>Years</th>
+        <th>Range</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${Object.entries(employeesByCategory).map(([category, categoryEmployees]) => `
+        <tr class="category-header">
+          <td colspan="8">${escapeHtml(category)} (${categoryEmployees.length})</td>
+        </tr>
+        ${categoryEmployees.map((emp: any) => `
+          <tr>
+            <td>${escapeHtml(emp.employeeCode || '')}</td>
+            <td>${escapeHtml(emp.employeeName || '')}</td>
+            <td>${escapeHtml(emp.category || '')}</td>
+            <td>${emp.startDate.monthName} ${emp.startDate.year}</td>
+            <td>${emp.endDate.monthName} ${emp.endDate.year}</td>
+            <td>${emp.monthsOfService || 0}</td>
+            <td>${emp.tenureYears !== undefined ? `Y${emp.tenureYears}, M${emp.tenureMonths}, D${emp.tenureDays}` : ''}</td>
+            <td><span class="tenure-range">${escapeHtml(emp.tenureRange || '')}</span></td>
+          </tr>
+        `).join('')}
+      `).join('')}
+    </tbody>
+  </table>
 </body>
 </html>
   `;
