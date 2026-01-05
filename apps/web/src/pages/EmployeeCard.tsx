@@ -66,6 +66,9 @@ export default function EmployeeCard() {
   const isRTL = i18n.language === 'ar';
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
+  const [employeesForPrint, setEmployeesForPrint] = useState<Employee[]>([]);
+  const [isBatchPrintMode, setIsBatchPrintMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -73,6 +76,7 @@ export default function EmployeeCard() {
   const [sortBy, setSortBy] = useState<'name' | 'systemId'>('systemId');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [loadingBatch, setLoadingBatch] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -144,7 +148,82 @@ export default function EmployeeCard() {
 
   const handleEmployeeSelect = (employee: Employee) => {
     setSelectedEmployee(null);
+    setIsBatchPrintMode(false);
     fetchEmployeeDetails(employee.id);
+  };
+
+  const handleCheckboxChange = (employeeId: string, checked: boolean) => {
+    setSelectedEmployeeIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(employeeId);
+      } else {
+        newSet.delete(employeeId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedEmployeeIds.size === filtered.length) {
+      setSelectedEmployeeIds(new Set());
+    } else {
+      setSelectedEmployeeIds(new Set(filtered.map(e => e.id)));
+    }
+  };
+
+  const handleSelectCategory = (category: string) => {
+    const categoryEmployees = employeesByCategory[category] || [];
+    const categoryIds = new Set(categoryEmployees.map(e => e.id));
+    setSelectedEmployeeIds(categoryIds);
+  };
+
+  const fetchEmployeeDetailsForBatch = async (employeeIds: string[]) => {
+    setLoadingBatch(true);
+    try {
+      const detailsPromises = employeeIds.map(id => 
+        axios.get(`${API_BASE_URL}/employees/${id}/card`).then(res => res.data)
+      );
+      const details = await Promise.all(detailsPromises);
+      setEmployeesForPrint(details);
+      setSelectedEmployee(null);
+      setIsBatchPrintMode(true);
+      
+      // Small delay to ensure state is updated before printing
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    } catch (error: any) {
+      console.error('Error fetching employee details:', error);
+      alert('Failed to load employee details: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoadingBatch(false);
+    }
+  };
+
+  const handlePrintSelected = () => {
+    if (selectedEmployeeIds.size === 0) {
+      alert('Please select at least one employee');
+      return;
+    }
+    fetchEmployeeDetailsForBatch(Array.from(selectedEmployeeIds));
+  };
+
+  const handlePrintCategory = (category: string) => {
+    const categoryEmployees = employeesByCategory[category] || [];
+    if (categoryEmployees.length === 0) {
+      alert('No employees in this category');
+      return;
+    }
+    fetchEmployeeDetailsForBatch(categoryEmployees.map(e => e.id));
+  };
+
+  const handlePrintAll = () => {
+    if (filtered.length === 0) {
+      alert('No employees to print');
+      return;
+    }
+    fetchEmployeeDetailsForBatch(filtered.map(e => e.id));
   };
 
   const handleExportPDF = async () => {
@@ -405,6 +484,9 @@ export default function EmployeeCard() {
           .print-table tr {
             page-break-inside: avoid;
             page-break-after: auto;
+          }
+          .page-break-before {
+            page-break-before: always;
             break-inside: avoid;
           }
           .print-table thead {
@@ -555,6 +637,44 @@ export default function EmployeeCard() {
             </div>
           </div>
           
+          {/* Batch Print Buttons */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            <button
+              onClick={handleSelectAll}
+              className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
+              {selectedEmployeeIds.size === filtered.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <button
+              onClick={handlePrintSelected}
+              disabled={selectedEmployeeIds.size === 0 || loadingBatch}
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loadingBatch ? 'Loading...' : `Print Selected (${selectedEmployeeIds.size})`}
+            </button>
+            {sortedCategories.map(category => {
+              const categoryEmployees = employeesByCategory[category] || [];
+              if (categoryEmployees.length === 0) return null;
+              return (
+                <button
+                  key={category}
+                  onClick={() => handlePrintCategory(category)}
+                  disabled={loadingBatch}
+                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  {loadingBatch ? 'Loading...' : `Print ${category} (${categoryEmployees.length})`}
+                </button>
+              );
+            })}
+            <button
+              onClick={handlePrintAll}
+              disabled={filtered.length === 0 || loadingBatch}
+              className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+            >
+              {loadingBatch ? 'Loading...' : `Print All (${filtered.length})`}
+            </button>
+          </div>
+
           {loading ? (
             <p className="text-gray-500">{t('loadingEmployees')}</p>
           ) : (
@@ -569,25 +689,48 @@ export default function EmployeeCard() {
                     
                     return (
                       <div key={category}>
-                        <div className="bg-gray-100 px-3 py-2 border-b border-gray-200 sticky top-0 z-10">
+                        <div className="bg-gray-100 px-3 py-2 border-b border-gray-200 sticky top-0 z-10 flex justify-between items-center">
                           <h3 className="text-sm font-semibold text-gray-800">
                             {category} ({categoryEmployees.length})
                           </h3>
+                          <button
+                            onClick={() => handlePrintCategory(category)}
+                            disabled={loadingBatch}
+                            className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Print
+                          </button>
                         </div>
                         <ul className="divide-y">
                           {categoryEmployees.map(emp => (
                             <li
                               key={emp.id}
-                              onClick={() => handleEmployeeSelect(emp)}
-                              className={`p-3 cursor-pointer hover:bg-blue-50 ${
+                              className={`p-3 hover:bg-blue-50 ${
                                 selectedEmployee?.id === emp.id ? 'bg-blue-100' : ''
                               }`}
                             >
-                              <div className="font-medium">{emp.name}</div>
-                              <div className="text-sm text-gray-600">
-                                {emp.employeeCode && `ID: ${emp.employeeCode} | `}
-                                {emp.category && `Category: ${emp.category}`}
-                                {emp.department && ` | Department: ${emp.department}`}
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedEmployeeIds.has(emp.id)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleCheckboxChange(emp.id, e.target.checked);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <div
+                                  onClick={() => handleEmployeeSelect(emp)}
+                                  className="flex-1 cursor-pointer"
+                                >
+                                  <div className="font-medium">{emp.name}</div>
+                                  <div className="text-sm text-gray-600">
+                                    {emp.employeeCode && `ID: ${emp.employeeCode} | `}
+                                    {emp.category && `Category: ${emp.category}`}
+                                    {emp.department && ` | Department: ${emp.department}`}
+                                  </div>
+                                </div>
                               </div>
                             </li>
                           ))}
@@ -635,7 +778,198 @@ export default function EmployeeCard() {
       </div>
 
       {/* Employee Card Display */}
-      {selectedEmployee ? (
+      {isBatchPrintMode && employeesForPrint.length > 0 ? (
+        <div className="bg-white p-6 rounded-lg shadow print-container">
+          {employeesForPrint.map((emp, index) => (
+            <div key={emp.id} className={index > 0 ? 'mt-8 page-break-before' : ''}>
+              {/* Header - will repeat on each page */}
+              <div className="employee-card-header print-header">
+                <div className="logo-container">
+                  <img 
+                    src={logo} 
+                    alt="Logo" 
+                    className="h-8 w-auto"
+                  />
+                </div>
+                <div className="title-container">
+                  <h1 className="text-xl font-bold text-gray-900">{t('employeeCard')}</h1>
+                </div>
+                <div className="logo-container">
+                  <div className="text-xs text-gray-600 text-right" style={isRTL ? { textAlign: 'left' } : { textAlign: 'right' }}>
+                    <div className="font-semibold">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                    <div className="text-xs">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Top Box */}
+              <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-3 rounded-lg mb-4 print-top-box">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <div className="text-xs opacity-90 mb-0.5 uppercase tracking-wide">{t('systemId')}</div>
+                    <div className="text-sm font-bold">{emp.employeeCode || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-90 mb-0.5 uppercase tracking-wide">{t('category')}</div>
+                    <div className="text-sm font-bold">{emp.category || 'N/A'}</div>
+                  </div>
+                </div>
+                <div className="text-center border-t border-purple-400 pt-2 mt-2">
+                  <div className="text-xl font-bold">{emp.name || 'N/A'}</div>
+                  {emp.nameArabic && (
+                    <div className="text-base mt-0.5 opacity-95">{emp.nameArabic}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Info Table - Reuse the same structure as single employee view */}
+              <table className="w-full border-collapse mb-4 print-table">
+                <tbody>
+                  {/* Basic Info */}
+                  <tr>
+                    <td className="w-48 p-3 border bg-gray-50 font-bold text-sm align-top">{t('basicInfo')}</td>
+                    <td className="p-3 border">
+                      <div className="space-y-2">
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('name')}:</span> {emp.name || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nameArabic')}:</span> {emp.nameArabic || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('joiningDate')}:</span> {formatDate(emp.joiningDate)}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('jobTitle')}:</span> {emp.jobTitle || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('department')}:</span> {emp.department || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('dateOfBirth')}:</span> {formatDate(emp.dateOfBirth)}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('mobileNumber')}:</span> {emp.mobileNumber || 'N/A'}</div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Education */}
+                  <tr>
+                    <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('education')}</td>
+                    <td className="p-3 border">
+                      <div className="space-y-2">
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('certificate')}:</span> {emp.graduationCertificate || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('section')}:</span> {emp.graduationSection || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('university')}:</span> {emp.graduationUniversity || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('graduationYear')}:</span> {emp.graduationYear || 'N/A'}</div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* IDs */}
+                  <tr>
+                    <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('ids')}</td>
+                    <td className="p-3 border">
+                      <div className="space-y-2">
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nationalId')}:</span> {formatLargeNumber(emp.nationalId)}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nationalIdValidTill')}:</span> {formatDateOrNotSpecified(emp.nationalIdValidTill)}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('barAssociationNo')}:</span> {formatLargeNumber(emp.barAssociation)}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('barAssociationDegree')}:</span> {emp.barAssociationDegree || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('taxCardNo')}:</span> {emp.taxCard || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('socialInsurance')}:</span> {formatLargeNumber(emp.socialInsurance)}</div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Address */}
+                  <tr>
+                    <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('address')}</td>
+                    <td className="p-3 border">
+                      <div className="space-y-2">
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('addressDetails')}:</span> {emp.address || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('regionCity')}:</span> {emp.addressRegion || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('governorate')}:</span> {emp.addressGovernorate || 'N/A'}</div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Contract */}
+                  <tr>
+                    <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('contract')}</td>
+                    <td className="p-3 border">
+                      <div className="space-y-2">
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('contractType')}:</span> {emp.contractType || 'N/A'}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('workDuration')}:</span> {calculateWorkDuration(emp.joiningDate)}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nextRenewalDate')}:</span> {formatDateOrNotSpecified(emp.contractRenewalDate)}</div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Salary */}
+                  <tr>
+                    <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('salary')}</td>
+                    <td className="p-3 border">
+                      {emp.salaries && emp.salaries.length > 0 ? (
+                        <table className="w-full border-collapse mt-2">
+                          <thead>
+                            <tr className="bg-purple-600 text-white">
+                              <th className="p-2 text-left text-xs border">{t('month')}</th>
+                              <th className="p-2 text-left text-xs border">{t('year')}</th>
+                              <th className="p-2 text-left text-xs border">{t('basicSalary')}</th>
+                              <th className="p-2 text-left text-xs border">{t('gross')}</th>
+                              <th className="p-2 text-left text-xs border">{t('net')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {emp.salaries.map((salary: any, idx: number) => (
+                              <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                                <td className="p-2 text-xs border">{salary.monthName || `${salary.month}/${salary.year}`}</td>
+                                <td className="p-2 text-xs border">{salary.year}</td>
+                                <td className="p-2 text-xs border">{formatCurrency(salary.basicSalary)}</td>
+                                <td className="p-2 text-xs border">{formatCurrency(salary.gross)}</td>
+                                <td className="p-2 text-xs border">{formatCurrency(salary.net)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <span className="text-gray-500 italic">{t('noData')}</span>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Personnel */}
+                  {emp.personnelRecord && (
+                    <tr>
+                      <td className="p-3 border bg-gray-50 font-bold text-sm align-top">{t('personnel')}</td>
+                      <td className="p-3 border">
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div><span className="font-semibold text-gray-600">Criminal Record:</span> {emp.personnelRecord.criminalRecord || 'N/A'}</div>
+                            <div><span className="font-semibold text-gray-600">Military Certificate:</span> {emp.personnelRecord.militaryCertificate || 'N/A'}</div>
+                            <div><span className="font-semibold text-gray-600">ID Copy:</span> {emp.personnelRecord.idCopy === true ? 'Present' : (emp.personnelRecord.idCopy === false ? 'Missing' : 'N/A')}</div>
+                            <div><span className="font-semibold text-gray-600">Education Certificate:</span> {emp.personnelRecord.educationCertificate || 'N/A'}</div>
+                            <div><span className="font-semibold text-gray-600">Birth Certificate:</span> {emp.personnelRecord.birthCertificate || 'N/A'}</div>
+                            <div><span className="font-semibold text-gray-600">Recommendation Letter:</span> {emp.personnelRecord.recommendationLetter === true ? 'Present' : (emp.personnelRecord.recommendationLetter === false ? 'Missing' : 'N/A')}</div>
+                            <div><span className="font-semibold text-gray-600">Personal Photos:</span> {emp.personnelRecord.personalPhotos === true ? 'Present' : (emp.personnelRecord.personalPhotos === false ? 'Missing' : 'N/A')}</div>
+                            <div><span className="font-semibold text-gray-600">Tax Card:</span> {emp.personnelRecord.taxCard === null ? 'N/A' : (emp.personnelRecord.taxCard ? 'Present' : 'Missing')}</div>
+                            <div><span className="font-semibold text-gray-600">Association ID:</span> {emp.personnelRecord.associationId === null ? 'N/A' : (emp.personnelRecord.associationId ? 'Present' : 'Missing')}</div>
+                            <div><span className="font-semibold text-gray-600">Form 6:</span> {emp.personnelRecord.form6 || 'N/A'}</div>
+                          </div>
+                          <div className="border-t pt-2 mt-2">
+                            <div><span className="font-semibold text-gray-600 text-xs">Asset (Laptop/PC/Tablet):</span> 
+                              {emp.personnelRecord.laptopPcTablet ? (
+                                (() => {
+                                  try {
+                                    const assets = JSON.parse(emp.personnelRecord.laptopPcTablet);
+                                    return Array.isArray(assets) ? assets.join(', ') : emp.personnelRecord.laptopPcTablet;
+                                  } catch {
+                                    return emp.personnelRecord.laptopPcTablet;
+                                  }
+                                })()
+                              ) : t('none')}
+                            </div>
+                            <div><span className="font-semibold text-gray-600 text-xs">Work Stub:</span> {emp.personnelRecord.workStub || 'N/A'}</div>
+                            <div><span className="font-semibold text-gray-600 text-xs">Insurance Start Date:</span> {formatDateOrNotSpecified(emp.personnelRecord.insuranceStartDate)}</div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      ) : selectedEmployee ? (
         <div className="bg-white p-6 rounded-lg shadow print-container">
           {/* Header - will repeat on each page */}
           <div className="employee-card-header print-header">
