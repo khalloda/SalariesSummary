@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "contractRenewalDays": [
+    30,
+    14,
+    7,
+    1
+  ],
+  "idExpiryDays": [
+    30,
+    14,
+    7,
+    1
+  ],
+  "recipients": [
+    {
+      "email": "khelmy@sarieldin.com",
+      "name": "Khaled Helmy"
+    }
+  ],
+  "baseUrl": "http://localhost:3000",
+  "language": "en"
+}

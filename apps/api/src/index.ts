@@ -23,6 +23,8 @@ import { personnelRouter } from './routes/personnel.js';
 import { personnelCrudRouter } from './routes/personnel-crud.js';
 import { personnelDiagnosticsRouter } from './routes/personnel-diagnostics.js';
 import { personnelExportRouter } from './routes/personnel-export.js';
+import notificationsRouter from './routes/notifications.js';
+import { startNotificationScheduler } from './services/cron-scheduler.js';
 
 console.log('📦 Routes loaded successfully');
 
@@ -67,6 +69,7 @@ app.use('/api/personnel', personnelRouter);
 app.use('/api/personnel', personnelCrudRouter); // CRUD operations
 app.use('/api/personnel-diagnostics', personnelDiagnosticsRouter);
 app.use('/api/exports', personnelExportRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // Global error handlers
 process.on('uncaughtException', (error) => {
@@ -83,6 +86,9 @@ try {
   app.listen(PORT, () => {
     console.log(`🚀 API server running on http://localhost:${PORT}`);
     console.log(`📡 CORS enabled for: salaries.local, localhost:3000`);
+    
+    // Start notification scheduler
+    startNotificationScheduler();
   });
 } catch (error: any) {
   console.error('❌ Failed to start server:', error);

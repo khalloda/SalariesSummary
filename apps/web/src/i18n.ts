@@ -10,6 +10,8 @@ const resources = {
       employees: 'Employees',
       reports: 'Reports',
       management: 'Management',
+      settings: 'Settings',
+      notifications: 'Notifications',
       language: 'Language',
       
       // Common Actions
@@ -611,6 +613,8 @@ const resources = {
       employees: 'الموظفين',
       reports: 'التقارير',
       management: 'الإدارة',
+      settings: 'الإعدادات',
+      notifications: 'الإشعارات',
       language: 'اللغة',
       
       // Common Actions

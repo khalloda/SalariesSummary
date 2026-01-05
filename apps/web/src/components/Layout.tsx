@@ -20,7 +20,8 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/', label: i18n.t('dashboard') },
     { path: '/employees', label: i18n.t('employees') },
     { path: '/reports', label: i18n.t('reports') },
-    { path: '/manage/employees', label: i18n.t('management') }
+    { path: '/manage/employees', label: i18n.t('management') },
+    { path: '/settings/notifications', label: i18n.t('notifications') }
   ];
   
   return (

@@ -36,6 +36,7 @@ import PersonnelDiagnostics from './pages/PersonnelDiagnostics';
 import DocumentComplianceReport from './pages/DocumentComplianceReport';
 import AssetInventoryReport from './pages/AssetInventoryReport';
 import PersonnelStatusDashboard from './pages/PersonnelStatusDashboard';
+import NotificationSettings from './pages/NotificationSettings';
 
 function App() {
   const { i18n } = useTranslation();
@@ -85,6 +86,7 @@ function App() {
           <Route path="/reports/personnel-dashboard" element={<PersonnelStatusDashboard />} />
           <Route path="/import/bonus" element={<BonusImport />} />
           <Route path="/personnel-diagnostics" element={<PersonnelDiagnostics />} />
+          <Route path="/settings/notifications" element={<NotificationSettings />} />
         </Routes>
       </Layout>
     </BrowserRouter>
