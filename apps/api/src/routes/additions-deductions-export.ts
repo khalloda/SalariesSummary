@@ -4,6 +4,8 @@ import puppeteer from 'puppeteer';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { requireAuth } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 export const additionsDeductionsExportRouter = Router();
 
@@ -25,7 +27,7 @@ function getLogoBase64(): string {
  * POST /api/exports/additions-deductions/pdf
  * Export additions and deductions breakdown report as PDF
  */
-additionsDeductionsExportRouter.post('/additions-deductions/pdf', async (req, res) => {
+additionsDeductionsExportRouter.post('/additions-deductions/pdf', requireAuth, async (req, res) => {
   try {
     const { year, detailView, data } = req.body;
     
@@ -49,6 +51,7 @@ additionsDeductionsExportRouter.post('/additions-deductions/pdf', async (req, re
     await browser.close();
     
     const filename = `Additions_Deductions_${year}_${detailView}.pdf`;
+    await logAudit(req.user, 'EXPORT_ADDITIONS_DEDUCTIONS_PDF', 'report', undefined, { year, detailView });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.send(pdf);
@@ -62,7 +65,7 @@ additionsDeductionsExportRouter.post('/additions-deductions/pdf', async (req, re
  * POST /api/exports/additions-deductions/xlsx
  * Export additions and deductions breakdown report as XLSX
  */
-additionsDeductionsExportRouter.post('/additions-deductions/xlsx', async (req, res) => {
+additionsDeductionsExportRouter.post('/additions-deductions/xlsx', requireAuth, async (req, res) => {
   try {
     const { year, detailView, data } = req.body;
     
@@ -141,6 +144,7 @@ additionsDeductionsExportRouter.post('/additions-deductions/xlsx', async (req, r
     deductionsSheet.getColumn('amount').numFmt = '#,##0';
     
     const filename = `Additions_Deductions_${year}_${detailView}.xlsx`;
+    await logAudit(req.user, 'EXPORT_ADDITIONS_DEDUCTIONS_XLSX', 'report', undefined, { year, detailView });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     

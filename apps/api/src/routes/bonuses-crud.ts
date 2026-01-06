@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const bonusesCrudRouter = Router();
@@ -8,7 +10,7 @@ export const bonusesCrudRouter = Router();
  * POST /api/bonuses
  * Create a new annual bonus record
  */
-bonusesCrudRouter.post('/', async (req, res) => {
+bonusesCrudRouter.post('/', requireAuth, async (req, res) => {
   try {
     const {
       employeeId,
@@ -33,6 +35,12 @@ bonusesCrudRouter.post('/', async (req, res) => {
 
     if (!employeeId || !year) {
       return res.status(400).json({ error: 'Employee ID and year are required' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Creating bonus records is restricted for this role' });
     }
 
     // Check if employee exists
@@ -92,6 +100,7 @@ bonusesCrudRouter.post('/', async (req, res) => {
       }
     });
 
+    await logAudit(req.user, 'BONUS_CREATE', 'annualBonus', bonus.id, { employeeId, year });
     res.status(201).json(bonus);
   } catch (error: any) {
     console.error('Error creating bonus:', error);
@@ -103,7 +112,7 @@ bonusesCrudRouter.post('/', async (req, res) => {
  * GET /api/bonuses
  * List all bonus records
  */
-bonusesCrudRouter.get('/', async (req, res) => {
+bonusesCrudRouter.get('/', requireAuth, async (req, res) => {
   try {
     const { employeeId, year, page = '1', limit = '50' } = req.query;
     const pageNum = parseInt(page as string) || 1;
@@ -141,6 +150,21 @@ bonusesCrudRouter.get('/', async (req, res) => {
       prisma.annualBonus.count({ where })
     ]);
 
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    const safeBonuses = canSee
+      ? bonuses
+      : bonuses.map((b) => ({
+          ...b,
+          bonusAmount: 'RESTRICTED',
+          bonusFirstHalf: 'RESTRICTED',
+          bonusSecondHalf: 'RESTRICTED',
+          previousYearBonus: 'RESTRICTED',
+        }));
+
+    await logAudit(req.user, 'BONUS_LIST', 'annualBonus', undefined, { employeeId, year, total });
+
     res.json({
       bonuses,
       pagination: {
@@ -160,7 +184,7 @@ bonusesCrudRouter.get('/', async (req, res) => {
  * GET /api/bonuses/:id
  * Get a single bonus record
  */
-bonusesCrudRouter.get('/:id', async (req, res) => {
+bonusesCrudRouter.get('/:id', requireAuth, async (req, res) => {
   try {
     const bonus = await prisma.annualBonus.findUnique({
       where: { id: req.params.id },
@@ -180,7 +204,21 @@ bonusesCrudRouter.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Bonus record not found' });
     }
 
-    res.json(bonus);
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    const safeBonus = canSee
+      ? bonus
+      : {
+          ...bonus,
+          bonusAmount: 'RESTRICTED',
+          bonusFirstHalf: 'RESTRICTED',
+          bonusSecondHalf: 'RESTRICTED',
+          previousYearBonus: 'RESTRICTED',
+        };
+
+    await logAudit(req.user, 'BONUS_VIEW', 'annualBonus', bonus.id, undefined);
+
+    res.json(safeBonus);
   } catch (error: any) {
     console.error('Error fetching bonus:', error);
     res.status(500).json({ error: error.message });
@@ -191,7 +229,7 @@ bonusesCrudRouter.get('/:id', async (req, res) => {
  * PUT /api/bonuses/:id
  * Update a bonus record
  */
-bonusesCrudRouter.put('/:id', async (req, res) => {
+bonusesCrudRouter.put('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -221,6 +259,12 @@ bonusesCrudRouter.put('/:id', async (req, res) => {
 
     if (!existing) {
       return res.status(404).json({ error: 'Bonus record not found' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Updating bonus records is restricted for this role' });
     }
 
     // If year changed, check for conflicts
@@ -281,6 +325,7 @@ bonusesCrudRouter.put('/:id', async (req, res) => {
       }
     });
 
+    await logAudit(req.user, 'BONUS_UPDATE', 'annualBonus', bonus.id, { previous: existing });
     res.json(bonus);
   } catch (error: any) {
     console.error('Error updating bonus:', error);
@@ -292,7 +337,7 @@ bonusesCrudRouter.put('/:id', async (req, res) => {
  * DELETE /api/bonuses/:id
  * Delete a bonus record
  */
-bonusesCrudRouter.delete('/:id', async (req, res) => {
+bonusesCrudRouter.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -307,6 +352,8 @@ bonusesCrudRouter.delete('/:id', async (req, res) => {
     await prisma.annualBonus.delete({
       where: { id }
     });
+
+    await logAudit(req.user, 'BONUS_DELETE', 'annualBonus', id, undefined);
 
     res.json({ success: true, message: 'Bonus record deleted successfully' });
   } catch (error: any) {

@@ -5,11 +5,12 @@ import {
   saveNotificationSettings,
   checkAndSendNotifications,
 } from '../services/notification-scheduler.js';
+import { requireAuth, requireRole } from '../utils/auth.js';
 
 const notificationsRouter = express.Router();
 
 // Configure email service
-notificationsRouter.post('/email/configure', async (req, res) => {
+notificationsRouter.post('/email/configure', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { host, port, secure, auth } = req.body;
 
@@ -72,7 +73,7 @@ notificationsRouter.post('/email/configure', async (req, res) => {
 });
 
 // Get notification settings
-notificationsRouter.get('/settings', (req, res) => {
+notificationsRouter.get('/settings', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), (req, res) => {
   try {
     const settings = loadNotificationSettings();
     res.json({
@@ -88,7 +89,7 @@ notificationsRouter.get('/settings', (req, res) => {
 });
 
 // Update notification settings
-notificationsRouter.post('/settings', (req, res) => {
+notificationsRouter.post('/settings', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), (req, res) => {
   try {
     const {
       enabled,
@@ -125,7 +126,7 @@ notificationsRouter.post('/settings', (req, res) => {
 });
 
 // Manually trigger notification check
-notificationsRouter.post('/send', async (req, res) => {
+notificationsRouter.post('/send', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const result = await checkAndSendNotifications();
     res.json({
@@ -144,7 +145,7 @@ notificationsRouter.post('/send', async (req, res) => {
 });
 
 // Test email connection
-notificationsRouter.post('/email/test', async (req, res) => {
+notificationsRouter.post('/email/test', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     await emailService.testConnection();
     res.json({
@@ -160,7 +161,7 @@ notificationsRouter.post('/email/test', async (req, res) => {
 });
 
 // Send test notification email
-notificationsRouter.post('/email/send-test', async (req, res) => {
+notificationsRouter.post('/email/send-test', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const settings = loadNotificationSettings();
 

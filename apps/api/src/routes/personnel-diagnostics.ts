@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
+import { requireAuth, requireRole } from '../utils/auth.js';
 
 const prisma = new PrismaClient();
 export const personnelDiagnosticsRouter = Router();
@@ -39,7 +40,7 @@ function parseString(value: any): string | null {
  * Compare Personnel sheet with AllOffice sheet and database
  * Query params: filePath (optional, uses server Sheets directory if not provided)
  */
-personnelDiagnosticsRouter.get('/compare-sheets', async (req, res) => {
+personnelDiagnosticsRouter.get('/compare-sheets', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { filePath } = req.query;
     const sheetsDir = getSheetsDir();
@@ -386,7 +387,7 @@ personnelDiagnosticsRouter.get('/compare-sheets', async (req, res) => {
  * Get list of employees in Personnel sheet that don't match any database employees
  * (Similar to compare-sheets but focuses on database matching)
  */
-personnelDiagnosticsRouter.get('/unmatched', async (req, res) => {
+personnelDiagnosticsRouter.get('/unmatched', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { filePath } = req.query;
     const sheetsDir = getSheetsDir();

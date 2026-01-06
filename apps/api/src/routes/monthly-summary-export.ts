@@ -4,6 +4,8 @@ import puppeteer from 'puppeteer';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 export const monthlySummaryExportRouter = Router();
 
@@ -25,12 +27,18 @@ function getLogoBase64(): string {
  * POST /api/exports/monthly-summary/pdf
  * Export monthly summary report as PDF
  */
-monthlySummaryExportRouter.post('/monthly-summary/pdf', async (req, res) => {
+monthlySummaryExportRouter.post('/monthly-summary/pdf', requireAuth, async (req, res) => {
   try {
     const { year, data } = req.body;
     
     if (!data || !data.monthlyData) {
       return res.status(400).json({ error: 'Invalid report data' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Monthly summary exports are restricted for this role' });
     }
     
     const html = generateMonthlySummaryHTML(year, data);
@@ -49,6 +57,7 @@ monthlySummaryExportRouter.post('/monthly-summary/pdf', async (req, res) => {
     await browser.close();
     
     const filename = `Monthly_Summary_${year}.pdf`;
+    await logAudit(req.user, 'EXPORT_MONTHLY_SUMMARY_PDF', 'report', undefined, { year });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.send(pdf);
@@ -62,12 +71,18 @@ monthlySummaryExportRouter.post('/monthly-summary/pdf', async (req, res) => {
  * POST /api/exports/monthly-summary/xlsx
  * Export monthly summary report as XLSX
  */
-monthlySummaryExportRouter.post('/monthly-summary/xlsx', async (req, res) => {
+monthlySummaryExportRouter.post('/monthly-summary/xlsx', requireAuth, async (req, res) => {
   try {
     const { year, data } = req.body;
     
     if (!data || !data.monthlyData) {
       return res.status(400).json({ error: 'Invalid report data' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Monthly summary exports are restricted for this role' });
     }
     
     const workbook = new ExcelJS.Workbook();
@@ -118,6 +133,7 @@ monthlySummaryExportRouter.post('/monthly-summary/xlsx', async (req, res) => {
     worksheet.getColumn('deductions').numFmt = '#,##0';
     
     const filename = `Monthly_Summary_${year}.xlsx`;
+    await logAudit(req.user, 'EXPORT_MONTHLY_SUMMARY_XLSX', 'report', undefined, { year });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     

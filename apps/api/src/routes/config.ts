@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { shouldShowBonusHalves, setShowBonusHalves } from '../utils/config.js';
+import { requireAuth, requireRole } from '../utils/auth.js';
 
 export const configRouter = Router();
 
@@ -7,7 +8,7 @@ export const configRouter = Router();
  * GET /api/config/bonus-halves
  * Get bonus halves visibility setting
  */
-configRouter.get('/bonus-halves', (req, res) => {
+configRouter.get('/bonus-halves', requireAuth, (req, res) => {
   try {
     const showHalves = shouldShowBonusHalves();
     res.json({ showHalves });
@@ -22,7 +23,7 @@ configRouter.get('/bonus-halves', (req, res) => {
  * Set bonus halves visibility setting
  * Body: { showHalves: boolean }
  */
-configRouter.post('/bonus-halves', (req, res) => {
+configRouter.post('/bonus-halves', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), (req, res) => {
   try {
     const { showHalves } = req.body;
     

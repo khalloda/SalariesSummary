@@ -14,6 +14,37 @@ const resources = {
       notifications: 'Notifications',
       language: 'Language',
       
+      // Authentication
+      login: 'Login',
+      logout: 'Logout',
+      username: 'Username',
+      password: 'Password',
+      loginHint: 'Use your assigned username and password. Contact the system administrator if you cannot log in.',
+      checkingSession: 'Checking session...',
+      loggedInAs: 'Logged in as',
+      accessDenied: 'Access Denied',
+      insufficientPermissions: 'You do not have permission to access this page.',
+      
+      // User Management
+      userManagement: 'User Management',
+      newUser: '+ New User',
+      createUser: 'Create User',
+      editUser: 'Edit User',
+      deleteUserConfirm: 'Are you sure you want to delete user "{username}"?',
+      userCreatedSuccessfully: 'User created successfully',
+      userUpdatedSuccessfully: 'User updated successfully',
+      userDeletedSuccessfully: 'User deleted successfully',
+      fullName: 'Full Name',
+      email: 'Email',
+      systemId: 'System ID',
+      roles: 'Roles',
+      active: 'Active',
+      inactive: 'Inactive',
+      confirmPassword: 'Confirm Password',
+      passwordRequired: 'Password is required',
+      passwordsDoNotMatch: 'Passwords do not match',
+      saving: 'Saving...',
+      
       // Common Actions
       import: 'Import',
       export: 'Export',
@@ -35,6 +66,7 @@ const resources = {
       loading: 'Loading...',
       noData: 'No data found',
       never: 'Never',
+      actions: 'Actions',
       
       // Dashboard
       lastImported: 'Last Imported',
@@ -235,7 +267,6 @@ const resources = {
       creating: 'Creating...',
       selectAll: 'Select All',
       deselectAll: 'Deselect All',
-      selected: 'Selected',
       resignedImportConflicts: 'Resigned Import Conflicts',
       multipleEmployeesMatched: 'Found conflicts where multiple employees match. Select which employee to update:',
       matchedBy: 'Matched by',
@@ -337,16 +368,15 @@ const resources = {
       noSalariesFound: 'No salaries found',
       noBonusesFound: 'No bonuses found',
       
-      // Bulk Salary Entry
+      // Bulk Salary Entry (additional helpers)
       loadLastMonthData: 'Load Last Month Data',
-      createMonthSalary: 'Create Month Salary',
       createSalaryConfirm: 'Create salary records for {month} {year}?',
       successfullyCreated: 'Successfully created',
       recordsAndUpdated: 'records and updated',
       records: 'records',
       noEmployeesFoundMessage: 'No employees found. Please check the server console for details.',
       
-      // Bonus Import
+      // Bonus Import (text helpers)
       bonusImport: 'Bonus Import',
       importAnnualBonuses: 'Import Annual Bonuses',
       step1: 'Step 1: Select Excel File',
@@ -355,10 +385,7 @@ const resources = {
       chooseBonusWorkbook: 'Choose Bonus Workbook (.xlsx)',
       availableSheets: 'Available Sheets',
       yearForBonusData: 'Year for Bonus Data',
-      importBonuses: 'Import Bonuses',
-      importing: 'Importing...',
       reset: 'Reset',
-      selected: 'Selected',
       readingWorkbook: 'Reading workbook...',
       importReport: 'Import Report',
       importInstructions: 'Import Instructions',
@@ -370,7 +397,6 @@ const resources = {
       selectExcelFile: 'Please select an Excel file (.xlsx or .xls)',
       selectFileAndSheet: 'Please select a file and sheet',
       importSuccessful: 'Import successful!',
-      recordsImported: 'records imported',
       recordsParsed: 'records parsed',
       clickViewReport: 'Click "View Import Report" to see details.',
       importCompletedWithErrors: 'Import completed with errors:',
@@ -378,21 +404,18 @@ const resources = {
       failedToReadWorkbook: 'Failed to read workbook',
       failedToUploadFile: 'Failed to upload file',
       
-      // Personnel Diagnostics
-      personnelDiagnostics: 'Personnel Diagnostics',
+      // Personnel Diagnostics (helpers)
       backToDashboard: 'Back to Dashboard',
       comparePersonnel: 'Compare Personnel sheet with AllOffice sheet and database to identify missing employees',
       uploadFileFromComputer: 'Upload file from my computer',
       selectSEPEmployees: 'Select SEPEmployees.xlsx File',
       selectSEPEmployeesFromComputer: 'Select SEPEmployees.xlsx from your computer',
       useSEPEmployeesFromServer: 'Use SEPEmployees.xlsx from server Sheets directory',
-      runDiagnostics: 'Run Diagnostics',
       runningDiagnostics: 'Running Diagnostics...',
       summaryStatistics: 'Summary Statistics',
       personnelSheet: 'Personnel Sheet',
       allOfficeSheet: 'AllOffice Sheet',
       database: 'Database',
-      totalEmployees: 'Total employees',
       missingFromAllOffice: 'Missing from AllOffice',
       missingFromDatabase: 'Missing from Database',
       recommendations: 'Recommendations',
@@ -461,7 +484,7 @@ const resources = {
       annualBonusReportDescription: 'Comprehensive annual bonus analysis by category and office-wide',
       bonusComparison: 'Bonus Comparison',
       bonusComparisonDescription: 'Compare bonuses between two years',
-      employeeCard: 'Employee Card',
+      // employeeCard helpers are already defined above; only description lives here
       employeeCardDescription: 'Comprehensive employee information card with all details',
       documentCompliance: 'Document Compliance',
       documentComplianceDescription: 'Track document completion across all employees',
@@ -490,15 +513,10 @@ const resources = {
       details: 'Details',
       annual: 'Annual',
       bonus: 'Bonus',
-      records: 'Records',
       uncategorized: 'Uncategorized',
       consolidated: 'Consolidated',
       detailsView: 'Details',
       total: 'TOTAL',
-      status: 'Status',
-      department: 'Department',
-      employeeCodeHeader: 'Employee Code',
-      nameHeader: 'Name',
       categoryHeader: 'Category',
       compliancePercentage: 'Compliance %',
       completed: 'Completed',
@@ -524,7 +542,6 @@ const resources = {
       personnelImportSuccessful: 'Personnel import successful!\n\n- {{updated}} personnel records updated{{errors}}\n\nClick "View Import Report" to see detailed information.',
       personnelImportCompletedWithErrors: 'Personnel import completed with errors:\n\n{{errors}}',
       personnelImportFailed: 'Personnel import failed: {error}',
-      importingPersonnel: 'Importing Personnel...',
       importSuccessfulMessage: 'Import successful! {{imported}} records imported from {{files}} files.{{errors}}\n\nClick "View Import Report" to see detailed information.',
       importCompletedWithErrors: 'Import completed with errors:\n\n{{errors}}',
       recordsSkipped: 'Records Skipped',
@@ -575,8 +592,7 @@ const resources = {
       startDateMustBeBeforeEndDate: 'Start date must be before or equal to end date',
       failedToExportFormat: 'Failed to export {format}: {error}',
       
-      // Bulk Salary Entry
-      bonuses: 'Bonuses',
+      // Bulk Salary Entry (additional labels)
       annualBonus: 'Annual Bonus',
       monthlyBonus: 'Monthly Bonus',
       bonusesTotal: 'Bonuses Total',
@@ -584,8 +600,7 @@ const resources = {
       createSalaryRecordsFor: 'Create Salary Records for {month} {year}',
       clickLoadLastMonthData: 'Click "Load Last Month Data" to start creating salary records',
       
-      // Bonus Management
-      bonusManagement: 'Bonus Management',
+      // Bonus Management (additional labels)
       newBonusRecord: '+ New Bonus Record',
       bonusAmount: 'Bonus Amount',
       annualIncrease: 'Annual Increase',
@@ -611,25 +626,19 @@ const resources = {
       deductionsBreakdown: 'Deductions Breakdown',
       
       // View/Hide Toggle
-      view: 'View',
       hide: 'Hide',
       
-      // Dashboard Additional
+      // Dashboard Additional (helpers)
       selectSEPEmployeesFile: 'Select SEPEmployees.xlsx File',
-      selected: 'Selected',
       viewAllEmployees: 'View all employees',
       viewJoinersAndLeavers: 'View joiners and leavers',
       viewSalaryChanges: 'View salary changes',
       
-      // Reports Summary Statistics
+      // Reports Summary Statistics (helpers)
       totalEmployeesLabel: 'Total Employees',
       totalPayrollLabel: 'Total Payroll',
       averageSalaryLabel: 'Average Salary',
       categoriesLabel: 'Categories',
-      netTotalForYear: 'Net total for {year}',
-      perMonthAverage: 'Per month average',
-      activeCategories: 'Active categories',
-      forYear: 'For {year}',
       
       // Status Values
       statusActive: 'Active',
@@ -659,6 +668,37 @@ const resources = {
       notifications: 'الإشعارات',
       language: 'اللغة',
       
+      // Authentication
+      login: 'تسجيل الدخول',
+      logout: 'تسجيل الخروج',
+      username: 'اسم المستخدم',
+      password: 'كلمة المرور',
+      loginHint: 'استخدم اسم المستخدم وكلمة المرور المخصصة لك. اتصل بمسؤول النظام إذا لم تتمكن من تسجيل الدخول.',
+      checkingSession: 'جارٍ التحقق من الجلسة...',
+      loggedInAs: 'مسجل الدخول كـ',
+      accessDenied: 'تم رفض الوصول',
+      insufficientPermissions: 'ليس لديك إذن للوصول إلى هذه الصفحة.',
+      
+      // User Management
+      userManagement: 'إدارة المستخدمين',
+      newUser: '+ مستخدم جديد',
+      createUser: 'إنشاء مستخدم',
+      editUser: 'تعديل مستخدم',
+      deleteUserConfirm: 'هل أنت متأكد من حذف المستخدم "{username}"؟',
+      userCreatedSuccessfully: 'تم إنشاء المستخدم بنجاح',
+      userUpdatedSuccessfully: 'تم تحديث المستخدم بنجاح',
+      userDeletedSuccessfully: 'تم حذف المستخدم بنجاح',
+      fullName: 'الاسم الكامل',
+      email: 'البريد الإلكتروني',
+      systemId: 'معرف النظام',
+      roles: 'الأدوار',
+      active: 'نشط',
+      inactive: 'غير نشط',
+      confirmPassword: 'تأكيد كلمة المرور',
+      passwordRequired: 'كلمة المرور مطلوبة',
+      passwordsDoNotMatch: 'كلمات المرور غير متطابقة',
+      saving: 'جاري الحفظ...',
+      
       // Common Actions
       import: 'استيراد',
       export: 'تصدير',
@@ -680,6 +720,7 @@ const resources = {
       loading: 'جاري التحميل...',
       noData: 'لا توجد بيانات',
       never: 'أبداً',
+      actions: 'الإجراءات',
       
       // Dashboard
       lastImported: 'آخر استيراد',
@@ -695,7 +736,6 @@ const resources = {
       manageSalaryRecords: 'إدارة سجلات الرواتب',
       manageBonusRecords: 'إدارة سجلات المكافآت',
       bulkSalaryEntry: 'إدخال الرواتب بالجملة',
-      createMonthSalary: 'إنشاء راتب شهري لجميع الموظفين',
       salaries: 'الرواتب',
       
       // Import Actions
@@ -983,9 +1023,8 @@ const resources = {
       noSalariesFound: 'لم يتم العثور على رواتب',
       noBonusesFound: 'لم يتم العثور على مكافآت',
       
-      // Bulk Salary Entry
+      // Bulk Salary Entry (additional helpers)
       loadLastMonthData: 'تحميل بيانات الشهر السابق',
-      createMonthSalary: 'إنشاء راتب الشهر',
       createSalaryConfirm: 'إنشاء سجلات الرواتب لشهر {month} {year}؟',
       successfullyCreated: 'تم الإنشاء بنجاح',
       recordsAndUpdated: 'سجلات وتم تحديث',
@@ -1016,7 +1055,6 @@ const resources = {
       selectExcelFile: 'يرجى اختيار ملف Excel (.xlsx أو .xls)',
       selectFileAndSheet: 'يرجى اختيار ملف وورقة',
       importSuccessful: 'تم الاستيراد بنجاح!',
-      recordsImported: 'سجلات مستوردة',
       recordsParsed: 'سجلات تم تحليلها',
       clickViewReport: 'انقر على "عرض تقرير الاستيراد" لرؤية التفاصيل.',
       importCompletedWithErrors: 'اكتمل الاستيراد مع أخطاء:',
@@ -1136,15 +1174,10 @@ const resources = {
       details: 'التفاصيل',
       annual: 'سنوي',
       bonus: 'مكافأة',
-      records: 'السجلات',
       uncategorized: 'غير مصنف',
       consolidated: 'مجمّع',
       detailsView: 'التفاصيل',
       total: 'الإجمالي',
-      status: 'الحالة',
-      department: 'القسم',
-      employeeCodeHeader: 'رمز الموظف',
-      nameHeader: 'الاسم',
       categoryHeader: 'الفئة',
       compliancePercentage: 'نسبة الامتثال %',
       completed: 'مكتمل',
@@ -1221,8 +1254,7 @@ const resources = {
       startDateMustBeBeforeEndDate: 'يجب أن يكون تاريخ البداية قبل أو يساوي تاريخ النهاية',
       failedToExportFormat: 'فشل تصدير {format}: {error}',
       
-      // Bulk Salary Entry
-      bonuses: 'المكافآت',
+      // Bulk Salary Entry (additional labels)
       annualBonus: 'المكافأة السنوية',
       monthlyBonus: 'المكافأة الشهرية',
       bonusesTotal: 'إجمالي المكافآت',
@@ -1230,8 +1262,7 @@ const resources = {
       createSalaryRecordsFor: 'إنشاء سجلات الرواتب لشهر {month} {year}',
       clickLoadLastMonthData: 'انقر على "تحميل بيانات الشهر السابق" لبدء إنشاء سجلات الرواتب',
       
-      // Bonus Management
-      bonusManagement: 'إدارة المكافآت',
+      // Bonus Management (additional labels)
       newBonusRecord: '+ سجل مكافأة جديد',
       bonusAmount: 'مبلغ المكافأة',
       annualIncrease: 'الزيادة السنوية',
@@ -1257,12 +1288,10 @@ const resources = {
       deductionsBreakdown: 'تفصيل الخصومات',
       
       // View/Hide Toggle
-      view: 'عرض',
       hide: 'إخفاء',
       
       // Dashboard Additional
       selectSEPEmployeesFile: 'اختر ملف SEPEmployees.xlsx',
-      selected: 'محدد',
       viewAllEmployees: 'عرض جميع الموظفين',
       viewJoinersAndLeavers: 'عرض المنضمين والمغادرين',
       viewSalaryChanges: 'عرض تغييرات الرواتب',
@@ -1272,10 +1301,6 @@ const resources = {
       totalPayrollLabel: 'إجمالي الرواتب',
       averageSalaryLabel: 'متوسط الراتب',
       categoriesLabel: 'الفئات',
-      netTotalForYear: 'إجمالي الصافي لسنة {year}',
-      perMonthAverage: 'متوسط شهري',
-      activeCategories: 'فئات نشطة',
-      forYear: 'لسنة {year}',
       
       // Status Values
       statusActive: 'نشط',
@@ -1285,7 +1310,6 @@ const resources = {
       noFileChosen: 'لم يتم اختيار ملف',
       chooseFile: 'اختر ملف',
       chooseFiles: 'اختر ملفات',
-      selectSEPEmployeesFromComputer: 'اختر SEPEmployees.xlsx من جهاز الكمبيوتر للاستيراد',
       
       // Table Headers (uppercase versions)
       categoryHeaderUppercase: 'الفئة',

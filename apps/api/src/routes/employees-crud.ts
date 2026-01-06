@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { normalizeEmployeeName } from '../utils/normalize.js';
+import { requireAuth, requireRole } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const employeesCrudRouter = Router();
@@ -9,7 +11,7 @@ export const employeesCrudRouter = Router();
  * POST /api/employees
  * Create a new employee
  */
-employeesCrudRouter.post('/', async (req, res) => {
+employeesCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const {
       name,
@@ -118,7 +120,7 @@ employeesCrudRouter.post('/', async (req, res) => {
  * PUT /api/employees/:id
  * Update an employee
  */
-employeesCrudRouter.put('/:id', async (req, res) => {
+employeesCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -235,7 +237,7 @@ employeesCrudRouter.put('/:id', async (req, res) => {
  * DELETE /api/employees/:id
  * Delete an employee
  */
-employeesCrudRouter.delete('/:id', async (req, res) => {
+employeesCrudRouter.delete('/:id', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
 

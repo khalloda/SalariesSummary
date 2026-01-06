@@ -5,6 +5,8 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { shouldShowBonusHalves } from '../utils/config.js';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 export const annualBonusExportRouter = Router();
 
@@ -26,7 +28,7 @@ function getLogoBase64(): string {
  * POST /api/exports/annual-bonus-report/pdf
  * Export annual bonus report as PDF
  */
-annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
+annualBonusExportRouter.post('/annual-bonus-report/pdf', requireAuth, async (req, res) => {
   try {
     const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
     // Use server config if client doesn't specify, otherwise use client value
@@ -34,6 +36,12 @@ annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
     
     if (!data || !data.categoryTotals) {
       return res.status(400).json({ error: 'Invalid report data' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Annual bonus exports are restricted for this role' });
     }
     
     // Generate HTML based on export mode
@@ -54,6 +62,7 @@ annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
     await browser.close();
     
     const filename = `Annual_Bonus_Report_${year}_${exportMode}.pdf`;
+    await logAudit(req.user, 'EXPORT_ANNUAL_BONUS_PDF', 'report', undefined, { year, exportMode });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.send(pdf);
@@ -67,7 +76,7 @@ annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
  * POST /api/exports/annual-bonus-report/xlsx
  * Export annual bonus report as XLSX
  */
-annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
+annualBonusExportRouter.post('/annual-bonus-report/xlsx', requireAuth, async (req, res) => {
   try {
     const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
     // Use server config if client doesn't specify, otherwise use client value
@@ -75,6 +84,12 @@ annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
     
     if (!data || !data.categoryTotals) {
       return res.status(400).json({ error: 'Invalid report data' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Annual bonus exports are restricted for this role' });
     }
     
     const workbook = new ExcelJS.Workbook();
@@ -221,6 +236,7 @@ annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
     }
     
     const filename = `Annual_Bonus_Report_${year}_${exportMode}.xlsx`;
+    await logAudit(req.user, 'EXPORT_ANNUAL_BONUS_XLSX', 'report', undefined, { year, exportMode });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     

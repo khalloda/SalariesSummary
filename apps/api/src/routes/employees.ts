@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth, redactSalaryArrayForRoles, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 import {
   calculateReflectedInMonths,
   calculateReflectedInPercent,
@@ -16,7 +18,7 @@ export const employeesRouter = Router();
  * List all employees
  * Category is taken from the latest salary record
  */
-employeesRouter.get('/', async (req, res) => {
+employeesRouter.get('/', requireAuth, async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
       include: {
@@ -61,7 +63,7 @@ employeesRouter.get('/', async (req, res) => {
  * GET /api/employees/:id
  * Get employee details
  */
-employeesRouter.get('/:id', async (req, res) => {
+employeesRouter.get('/:id', requireAuth, async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id },
@@ -78,8 +80,16 @@ employeesRouter.get('/:id', async (req, res) => {
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
     }
-    
-    res.json(employee);
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const employeeWithRedaction = {
+      ...employee,
+      salaries: redactSalaryArrayForRoles(employee.salaries, roles),
+    };
+
+    await logAudit(req.user, 'EMPLOYEE_VIEW', 'employee', employee.id, { withSalaries: true });
+
+    res.json(employeeWithRedaction);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -89,7 +99,7 @@ employeesRouter.get('/:id', async (req, res) => {
  * GET /api/employees/:id/details
  * Get employee full details with contract records
  */
-employeesRouter.get('/:id/details', async (req, res) => {
+employeesRouter.get('/:id/details', requireAuth, async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id },
@@ -113,6 +123,7 @@ employeesRouter.get('/:id/details', async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
     
+    await logAudit(req.user, 'EMPLOYEE_DETAILS_VIEW', 'employee', employee.id, undefined);
     res.json(employee);
   } catch (error: any) {
     console.error('Error fetching employee details:', error);
@@ -124,7 +135,7 @@ employeesRouter.get('/:id/details', async (req, res) => {
  * GET /api/employees/:id/card
  * Get employee details for Employee Card report
  */
-employeesRouter.get('/:id/card', async (req, res) => {
+employeesRouter.get('/:id/card', requireAuth, async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id },
@@ -143,8 +154,16 @@ employeesRouter.get('/:id/card', async (req, res) => {
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
     }
-    
-    res.json(employee);
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const employeeWithRedaction = {
+      ...employee,
+      salaries: redactSalaryArrayForRoles(employee.salaries, roles),
+    };
+
+    await logAudit(req.user, 'EMPLOYEE_CARD_VIEW', 'employee', employee.id, undefined);
+
+    res.json(employeeWithRedaction);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -154,7 +173,7 @@ employeesRouter.get('/:id/card', async (req, res) => {
  * GET /api/employees/:id/all-years
  * Get all salary records for an employee across all years
  */
-employeesRouter.get('/:id/all-years', async (req, res) => {
+employeesRouter.get('/:id/all-years', requireAuth, async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id }
@@ -174,6 +193,9 @@ employeesRouter.get('/:id/all-years', async (req, res) => {
       ]
     });
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
     // Group by year
     const byYear: Record<number, any[]> = {};
     salaries.forEach(s => {
@@ -212,13 +234,32 @@ employeesRouter.get('/:id/all-years', async (req, res) => {
     // Get available years
     const years = Object.keys(byYear).map(y => parseInt(y)).sort();
     
-    res.json({
+    const responsePayload: any = {
       employee,
       years,
       byYear,
       yearTotals,
-      allRecords: salaries
-    });
+      allRecords: salaries,
+    };
+
+    if (!canSee) {
+      // Redact aggregated salary fields for restricted roles
+      Object.keys(yearTotals).forEach((yearKey) => {
+        const totals = yearTotals[Number(yearKey)];
+        yearTotals[Number(yearKey)] = {
+          ...totals,
+          basicSalary: 'RESTRICTED',
+          gross: 'RESTRICTED',
+          net: 'RESTRICTED',
+          bonuses: 'RESTRICTED',
+        };
+      });
+      responsePayload.allRecords = redactSalaryArrayForRoles(salaries, roles);
+    }
+
+    await logAudit(req.user, 'EMPLOYEE_ALL_YEARS_VIEW', 'employee', employee.id, { years });
+
+    res.json(responsePayload);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -228,7 +269,7 @@ employeesRouter.get('/:id/all-years', async (req, res) => {
  * GET /api/employees/:id/annual?year=YYYY
  * Get employee annual report
  */
-employeesRouter.get('/:id/annual', async (req, res) => {
+employeesRouter.get('/:id/annual', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     const employee = await prisma.employee.findUnique({
@@ -339,17 +380,37 @@ employeesRouter.get('/:id/annual', async (req, res) => {
       }
     }
     
-    res.json({
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    const payload: any = {
       employee,
       year,
-      monthlyData: salaries,
-      totals,
+      monthlyData: canSee ? salaries : redactSalaryArrayForRoles(salaries, roles),
+      totals: canSee
+        ? totals
+        : {
+            ...totals,
+            basicSalary: 'RESTRICTED',
+            directAdditions: totals.directAdditions,
+            indirectAdditions: totals.indirectAdditions,
+            yearlyIncrease: 'RESTRICTED',
+            bonuses: 'RESTRICTED',
+            salaryDeductions: totals.salaryDeductions,
+            grossDeductions: totals.grossDeductions,
+            gross: 'RESTRICTED',
+            net: 'RESTRICTED',
+          },
       additionsByCategory,
       deductionsByCategory,
-      categoryChanges, // Include category change history
+      categoryChanges,
       missingMonths: Array.from({ length: 12 }, (_, i) => i + 1)
-        .filter(m => !salaries.some(s => s.month === m))
-    });
+        .filter(m => !salaries.some(s => s.month === m)),
+    };
+
+    await logAudit(req.user, 'EMPLOYEE_ANNUAL_VIEW', 'employee', employee.id, { year });
+
+    res.json(payload);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -359,7 +420,7 @@ employeesRouter.get('/:id/annual', async (req, res) => {
  * GET /api/employees/:id/bonus?year=YYYY
  * Get annual bonus details for a specific employee for a given year, including historical data.
  */
-employeesRouter.get('/:id/bonus', async (req, res) => {
+employeesRouter.get('/:id/bonus', requireAuth, async (req, res) => {
   try {
     const employeeId = req.params.id;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -447,6 +508,8 @@ employeesRouter.get('/:id/bonus', async (req, res) => {
         }
       : null;
 
+    await logAudit(req.user, 'EMPLOYEE_BONUS_VIEW', 'employee', employee.id, { year });
+
     res.json({
       employee,
       year,
@@ -466,7 +529,7 @@ employeesRouter.get('/:id/bonus', async (req, res) => {
  * GET /api/employees/all/details
  * Get all employees with full details and contract records
  */
-employeesRouter.get('/all/details', async (req, res) => {
+employeesRouter.get('/all/details', requireAuth, async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
       include: {
@@ -489,6 +552,7 @@ employeesRouter.get('/all/details', async (req, res) => {
       ]
     });
     
+    await logAudit(req.user, 'EMPLOYEE_ALL_DETAILS_VIEW', 'employee', undefined, { count: employees.length });
     res.json(employees);
   } catch (error: any) {
     console.error('Error fetching employees with details:', error);
@@ -500,7 +564,7 @@ employeesRouter.get('/all/details', async (req, res) => {
  * GET /api/employees/:id/bonus-comparison?fromYear=YYYY&toYear=YYYY
  * Get bonus and annual increase comparison data for an employee across a year range
  */
-employeesRouter.get('/:id/bonus-comparison', async (req, res) => {
+employeesRouter.get('/:id/bonus-comparison', requireAuth, async (req, res) => {
   try {
     const employeeId = req.params.id;
     const fromYear = parseInt(req.query.fromYear as string) || new Date().getFullYear() - 4;
@@ -604,6 +668,8 @@ employeesRouter.get('/:id/bonus-comparison', async (req, res) => {
         reflectedInPercent: bonus?.reflectedInPercent || 0
       });
     });
+
+    await logAudit(req.user, 'EMPLOYEE_BONUS_COMPARISON_VIEW', 'employee', employee.id, { fromYear, toYear });
 
     res.json({
       employee,

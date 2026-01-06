@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth, requireRole, canViewSalaryAmounts, redactSalaryArrayForRoles, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const bulkSalaryRouter = Router();
@@ -8,7 +10,7 @@ export const bulkSalaryRouter = Router();
  * GET /api/bulk-salary/last-month/:year/:month
  * Get last month's salary data for all employees, grouped by category
  */
-bulkSalaryRouter.get('/last-month/:year/:month', async (req, res) => {
+bulkSalaryRouter.get('/last-month/:year/:month', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const month = parseInt(req.params.month);
@@ -268,6 +270,41 @@ bulkSalaryRouter.get('/last-month/:year/:month', async (req, res) => {
       };
     }
     
+    // Apply salary redaction based on user roles
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canView = canViewSalaryAmounts(roles);
+    
+    if (!canView) {
+      // Redact salary amounts for restricted roles
+      Object.keys(response.employees).forEach(category => {
+        response.employees[category] = response.employees[category].map((emp: any) => ({
+          ...emp,
+          basicSalary: 'RESTRICTED',
+          phoneAllowance: 'RESTRICTED',
+          transportationAllowance: 'RESTRICTED',
+          accommodationAllowance: 'RESTRICTED',
+          otherAllowances: 'RESTRICTED',
+          yearlyIncrease: 'RESTRICTED',
+          annualBonus: 'RESTRICTED',
+          monthlyBonus: 'RESTRICTED',
+          socialInsurance: 'RESTRICTED',
+          taxes: 'RESTRICTED',
+          medicalInsurance: 'RESTRICTED',
+          medicalInsuranceDeducted: 'RESTRICTED',
+          lawyersTaxes: 'RESTRICTED',
+          otherBankWithdrawal: 'RESTRICTED',
+          loansDeductions: 'RESTRICTED',
+          phoneDeduction: 'RESTRICTED',
+          unpaidVacation: 'RESTRICTED',
+          lateArrivals: 'RESTRICTED',
+          timeSheetDeductions: 'RESTRICTED',
+          otherDeductions: 'RESTRICTED',
+        }));
+      });
+    }
+    
+    await logAudit(req.user, 'BULK_SALARY_VIEW', 'bulk-salary', null, { year, month, canView });
+    
     res.json(response);
   } catch (error: any) {
     console.error('Error fetching last month salaries:', error);
@@ -279,7 +316,7 @@ bulkSalaryRouter.get('/last-month/:year/:month', async (req, res) => {
  * POST /api/bulk-salary/create
  * Create salary records for multiple employees at once
  */
-bulkSalaryRouter.post('/create', async (req, res) => {
+bulkSalaryRouter.post('/create', requireAuth, requireRole('OFFICE_MANAGER', 'FINANCE', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { year, month, employees } = req.body;
 

@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import LanguageToggle from './LanguageToggle';
 import Tooltip from './Tooltip';
 import { tooltips } from '../utils/tooltips';
+import { useAuth } from '../hooks/useAuth';
 // Logo path - Vite serves files from public directory at root
 const logo = '/logo.png';
 
@@ -12,8 +13,9 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const location = useLocation();
+  const { user, logout } = useAuth();
   const isRTL = i18n.language === 'ar';
   
   const navItems = [
@@ -21,8 +23,21 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/employees', label: i18n.t('employees') },
     { path: '/reports', label: i18n.t('reports') },
     { path: '/manage/employees', label: i18n.t('management') },
-    { path: '/settings/notifications', label: i18n.t('notifications') }
+    ...(user && (user.roles.includes('ADMIN') || user.roles.includes('SUPER_ADMIN'))
+      ? [
+          { path: '/manage/users', label: i18n.t('userManagement') },
+          { path: '/settings/notifications', label: i18n.t('notifications') }
+        ]
+      : []),
   ];
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -38,7 +53,22 @@ export default function Layout({ children }: LayoutProps) {
               />
               <h1 className="text-xl font-semibold">{i18n.t('title')}</h1>
             </div>
-            <LanguageToggle />
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              {user && (
+                <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <span className="text-sm text-gray-600">
+                    {t('loggedInAs')} <span className="font-medium text-gray-900">{user.fullName || user.username}</span>
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 rounded-md transition-colors"
+                  >
+                    {t('logout')}
+                  </button>
+                </div>
+              )}
+              <LanguageToggle />
+            </div>
           </div>
         </div>
         <nav className="bg-gray-100">

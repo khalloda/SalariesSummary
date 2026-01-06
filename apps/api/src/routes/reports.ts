@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const reportsRouter = Router();
@@ -8,7 +10,7 @@ export const reportsRouter = Router();
  * GET /api/reports/available-years
  * Get all available years from salary records
  */
-reportsRouter.get('/available-years', async (req, res) => {
+reportsRouter.get('/available-years', requireAuth, async (req, res) => {
   try {
     // Use groupBy for SQLite compatibility (distinct doesn't work well with SQLite)
     const salaryYearsData = await prisma.salaryRecord.groupBy({
@@ -33,6 +35,7 @@ reportsRouter.get('/available-years', async (req, res) => {
     bonusYears.forEach(year => allYears.add(year));
     
     const yearList = Array.from(allYears).sort((a, b) => b - a);
+    await logAudit(req.user, 'REPORT_AVAILABLE_YEARS_VIEW', 'report', undefined, { years: yearList });
     res.json({ years: yearList });
   } catch (error: any) {
     console.error('Error fetching available years:', error);
@@ -44,7 +47,7 @@ reportsRouter.get('/available-years', async (req, res) => {
  * GET /api/reports/category-totals?year=YYYY
  * Get totals by category (Partners, Lawyers, Admins, Consultants)
  */
-reportsRouter.get('/category-totals', async (req, res) => {
+reportsRouter.get('/category-totals', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -138,6 +141,33 @@ reportsRouter.get('/category-totals', async (req, res) => {
       };
     }
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    if (!canSee) {
+      // Redact salary-related totals for restricted roles
+      Object.values(categoryTotals).forEach((cat: any) => {
+        if (cat.totals) {
+          cat.totals.basicSalary = 'RESTRICTED';
+          cat.totals.gross = 'RESTRICTED';
+          cat.totals.net = 'RESTRICTED';
+          cat.totals.bonuses = 'RESTRICTED';
+        }
+        if (cat.departments) {
+          Object.values(cat.departments).forEach((dept: any) => {
+            if (dept.totals) {
+              dept.totals.basicSalary = 'RESTRICTED';
+              dept.totals.gross = 'RESTRICTED';
+              dept.totals.net = 'RESTRICTED';
+              dept.totals.bonuses = 'RESTRICTED';
+            }
+          });
+        }
+      });
+    }
+
+    await logAudit(req.user, 'REPORT_CATEGORY_TOTALS_VIEW', 'report', undefined, { year, canViewAmounts: canSee });
+
     res.json({
       year,
       categoryTotals
@@ -151,7 +181,7 @@ reportsRouter.get('/category-totals', async (req, res) => {
  * GET /api/reports/joiners-leavers?year=YYYY
  * Get joiners and leavers report
  */
-reportsRouter.get('/joiners-leavers', async (req, res) => {
+reportsRouter.get('/joiners-leavers', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -240,6 +270,7 @@ reportsRouter.get('/joiners-leavers', async (req, res) => {
       }
     }
     
+    await logAudit(req.user, 'REPORT_JOINERS_LEAVERS_VIEW', 'report', undefined, { year });
     res.json({
       year,
       joiners,
@@ -259,7 +290,7 @@ reportsRouter.get('/joiners-leavers', async (req, res) => {
  * GET /api/reports/salary-changes?year=YYYY
  * Get salary changes report
  */
-reportsRouter.get('/salary-changes', async (req, res) => {
+reportsRouter.get('/salary-changes', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -311,6 +342,7 @@ reportsRouter.get('/salary-changes', async (req, res) => {
       change: 0
     });
     
+    await logAudit(req.user, 'REPORT_SALARY_CHANGES_VIEW', 'report', undefined, { year });
     res.json({
       year,
       changes,
@@ -325,7 +357,7 @@ reportsRouter.get('/salary-changes', async (req, res) => {
  * GET /api/reports/annual-bonus?year=YYYY&includeConsultants=true|false
  * Get annual bonus report data
  */
-reportsRouter.get('/annual-bonus', async (req, res) => {
+reportsRouter.get('/annual-bonus', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     const includeConsultants = req.query.includeConsultants === 'true' || req.query.includeConsultants === undefined;
@@ -561,10 +593,57 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
       }
     }
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    // For restricted roles, mark totals as RESTRICTED but keep structure
+    const safeGrandTotal = canSee
+      ? grandTotal
+      : {
+          ...grandTotal,
+          totalBonus: 'RESTRICTED',
+          totalFirstHalf: 'RESTRICTED',
+          totalSecondHalf: 'RESTRICTED',
+          totalPreviousYear: 'RESTRICTED',
+          averageBonus: 'RESTRICTED',
+        };
+
+    const safeTotalsWithoutConsultants = canSee
+      ? totalsWithoutConsultants
+      : {
+          ...totalsWithoutConsultants,
+          totalBonus: 'RESTRICTED',
+          totalFirstHalf: 'RESTRICTED',
+          totalSecondHalf: 'RESTRICTED',
+          totalPreviousYear: 'RESTRICTED',
+          averageBonus: 'RESTRICTED',
+        };
+
+    if (!canSee) {
+      Object.values(categoryTotals).forEach((totals: any) => {
+        totals.totalBonus = 'RESTRICTED';
+        totals.totalFirstHalf = 'RESTRICTED';
+        totals.totalSecondHalf = 'RESTRICTED';
+        totals.totalPreviousYear = 'RESTRICTED';
+        totals.averageBonus = 'RESTRICTED';
+        if (totals.employees) {
+          totals.employees = totals.employees.map((e: any) => ({
+            ...e,
+            bonus: 'RESTRICTED',
+            bonusFirstHalf: 'RESTRICTED',
+            bonusSecondHalf: 'RESTRICTED',
+            previousYearBonus: 'RESTRICTED',
+          }));
+        }
+      });
+    }
+
+    await logAudit(req.user, 'REPORT_ANNUAL_BONUS_VIEW', 'report', undefined, { year, canViewAmounts: canSee });
+
     res.json({
       year,
-      grandTotal,
-      totalsWithoutConsultants,
+      grandTotal: safeGrandTotal,
+      totalsWithoutConsultants: safeTotalsWithoutConsultants,
       categoryTotals,
       growthRatios
     });
@@ -581,7 +660,7 @@ reportsRouter.get('/annual-bonus', async (req, res) => {
  * GET /api/reports/quick-stats?year=YYYY
  * Get quick statistics for the dashboard
  */
-reportsRouter.get('/quick-stats', async (req, res) => {
+reportsRouter.get('/quick-stats', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -627,18 +706,25 @@ reportsRouter.get('/quick-stats', async (req, res) => {
       }
     });
     
-    res.json({
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    const responsePayload: any = {
       year,
       totalEmployees: totalEmployees.length,
-      totalPayroll: totalNet, // Frontend expects totalPayroll
-      totalNet,
-      totalGross,
-      totalBonus,
-      averageSalary, // Frontend expects averageSalary
+      totalPayroll: canSee ? totalNet : 'RESTRICTED',
+      totalNet: canSee ? totalNet : 'RESTRICTED',
+      totalGross: canSee ? totalGross : 'RESTRICTED',
+      totalBonus: canSee ? totalBonus : 'RESTRICTED',
+      averageSalary: canSee ? averageSalary : 'RESTRICTED',
       salaryRecordsCount: salaryRecords.length,
       bonusRecordsCount: bonusRecords.length,
       categoryDistribution
-    });
+    };
+
+    await logAudit(req.user, 'REPORT_QUICK_STATS_VIEW', 'report', undefined, { year, canViewAmounts: canSee });
+
+    res.json(responsePayload);
   } catch (error: any) {
     console.error('Error fetching quick stats:', error);
     res.status(500).json({ error: error.message });
@@ -649,7 +735,7 @@ reportsRouter.get('/quick-stats', async (req, res) => {
  * GET /api/reports/bonus-incentive-analysis?year=YYYY
  * Get bonus and incentive analysis report
  */
-reportsRouter.get('/bonus-incentive-analysis', async (req, res) => {
+reportsRouter.get('/bonus-incentive-analysis', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -697,15 +783,39 @@ reportsRouter.get('/bonus-incentive-analysis', async (req, res) => {
       if (byCategory[cat].min === Infinity) byCategory[cat].min = 0;
     });
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    const safeSummary = canSee
+      ? {
+          totalEmployees: bonuses.length,
+          totalBonus,
+          averageBonus,
+          maxBonus,
+          minBonus
+        }
+      : {
+          totalEmployees: bonuses.length,
+          totalBonus: 'RESTRICTED',
+          averageBonus: 'RESTRICTED',
+          maxBonus: 'RESTRICTED',
+          minBonus: 'RESTRICTED'
+        };
+
+    if (!canSee) {
+      Object.values(byCategory).forEach((entry: any) => {
+        entry.total = 'RESTRICTED';
+        entry.average = 'RESTRICTED';
+        entry.max = 'RESTRICTED';
+        entry.min = 'RESTRICTED';
+      });
+    }
+
+    await logAudit(req.user, 'REPORT_BONUS_INCENTIVE_VIEW', 'report', undefined, { year, canViewAmounts: canSee });
+
     res.json({
       year,
-      summary: {
-        totalEmployees: bonuses.length,
-        totalBonus,
-        averageBonus,
-        maxBonus,
-        minBonus
-      },
+      summary: safeSummary,
       byCategory
     });
   } catch (error: any) {
@@ -718,7 +828,7 @@ reportsRouter.get('/bonus-incentive-analysis', async (req, res) => {
  * GET /api/reports/monthly-summary?year=YYYY
  * Get monthly summary report
  */
-reportsRouter.get('/monthly-summary', async (req, res) => {
+reportsRouter.get('/monthly-summary', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -804,10 +914,35 @@ reportsRouter.get('/monthly-summary', async (req, res) => {
       grossDeductions: 0
     });
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    const safeMonthlyData = canSee
+      ? monthlyData
+      : monthlyData.map((m: any) => ({
+          ...m,
+          basicSalary: 'RESTRICTED',
+          gross: 'RESTRICTED',
+          net: 'RESTRICTED',
+          bonuses: 'RESTRICTED',
+        }));
+
+    const safeTotals = canSee
+      ? totals
+      : {
+          ...totals,
+          basicSalary: 'RESTRICTED',
+          gross: 'RESTRICTED',
+          net: 'RESTRICTED',
+          bonuses: 'RESTRICTED',
+        };
+
+    await logAudit(req.user, 'REPORT_MONTHLY_SUMMARY_VIEW', 'report', undefined, { year, canViewAmounts: canSee });
+
     res.json({
       year,
-      monthlyData,
-      totals
+      monthlyData: safeMonthlyData,
+      totals: safeTotals
     });
   } catch (error: any) {
     console.error('Error fetching monthly summary:', error);
@@ -819,7 +954,7 @@ reportsRouter.get('/monthly-summary', async (req, res) => {
  * GET /api/reports/additions-deductions-breakdown?year=YYYY
  * Get additions and deductions breakdown report
  */
-reportsRouter.get('/additions-deductions-breakdown', async (req, res) => {
+reportsRouter.get('/additions-deductions-breakdown', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -952,6 +1087,8 @@ reportsRouter.get('/additions-deductions-breakdown', async (req, res) => {
     const additionsTotal = additionsArray.reduce((sum, item) => sum + item.amount, 0);
     const deductionsTotal = deductionsArray.reduce((sum, item) => sum + item.amount, 0);
     
+    await logAudit(req.user, 'REPORT_ADDITIONS_DEDUCTIONS_VIEW', 'report', undefined, { year });
+
     res.json({
       year,
       additions: {
@@ -977,7 +1114,7 @@ reportsRouter.get('/additions-deductions-breakdown', async (req, res) => {
  * GET /api/reports/employee-tenure?year=YYYY
  * Get employee tenure report
  */
-reportsRouter.get('/employee-tenure', async (req, res) => {
+reportsRouter.get('/employee-tenure', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -1125,6 +1262,8 @@ reportsRouter.get('/employee-tenure', async (req, res) => {
       };
     });
     
+    await logAudit(req.user, 'REPORT_EMPLOYEE_TENURE_VIEW', 'report', undefined, { year });
+
     res.json({
       year,
       summary: {

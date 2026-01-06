@@ -5,6 +5,8 @@
 
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const personnelRouter = Router();
@@ -14,7 +16,7 @@ export const personnelRouter = Router();
  * Get document compliance report
  * Query params: category (optional), minCompliance (optional, default 0)
  */
-personnelRouter.get('/compliance/report', async (req, res) => {
+personnelRouter.get('/compliance/report', requireAuth, async (req, res) => {
   try {
     const { category, minCompliance } = req.query;
     const minComplianceNum = minCompliance ? parseFloat(minCompliance as string) : 0;
@@ -115,7 +117,7 @@ personnelRouter.get('/compliance/report', async (req, res) => {
  * GET /api/personnel/assets/report
  * Get asset inventory report
  */
-personnelRouter.get('/assets/report', async (req, res) => {
+personnelRouter.get('/assets/report', requireAuth, async (req, res) => {
   try {
     const { category } = req.query;
 
@@ -177,7 +179,7 @@ personnelRouter.get('/assets/report', async (req, res) => {
  * GET /api/personnel/dashboard
  * Get personnel status dashboard with overall metrics
  */
-personnelRouter.get('/dashboard', async (req, res) => {
+personnelRouter.get('/dashboard', requireAuth, async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
       where: {
@@ -418,7 +420,7 @@ personnelRouter.get('/dashboard', async (req, res) => {
  * NOTE: This must be defined AFTER all specific routes (like /dashboard, /compliance/report, etc.)
  * to prevent route conflicts
  */
-personnelRouter.get('/:employeeId', async (req, res) => {
+personnelRouter.get('/:employeeId', requireAuth, async (req, res) => {
   try {
     const { employeeId } = req.params;
 

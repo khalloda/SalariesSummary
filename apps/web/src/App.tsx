@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import Layout from './components/Layout';
@@ -37,19 +37,32 @@ import DocumentComplianceReport from './pages/DocumentComplianceReport';
 import AssetInventoryReport from './pages/AssetInventoryReport';
 import PersonnelStatusDashboard from './pages/PersonnelStatusDashboard';
 import NotificationSettings from './pages/NotificationSettings';
+import UserManagement from './pages/UserManagement';
+import Login from './pages/Login';
+import { RequireAuth, RequireRole } from './hooks/useAuth';
 
-function App() {
+function InnerAppRoutes() {
   const { i18n } = useTranslation();
-  
+  const location = useLocation();
+  const isLoginRoute = location.pathname === '/login';
+
   useEffect(() => {
     // Set HTML dir attribute based on language
     const dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.setAttribute('dir', dir);
     document.documentElement.setAttribute('lang', i18n.language);
   }, [i18n.language]);
-  
+
+  if (isLoginRoute) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    );
+  }
+
   return (
-    <BrowserRouter>
+    <RequireAuth>
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -86,9 +99,22 @@ function App() {
           <Route path="/reports/personnel-dashboard" element={<PersonnelStatusDashboard />} />
           <Route path="/import/bonus" element={<BonusImport />} />
           <Route path="/personnel-diagnostics" element={<PersonnelDiagnostics />} />
-          <Route path="/settings/notifications" element={<NotificationSettings />} />
+          <Route path="/settings/notifications" element={
+            <RequireRole allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <NotificationSettings />
+            </RequireRole>
+          } />
+          <Route path="/manage/users" element={<UserManagement />} />
         </Routes>
       </Layout>
+    </RequireAuth>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <InnerAppRoutes />
     </BrowserRouter>
   );
 }

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const salariesCrudRouter = Router();
@@ -8,7 +10,7 @@ export const salariesCrudRouter = Router();
  * POST /api/salaries
  * Create a new salary record
  */
-salariesCrudRouter.post('/', async (req, res) => {
+salariesCrudRouter.post('/', requireAuth, async (req, res) => {
   try {
     const {
       employeeId,
@@ -35,6 +37,12 @@ salariesCrudRouter.post('/', async (req, res) => {
 
     if (!employeeId || !year || !month) {
       return res.status(400).json({ error: 'Employee ID, year, and month are required' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Creating salary records is restricted for this role' });
     }
 
     // Check if employee exists
@@ -95,6 +103,7 @@ salariesCrudRouter.post('/', async (req, res) => {
       }
     });
 
+    await logAudit(req.user, 'SALARY_CREATE', 'salaryRecord', salary.id, { employeeId, year, month });
     res.status(201).json(salary);
   } catch (error: any) {
     console.error('Error creating salary:', error);
@@ -106,7 +115,7 @@ salariesCrudRouter.post('/', async (req, res) => {
  * GET /api/salaries
  * List all salary records
  */
-salariesCrudRouter.get('/', async (req, res) => {
+salariesCrudRouter.get('/', requireAuth, async (req, res) => {
   try {
     const { employeeId, year, month, page = '1', limit = '50' } = req.query;
     const pageNum = parseInt(page as string) || 1;
@@ -147,6 +156,21 @@ salariesCrudRouter.get('/', async (req, res) => {
       prisma.salaryRecord.count({ where })
     ]);
 
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    const safeSalaries = canSee
+      ? salaries
+      : salaries.map((s) => ({
+          ...s,
+          basicSalary: 'RESTRICTED',
+          gross: 'RESTRICTED',
+          net: 'RESTRICTED',
+          bonuses: 'RESTRICTED',
+        }));
+
+    await logAudit(req.user, 'SALARY_LIST', 'salaryRecord', undefined, { employeeId, year, month, total });
+
     res.json({
       salaries,
       pagination: {
@@ -166,7 +190,7 @@ salariesCrudRouter.get('/', async (req, res) => {
  * GET /api/salaries/:id
  * Get a single salary record
  */
-salariesCrudRouter.get('/:id', async (req, res) => {
+salariesCrudRouter.get('/:id', requireAuth, async (req, res) => {
   try {
     const salary = await prisma.salaryRecord.findUnique({
       where: { id: req.params.id },
@@ -186,7 +210,21 @@ salariesCrudRouter.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Salary record not found' });
     }
 
-    res.json(salary);
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    const safeSalary = canSee
+      ? salary
+      : {
+          ...salary,
+          basicSalary: 'RESTRICTED',
+          gross: 'RESTRICTED',
+          net: 'RESTRICTED',
+          bonuses: 'RESTRICTED',
+        };
+
+    await logAudit(req.user, 'SALARY_VIEW', 'salaryRecord', salary.id, undefined);
+
+    res.json(safeSalary);
   } catch (error: any) {
     console.error('Error fetching salary:', error);
     res.status(500).json({ error: error.message });
@@ -197,7 +235,7 @@ salariesCrudRouter.get('/:id', async (req, res) => {
  * PUT /api/salaries/:id
  * Update a salary record
  */
-salariesCrudRouter.put('/:id', async (req, res) => {
+salariesCrudRouter.put('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -229,6 +267,12 @@ salariesCrudRouter.put('/:id', async (req, res) => {
 
     if (!existing) {
       return res.status(404).json({ error: 'Salary record not found' });
+    }
+
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Updating salary records is restricted for this role' });
     }
 
     // If year or month changed, check for conflicts
@@ -287,6 +331,7 @@ salariesCrudRouter.put('/:id', async (req, res) => {
       }
     });
 
+    await logAudit(req.user, 'SALARY_UPDATE', 'salaryRecord', salary.id, { previous: existing });
     res.json(salary);
   } catch (error: any) {
     console.error('Error updating salary:', error);
@@ -298,7 +343,7 @@ salariesCrudRouter.put('/:id', async (req, res) => {
  * DELETE /api/salaries/:id
  * Delete a salary record
  */
-salariesCrudRouter.delete('/:id', async (req, res) => {
+salariesCrudRouter.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -313,6 +358,8 @@ salariesCrudRouter.delete('/:id', async (req, res) => {
     await prisma.salaryRecord.delete({
       where: { id }
     });
+
+    await logAudit(req.user, 'SALARY_DELETE', 'salaryRecord', id, undefined);
 
     res.json({ success: true, message: 'Salary record deleted successfully' });
   } catch (error: any) {

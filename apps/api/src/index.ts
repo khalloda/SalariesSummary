@@ -3,9 +3,11 @@ console.log('📦 Loading dependencies...');
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 console.log('📦 Loading routes...');
 import { importRouter } from './routes/import.js';
+import { authRouter } from './routes/auth.js';
 import { employeesRouter } from './routes/employees.js';
 import { employeesCrudRouter } from './routes/employees-crud.js';
 import { contractsCrudRouter } from './routes/contracts-crud.js';
@@ -24,6 +26,8 @@ import { personnelCrudRouter } from './routes/personnel-crud.js';
 import { personnelDiagnosticsRouter } from './routes/personnel-diagnostics.js';
 import { personnelExportRouter } from './routes/personnel-export.js';
 import notificationsRouter from './routes/notifications.js';
+import { usersRouter } from './routes/users.js';
+import { rolesRouter } from './routes/roles.js';
 import { startNotificationScheduler } from './services/cron-scheduler.js';
 
 console.log('📦 Routes loaded successfully');
@@ -42,6 +46,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -51,6 +56,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
+app.use('/api/auth', authRouter);
 app.use('/api/import', importRouter);
 app.use('/api/employees', employeesRouter);
 app.use('/api/employees', employeesCrudRouter); // CRUD operations
@@ -70,6 +76,8 @@ app.use('/api/personnel', personnelCrudRouter); // CRUD operations
 app.use('/api/personnel-diagnostics', personnelDiagnosticsRouter);
 app.use('/api/exports', personnelExportRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/roles', rolesRouter);
 
 // Global error handlers
 process.on('uncaughtException', (error) => {

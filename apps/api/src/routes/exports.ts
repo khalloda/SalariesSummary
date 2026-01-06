@@ -6,6 +6,8 @@ import { Readable } from 'stream';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const exportsRouter = Router();
@@ -29,7 +31,7 @@ function getLogoBase64(): string {
 /**
  * GET /api/exports/employee/:id/annual?year=YYYY&format=csv|xlsx|pdf
  */
-exportsRouter.get('/employee/:id/annual', async (req, res) => {
+exportsRouter.get('/employee/:id/annual', requireAuth, async (req, res) => {
   try {
     const format = (req.query.format as string) || 'csv';
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -51,6 +53,15 @@ exportsRouter.get('/employee/:id/annual', async (req, res) => {
       orderBy: { month: 'asc' }
     });
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    if (!canSee) {
+      return res.status(403).json({ error: 'Salary exports are restricted for this role' });
+    }
+
+    await logAudit(req.user, 'EXPORT_EMPLOYEE_ANNUAL', 'employee', employee.id, { format, year });
+
     switch (format) {
       case 'csv':
         return exportCSV(res, employee, salaries, year);
@@ -376,7 +387,7 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
  * GET /api/exports/salary-changes?year=YYYY&format=pdf
  * Export salary changes report as PDF
  */
-exportsRouter.get('/salary-changes', async (req, res) => {
+exportsRouter.get('/salary-changes', requireAuth, async (req, res) => {
   try {
     const format = (req.query.format as string) || 'pdf';
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -432,6 +443,14 @@ exportsRouter.get('/salary-changes', async (req, res) => {
       change: 0
     });
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Salary exports are restricted for this role' });
+    }
+
+    await logAudit(req.user, 'EXPORT_SALARY_CHANGES_PDF', 'report', undefined, { year });
+
     return exportSalaryChangesPDF(res, changes, totals, year);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

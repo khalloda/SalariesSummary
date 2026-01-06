@@ -9,11 +9,14 @@
     - Generate PDF/XLSX/CSV exports for employees, summaries, and diagnostics.
 
 - **Target users**
-  - Implicit from UI and fields, but not enforced in code:
-    - **HR**: personnel records, contracts, document compliance, asset inventory, resigned employees.
-    - **Finance/Payroll**: salaries, additions/deductions, annual bonuses, category and monthly summaries.
-    - **Management**: dashboards, joiners/leavers, tenure, bonus comparisons.
-  - No explicit user roles or user accounts exist in the code.
+  - **Explicit user roles implemented**:
+    - **HR_PERSONNEL**: personnel records, contracts, document compliance, asset inventory, resigned employees, additions/deductions (no salary/bonus visibility).
+    - **FINANCE**: salaries, additions/deductions, annual bonuses, category and monthly summaries (full salary/bonus visibility, read-only HR data, can edit additions/deductions).
+    - **OFFICE_MANAGER**: full access to all data including salaries, bonuses, HR, and management functions.
+    - **VIEW_ONLY**: read-only access to all data including salaries and bonuses.
+    - **ADMIN**: user and role management, system configuration (no salary/bonus visibility by default).
+    - **SUPER_ADMIN**: all capabilities including salary visibility and administrative powers.
+  - User accounts exist in `User` table with role-based access control (RBAC) enforced throughout the system.
 
 - **Country/jurisdiction assumed for payroll**
   - Not explicitly encoded, but strongly implied by:
@@ -200,31 +203,97 @@
 ## 4. Authentication & Authorization
 
 - **Authentication method**
-  - None implemented:
-    - No login endpoints.
-    - No tokens, sessions, or cookies.
-    - No user accounts in schema.
-  - All API routes are publicly accessible to any client allowed by CORS.
+  - **HTTP-only cookie-based JWT sessions**:
+    - `POST /api/auth/login` accepts `username` and `password`, validates against `User` table, sets HTTP-only cookie `salaries_auth` with JWT token.
+    - `POST /api/auth/logout` clears the auth cookie.
+    - `GET /api/auth/me` returns current authenticated user and roles.
+    - JWT tokens expire after 8 hours (configurable via `JWT_EXPIRES_IN_SECONDS`).
+    - Password hashing uses `bcrypt` with salt rounds of 10.
+    - All API routes (except `/api/health`) require authentication via `requireAuth` middleware.
+
+- **User model**
+  - `User` table in schema:
+    - `id` (cuid primary key)
+    - `username` (unique, used for login)
+    - `email` (optional, unique)
+    - `passwordHash` (bcrypt hashed)
+    - `fullName`
+    - `systemId` (optional, e.g. "3-2")
+    - `isActive` (boolean, defaults to true)
+    - `createdAt`, `updatedAt` timestamps
+  - Users are linked to roles via `UserRole` junction table.
 
 - **Role model (roles, permissions)**
-  - No roles or permissions in schema or code.
-  - All functionality (imports, deletions, CRUD, exports) is equally accessible.
+  - **Roles** (defined in `Role` table):
+    - `HR_PERSONNEL`: HR/personnel data management, can edit additions/deductions, **cannot** see salary/bonus amounts.
+    - `OFFICE_MANAGER`: Full read/write access to all data including salaries and bonuses.
+    - `FINANCE`: Full salary/bonus visibility, can edit additions/deductions, read-only for other HR data.
+    - `VIEW_ONLY`: Read-only equivalent of `OFFICE_MANAGER` (full visibility, no edits).
+    - `ADMIN`: User and role management, system configuration, **no salary/bonus visibility** by default.
+    - `SUPER_ADMIN`: All capabilities including salary visibility and administrative powers.
+  - **Permissions** (defined in `Permission` table):
+    - Granular permissions like `EMPLOYEE_READ`, `EMPLOYEE_WRITE`, `SALARY_VIEW`, `SALARY_EDIT_FULL`, `SALARY_EDIT_ADDITIONS_DEDUCTIONS`, `BONUS_VIEW`, `REPORT_VIEW_ALL`, `EXPORT_FULL_SALARY`, `EXPORT_REDACTED_SALARY`, `USER_WRITE`, `ROLE_WRITE`, etc.
+    - Roles are assigned permissions via `RolePermission` junction table.
+    - Permission checks are enforced via `requirePermission(permissionKey)` middleware.
 
 - **Enforcement points**
-  - Only “enforcement” present is:
-    - CORS restriction to specific origins:
-      - `http://localhost:3000`
-      - `http://salaries.local`
-      - `http://www.salaries.local`
-    - But CORS only affects browsers; it does not secure the API against direct HTTP calls.
-  - No per-route guards, no middleware for auth/authorization.
+  - **Backend middleware**:
+    - `requireAuth`: Validates JWT token from HTTP-only cookie, rejects with 401 if missing/invalid.
+    - `requireRole(...roles)`: Checks if user has at least one of the specified roles, rejects with 403 if not.
+    - `requirePermission(permissionKey)`: Checks if user has the specified permission through their roles, rejects with 403 if not.
+  - **Frontend route protection**:
+    - `RequireAuth` component: Redirects unauthenticated users to `/login`.
+    - `RequireRole` component: Shows "Access Denied" for users without required roles.
+  - **CORS restriction** (still in place):
+    - `http://localhost:3000`
+    - `http://salaries.local`
+    - `http://www.salaries.local`
+    - `credentials: true` enabled for cookie handling.
+
+- **Data redaction for restricted roles**
+  - Roles without salary visibility (`HR_PERSONNEL`, `ADMIN`) receive redacted data:
+    - `basicSalary`, `gross`, `net`, `yearlyIncrease`, `bonuses` replaced with literal string `"RESTRICTED"`.
+    - Additions and deductions remain visible and editable for `HR_PERSONNEL` and `FINANCE`.
+  - Redaction applied in:
+    - Employee detail endpoints (`/api/employees/:id/all-years`, `/api/employees/:id/annual`, `/api/employees/:id/card`).
+    - Salary-sensitive reports (category totals, monthly summary, annual bonus, bonus incentive analysis).
+    - Export endpoints (PDF/XLSX filenames and content are role-aware).
+
+- **Route protection summary**
+  - **Public routes**: `/api/health` only.
+  - **Authenticated routes**: All other routes require `requireAuth`.
+  - **Role-restricted routes**:
+    - Employee CRUD: `HR_PERSONNEL`, `OFFICE_MANAGER`, `ADMIN`, `SUPER_ADMIN` (create/update); `OFFICE_MANAGER`, `ADMIN`, `SUPER_ADMIN` (delete).
+    - Salary imports: `OFFICE_MANAGER`, `ADMIN`, `SUPER_ADMIN`.
+    - Database clear: `SUPER_ADMIN` only.
+    - User/Role management: `ADMIN`, `SUPER_ADMIN` only.
+    - Notification settings: `ADMIN`, `SUPER_ADMIN` only.
+    - Bulk salary create: `OFFICE_MANAGER`, `FINANCE`, `SUPER_ADMIN`.
+  - **Permission-based checks**: Used for granular control (e.g., `SALARY_VIEW`, `EXPORT_FULL_SALARY`).
+
+- **Audit trail**
+  - `AuditLog` table records:
+    - Auth events: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`.
+    - Data modifications: `EMPLOYEE_CREATE`, `EMPLOYEE_UPDATE`, `EMPLOYEE_DELETE`, `SALARY_CREATE`, `SALARY_UPDATE`, `SALARY_DELETE`, `USER_CREATE`, `USER_UPDATE`, `USER_DELETE`, etc.
+    - Salary/bonus views and exports: `EMPLOYEE_VIEW`, `SALARY_VIEW`, `BONUS_VIEW`, `EMPLOYEE_CARD_EXPORT`, etc.
+  - Each audit entry includes: `userId`, `action`, `resource`, `resourceId`, `details` (JSON), `timestamp`.
+  - Audit logs retained for **1 year**, with automated daily cleanup job at 02:30 AM (Africa/Cairo timezone).
+
+- **Initial SuperAdmin user**
+  - Seeded user:
+    - Username: `khelmy`
+    - Full Name: `Khaled Mohamed Helmy Mohamed Yousry Abd Rabo`
+    - System ID: `3-2`
+    - Email: `khelmy@sarieldin.com`
+    - Initial password: `P@ssw0rd` (should be changed on first login in production)
+    - Roles: `SUPER_ADMIN`, `ADMIN`
+  - Created via `apps/api/src/scripts/seed-superadmin.ts`.
 
 - **Known limitations or bypass risks**
-  - Any user able to reach the API endpoint can:
-    - Clear all data (`DELETE /api/import/clear`).
-    - Import arbitrary salary/personnel/bonus files, overwriting existing records through conflict-resolution APIs.
-    - CRUD salary, bonus, personnel, contract records.
-  - No audit trail of which human/user performed actions.
+  - JWT secret (`JWT_SECRET`) defaults to `'CHANGE_ME_IN_PRODUCTION'` if not set in environment variables; **must be changed in production**.
+  - HTTP-only cookies protect against XSS but not CSRF; consider CSRF tokens for state-changing operations in production.
+  - Password complexity is not enforced programmatically (relies on manual policy).
+  - Single-tenant system: no multi-organization isolation.
   - Any reverse proxy or network-level security is **outside this codebase**.
 
 ---
@@ -663,22 +732,36 @@
   - Sensitive-like fields:
     - National ID, Tax Card Number, Social Insurance Number, Bar Association numbers.
   - Code stores these as plain strings:
-    - No encryption, masking, or hashing.
+    - No encryption at rest, masking, or hashing for PII fields.
+    - Passwords are hashed with bcrypt (salt rounds: 10).
   - PDFs/XLSX exports may include such data (e.g. Employee Card includes National ID, Social Insurance).
-  - No redaction or role-based access to sensitive reports.
+  - ✅ **Role-based redaction implemented**:
+    - Salary/bonus amounts redacted for `HR_PERSONNEL` and `ADMIN` roles (replaced with `"RESTRICTED"`).
+    - Export filenames indicate role context (e.g., "Employee Card (HR view).pdf" vs "Employee Card (Manager view).pdf").
+    - PII fields (National ID, etc.) are not currently redacted based on role, but salary/bonus data is protected.
 
 - **Known vulnerabilities or weak points**
-  - No authentication/authorization:
-    - Any actor able to reach the API can perform all operations.
-  - Overpowered endpoints:
-    - `/api/import/clear` can delete all data without confirmation or protection.
-    - Many `/resolve-*` endpoints can update large volumes of records without audit.
-  - File uploads:
+  - **Authentication/Authorization**:
+    - ✅ Authentication is now implemented with JWT-based sessions.
+    - ✅ Role-based access control (RBAC) is enforced on all routes.
+    - ⚠️ JWT secret must be set via environment variable in production (defaults to insecure value).
+    - ⚠️ No CSRF protection for state-changing operations (relies on same-origin policy and CORS).
+    - ⚠️ Password complexity not enforced programmatically.
+  - **Overpowered endpoints** (now protected):
+    - ✅ `/api/import/clear` requires `SUPER_ADMIN` role.
+    - ✅ `/resolve-*` endpoints require appropriate roles and are audited.
+    - ⚠️ Bulk operations still exist but are now role-restricted and audited.
+  - **File uploads**:
     - `multer` used with file-size limits, but:
       - File type is filtered only by extension in some flows.
       - Excel parsing does not sandbox formulas; although `xlsx` is used, there is still exposure to resource exhaustion via large or malformed files.
-  - Error responses:
+      - Upload endpoints now require authentication and appropriate roles.
+  - **Error responses**:
     - Some endpoints conditionally include `stack` in responses when `NODE_ENV === 'development'`; in production, stack is hidden, but this relies on proper environment configuration.
+  - **Sensitive data handling** (improved):
+    - ✅ Salary/bonus data is redacted for `HR_PERSONNEL` and `ADMIN` roles.
+    - ⚠️ National ID, Tax Card, Social Insurance numbers are still stored as plain strings (no encryption at rest).
+    - ✅ Export filenames and content are role-aware (e.g., "Employee Card (HR view).pdf").
 
 ---
 

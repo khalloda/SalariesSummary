@@ -10,6 +10,8 @@ import { importContracts } from '../services/contracts-import-service.js';
 import { importPersonnel } from '../services/personnel-import-service.js';
 import { importResigned } from '../services/resigned-import-service.js';
 import XLSX from 'xlsx';
+import { requireAuth, requireRole } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 export const importRouter = Router();
 const prisma = new PrismaClient();
@@ -40,7 +42,7 @@ const uploadMultiple = multer({
  * POST /api/import/salaries/upload
  * Import salary workbooks from uploaded files
  */
-importRouter.post('/salaries/upload', uploadMultiple.array('files', 50), async (req, res) => {
+importRouter.post('/salaries/upload', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), uploadMultiple.array('files', 50), async (req, res) => {
   try {
     if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
       return res.status(400).json({
@@ -103,7 +105,7 @@ importRouter.post('/salaries/upload', uploadMultiple.array('files', 50), async (
  * POST /api/import/salaries
  * Import all salary workbooks from the Sheets directory (legacy method)
  */
-importRouter.post('/salaries', async (req, res) => {
+importRouter.post('/salaries', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Salary import request received (server-side Sheets directory)');
     const result = await importAllWorkbooks();
@@ -125,7 +127,7 @@ importRouter.post('/salaries', async (req, res) => {
  * POST /api/import
  * Legacy endpoint - redirects to salaries import
  */
-importRouter.post('/', async (req, res) => {
+importRouter.post('/', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Import request received (legacy endpoint, redirecting to salaries)');
     const result = await importAllWorkbooks();
@@ -148,7 +150,7 @@ importRouter.post('/', async (req, res) => {
  * Clear all imported data (employees, salary records, import logs)
  * Use with caution - this deletes all data!
  */
-importRouter.delete('/clear', async (req, res) => {
+importRouter.delete('/clear', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Clear database request received');
     
@@ -184,7 +186,7 @@ importRouter.delete('/clear', async (req, res) => {
  * GET /api/import/preview-duplicates
  * Preview potential duplicate employees without merging
  */
-importRouter.get('/preview-duplicates', async (req, res) => {
+importRouter.get('/preview-duplicates', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Preview duplicates request received');
     const { previewDuplicateEmployees } = await import('../scripts/preview-duplicates.js');
@@ -207,7 +209,7 @@ importRouter.get('/preview-duplicates', async (req, res) => {
  * Merge duplicate employees based on normalized names
  * Body (optional): { selectedPairs: Array<{employee1Id: string, employee2Id: string}> }
  */
-importRouter.post('/merge-duplicates', async (req, res) => {
+importRouter.post('/merge-duplicates', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { selectedPairs } = req.body || {};
     console.log('Merge duplicates request received', selectedPairs ? `with ${selectedPairs.length} selected pairs` : 'all pairs');

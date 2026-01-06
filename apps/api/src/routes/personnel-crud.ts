@@ -5,6 +5,8 @@
 
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth, requireRole } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 /**
  * Parse assets from various formats (single string, JSON array, comma-separated)
@@ -75,7 +77,7 @@ export const personnelCrudRouter = Router();
  * POST /api/personnel
  * Create a new personnel record
  */
-personnelCrudRouter.post('/', async (req, res) => {
+personnelCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const {
       employeeId,
@@ -158,7 +160,7 @@ personnelCrudRouter.post('/', async (req, res) => {
  * GET /api/personnel
  * Get all personnel records (with optional filters)
  */
-personnelCrudRouter.get('/', async (req, res) => {
+personnelCrudRouter.get('/', requireAuth, async (req, res) => {
   try {
     const { employeeId, category, status } = req.query;
 
@@ -209,7 +211,7 @@ personnelCrudRouter.get('/', async (req, res) => {
  * GET /api/personnel/:id
  * Get a single personnel record by ID
  */
-personnelCrudRouter.get('/:id', async (req, res) => {
+personnelCrudRouter.get('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -245,7 +247,7 @@ personnelCrudRouter.get('/:id', async (req, res) => {
  * PUT /api/personnel/:id
  * Update a personnel record
  */
-personnelCrudRouter.put('/:id', async (req, res) => {
+personnelCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -315,7 +317,7 @@ personnelCrudRouter.put('/:id', async (req, res) => {
  * PUT /api/personnel/employee/:employeeId
  * Update or create personnel record by employeeId (upsert)
  */
-personnelCrudRouter.put('/employee/:employeeId', async (req, res) => {
+personnelCrudRouter.put('/employee/:employeeId', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { employeeId } = req.params;
     const {
@@ -402,7 +404,7 @@ personnelCrudRouter.put('/employee/:employeeId', async (req, res) => {
  * DELETE /api/personnel/:id
  * Delete a personnel record
  */
-personnelCrudRouter.delete('/:id', async (req, res) => {
+personnelCrudRouter.delete('/:id', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
 

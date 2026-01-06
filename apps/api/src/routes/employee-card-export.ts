@@ -5,6 +5,8 @@ import puppeteer from 'puppeteer';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const employeeCardExportRouter = Router();
@@ -27,7 +29,7 @@ function getLogoBase64(): string {
  * POST /api/exports/employee-card/pdf
  * Export employee card as PDF
  */
-employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
+employeeCardExportRouter.post('/employee-card/pdf', requireAuth, async (req, res) => {
   try {
     const { employeeId } = req.body;
     
@@ -52,9 +54,14 @@ employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
     }
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
     
-    // Generate HTML
-    const html = generateEmployeeCardHTML(employee);
+    // Generate HTML; omit salary section for roles without salary access
+    const html = generateEmployeeCardHTML(employee, {
+      includeSalarySection: canSee,
+      roleLabel: canSee ? 'Manager view' : 'HR view'
+    });
     
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ 
@@ -125,7 +132,8 @@ employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
     await browser.close();
     
     const safeName = (employee.name || 'Employee').replace(/[^a-zA-Z0-9\u0600-\u06FF\s]/g, '_').substring(0, 50);
-    const filename = `Employee_Card_${safeName}.pdf`;
+    const filename = `Employee_Card_${safeName}_${canSee ? 'manager' : 'hr'}.pdf`;
+    await logAudit(req.user, 'EMPLOYEE_CARD_EXPORT_PDF', 'employee', employee.id, { canViewAmounts: canSee });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.send(pdf);
@@ -139,7 +147,7 @@ employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
  * POST /api/exports/employee-card/xlsx
  * Export employee card as XLSX
  */
-employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
+employeeCardExportRouter.post('/employee-card/xlsx', requireAuth, async (req, res) => {
   try {
     const { employeeId } = req.body;
     
@@ -164,6 +172,8 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
     }
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
     
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Employee Card');
@@ -390,7 +400,7 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
     currentRow++; // Spacing
     
     // Salary - Last Salary Details
-    if (employee.salaries && employee.salaries.length > 0) {
+    if (canSee && employee.salaries && employee.salaries.length > 0) {
       worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
       const salaryHeader = worksheet.getRow(currentRow);
       salaryHeader.getCell(1).value = 'Last Salary Details';
@@ -490,7 +500,8 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
     }
     
     const safeName = (employee.name || 'Employee').replace(/[^a-zA-Z0-9\u0600-\u06FF\s]/g, '_').substring(0, 50);
-    const filename = `Employee_Card_${safeName}.xlsx`;
+    const filename = `Employee_Card_${safeName}_${canSee ? 'manager' : 'hr'}.xlsx`;
+    await logAudit(req.user, 'EMPLOYEE_CARD_EXPORT_XLSX', 'employee', employee.id, { canViewAmounts: canSee });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     
@@ -502,9 +513,14 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
   }
 });
 
-function generateEmployeeCardHTML(employee: any): string {
+function generateEmployeeCardHTML(
+  employee: any,
+  options?: { includeSalarySection?: boolean; roleLabel?: string }
+): string {
   const logoBase64 = getLogoBase64();
   const logoImg = logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="height: 32px;" />` : '';
+  const includeSalarySection = options?.includeSalarySection ?? true;
+  const roleLabel = options?.roleLabel ?? '';
   
   // Get current date and time
   const now = new Date();
@@ -840,7 +856,7 @@ function generateEmployeeCardHTML(employee: any): string {
         ${logoImg}
       </div>
       <div class="header-title">
-        <h1>Employee Card</h1>
+        <h1>Employee Card${roleLabel ? ` (${roleLabel})` : ''}</h1>
       </div>
       <div class="header-date">
         <div class="date">${printDate}</div>
@@ -988,6 +1004,7 @@ function generateEmployeeCardHTML(employee: any): string {
         </td>
       </tr>
       
+      ${includeSalarySection ? `
       <tr>
         <td class="section-label">Salary</td>
         <td class="section-content">
@@ -1017,6 +1034,7 @@ function generateEmployeeCardHTML(employee: any): string {
           ` : '<span class="no-data">No salary records available</span>'}
         </td>
       </tr>
+      ` : ''}
       
       ${employee.personnelRecord ? `
       <tr>

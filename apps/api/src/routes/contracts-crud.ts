@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth, requireRole } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const contractsCrudRouter = Router();
@@ -8,7 +10,7 @@ export const contractsCrudRouter = Router();
  * POST /api/contracts
  * Create a new contract record
  */
-contractsCrudRouter.post('/', async (req, res) => {
+contractsCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const {
       employeeId,
@@ -74,7 +76,7 @@ contractsCrudRouter.post('/', async (req, res) => {
  * GET /api/contracts
  * List all contract records
  */
-contractsCrudRouter.get('/', async (req, res) => {
+contractsCrudRouter.get('/', requireAuth, async (req, res) => {
   try {
     const { employeeId, page = '1', limit = '50' } = req.query;
     const pageNum = parseInt(page as string) || 1;
@@ -126,7 +128,7 @@ contractsCrudRouter.get('/', async (req, res) => {
  * GET /api/contracts/:id
  * Get a single contract record
  */
-contractsCrudRouter.get('/:id', async (req, res) => {
+contractsCrudRouter.get('/:id', requireAuth, async (req, res) => {
   try {
     const contract = await prisma.contractRecord.findUnique({
       where: { id: req.params.id },
@@ -157,7 +159,7 @@ contractsCrudRouter.get('/:id', async (req, res) => {
  * PUT /api/contracts/:id
  * Update a contract record
  */
-contractsCrudRouter.put('/:id', async (req, res) => {
+contractsCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -229,7 +231,7 @@ contractsCrudRouter.put('/:id', async (req, res) => {
  * DELETE /api/contracts/:id
  * Delete a contract record
  */
-contractsCrudRouter.delete('/:id', async (req, res) => {
+contractsCrudRouter.delete('/:id', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
 

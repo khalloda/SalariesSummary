@@ -261,7 +261,7 @@ model PersonnelRecord {
   // Other Fields
   workStub              String?  @default("N/A") // 'N/A', 'Present', 'Missing'
   insuranceStartDate    DateTime?
-  
+
   // Metadata
   importedAt            DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -271,5 +271,79 @@ model PersonnelRecord {
   @@index([militaryCertificate])
   @@index([laptopPcTablet])
   @@index([insuranceStartDate])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String?  @unique
+  passwordHash String
+  fullName     String
+  systemId     String?
+  isActive     Boolean  @default(true)
+
+  roles        UserRole[]
+  auditLogs    AuditLog[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Role {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  description String?
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+
+  roles       RolePermission[]
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role        Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission  Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+
+  action     String
+  resource   String
+  resourceId String?
+  details    String?
+
+  @@index([timestamp])
 }
 
