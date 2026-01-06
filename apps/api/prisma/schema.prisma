@@ -77,12 +77,37 @@ model Employee {
   annualBonuses AnnualBonus[]
   contractRecords ContractRecord[]
   personnelRecord PersonnelRecord?
+  resignationRecords ResignationRecord[]
   
   @@index([normalizedName])
   @@index([category])
   @@index([department])
   @@index([status])
   @@index([employeeCode])
+}
+
+model ResignationRecord {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Resignation details
+  resignationDate DateTime
+  jobTitle        String?  // Job title at time of resignation
+  department      String?  // Department at time of resignation
+  category        String?  // Category at time of resignation
+  reason          String?  // Reason for resignation (if available)
+  
+  // Metadata
+  importedFrom    String?  // Source file/sheet
+  importedAt      DateTime @default(now())
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([resignationDate])
 }
 
 model SalaryRecord {

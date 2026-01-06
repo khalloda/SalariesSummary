@@ -93,18 +93,22 @@ function formatLargeNumber(value: string | null | undefined): string {
   return num.toString();
 }
 
-function calculateWorkDuration(joiningDate: string | null): string {
+function calculateWorkDuration(joiningDate: string | null, resignationDate: string | null = null): string {
   if (!joiningDate) return 'N/A';
   try {
     const joinDate = new Date(joiningDate);
-    const today = new Date();
-    let years = today.getFullYear() - joinDate.getFullYear();
-    let months = today.getMonth() - joinDate.getMonth();
-    let days = today.getDate() - joinDate.getDate();
+    // Use resignation date if available, otherwise use today's date
+    const endDate = resignationDate ? new Date(resignationDate) : new Date();
+    
+    if (isNaN(joinDate.getTime()) || isNaN(endDate.getTime())) return 'N/A';
+    
+    let years = endDate.getFullYear() - joinDate.getFullYear();
+    let months = endDate.getMonth() - joinDate.getMonth();
+    let days = endDate.getDate() - joinDate.getDate();
 
     if (days < 0) {
       months--;
-      const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+      const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
       days += lastMonth.getDate();
     }
 
@@ -335,7 +339,7 @@ export default function EmployeeDetail() {
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600">Work Duration:</span>
-                <span className="font-medium text-blue-600">{calculateWorkDuration(employee.joiningDate)}</span>
+                <span className="font-medium text-blue-600">{calculateWorkDuration(employee.joiningDate, employee.resignationDate)}</span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-gray-600">Status:</span>

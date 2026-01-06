@@ -200,11 +200,12 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
     };
     
     // Helper function to calculate work duration
-    const calculateWorkDurationXLSX = (joiningDate: Date | string | null) => {
+    const calculateWorkDurationXLSX = (joiningDate: Date | string | null, resignationDate?: Date | string | null) => {
       if (!joiningDate) return 'N/A';
       const start = new Date(joiningDate);
-      const end = new Date();
-      if (isNaN(start.getTime())) return 'N/A';
+      // Use resignation date if available, otherwise use today's date
+      const end = resignationDate ? new Date(resignationDate) : new Date();
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A';
       
       let years = end.getFullYear() - start.getFullYear();
       let months = end.getMonth() - start.getMonth();
@@ -375,7 +376,7 @@ employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
     
     const contractData = [
       ['Contract Type', employee.contractType || 'N/A'],
-      ['Work Duration', calculateWorkDurationXLSX(employee.joiningDate)],
+      ['Work Duration', calculateWorkDurationXLSX(employee.joiningDate, employee.resignationDate)],
       ['Next Renewal Date', employee.contractRenewalDate ? new Date(employee.contractRenewalDate).toLocaleDateString() : 'Not Specified']
     ];
     
@@ -553,13 +554,14 @@ function generateEmployeeCardHTML(employee: any): string {
     return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
   };
   
-  const calculateWorkDuration = (joiningDate: Date | string | null) => {
+  const calculateWorkDuration = (joiningDate: Date | string | null, resignationDate?: Date | string | null) => {
     if (!joiningDate) return 'N/A';
     
     const start = new Date(joiningDate);
-    const end = new Date();
+    // Use resignation date if available, otherwise use today's date
+    const end = resignationDate ? new Date(resignationDate) : new Date();
     
-    if (isNaN(start.getTime())) return 'N/A';
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A';
     
     let years = end.getFullYear() - start.getFullYear();
     let months = end.getMonth() - start.getMonth();
@@ -977,7 +979,7 @@ function generateEmployeeCardHTML(employee: any): string {
           </div>
           <div class="field-row">
             <span class="field-label">Work Duration:</span>
-            <span class="field-value">${calculateWorkDuration(employee.joiningDate)}</span>
+            <span class="field-value">${calculateWorkDuration(employee.joiningDate, employee.resignationDate)}</span>
           </div>
           <div class="field-row">
             <span class="field-label">Next Renewal Date:</span>

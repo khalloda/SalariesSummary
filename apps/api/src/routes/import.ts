@@ -1004,6 +1004,293 @@ importRouter.post('/resigned/upload', upload.single('file'), async (req, res) =>
 });
 
 /**
+ * POST /api/import/resigned/create-candidates
+ * Create selected candidate employees from the Resigned sheet
+ * Body: { 
+ *   candidates: Array<{
+ *     rowIndex: number,
+ *     name: string,
+ *     nationalId?: string | null,
+ *     classification?: string | null,
+ *     jobTitle?: string | null,
+ *     department?: string | null,
+ *     dateOfBirth?: Date | null,
+ *     nationalIdValidTill?: Date | null,
+ *     barAssociation?: string | null,
+ *     barAssociationDegree?: string | null,
+ *     joiningDate?: Date | null,
+ *     resignationDate: Date
+ *   }>
+ * }
+ */
+importRouter.post('/resigned/create-candidates', async (req, res) => {
+  try {
+    const { candidates } = req.body;
+    
+    if (!candidates || !Array.isArray(candidates) || candidates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'candidates array is required and must not be empty'
+      });
+    }
+
+    console.log(`Creating ${candidates.length} candidate employees from Resigned sheet`);
+
+    const prisma = new PrismaClient();
+    await prisma.$connect();
+
+    let created = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const candidate of candidates) {
+      try {
+        const { name, resignationDate, classification, jobTitle, department, dateOfBirth, 
+                nationalId, nationalIdValidTill, barAssociation, barAssociationDegree, joiningDate } = candidate;
+
+        if (!name || !resignationDate) {
+          errors.push(`Row ${candidate.rowIndex}: Missing required fields (name or resignation date)`);
+          skipped++;
+          continue;
+        }
+
+        // Normalize name for uniqueness check
+        const { normalizeEmployeeName } = await import('../utils/normalize.js');
+        const normalizedName = normalizeEmployeeName(name);
+
+        // Check if employee already exists (might have been created between import and creation)
+        const existing = await prisma.employee.findUnique({
+          where: { normalizedName }
+        });
+
+        if (existing) {
+          // Employee now exists - update instead of create
+          await prisma.employee.update({
+            where: { id: existing.id },
+            data: {
+              status: 'Resigned',
+              resignationDate: new Date(resignationDate),
+              category: classification || existing.category,
+              jobTitle: jobTitle || existing.jobTitle,
+              department: department || existing.department,
+              dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existing.dateOfBirth,
+              nationalId: nationalId || existing.nationalId,
+              nationalIdValidTill: nationalIdValidTill ? new Date(nationalIdValidTill) : existing.nationalIdValidTill,
+              barAssociation: barAssociation || existing.barAssociation,
+              barAssociationDegree: barAssociationDegree || existing.barAssociationDegree,
+              joiningDate: joiningDate ? new Date(joiningDate) : existing.joiningDate,
+            }
+          });
+
+          // Create resignation record (Phase 3)
+          await prisma.resignationRecord.create({
+            data: {
+              employeeId: existing.id,
+              resignationDate: new Date(resignationDate),
+              jobTitle: jobTitle || existing.jobTitle || null,
+              department: department || existing.department || null,
+              category: classification || existing.category || null,
+              reason: null,
+              importedFrom: 'Resigned sheet (candidate creation)',
+              notes: `Updated from candidate, row ${candidate.rowIndex}`
+            }
+          });
+
+          created++;
+          console.log(`  ✅ Updated (now exists): ${name}`);
+        } else {
+          // Create new employee
+          const newEmployee = await prisma.employee.create({
+            data: {
+              name,
+              normalizedName,
+              status: 'Resigned',
+              resignationDate: new Date(resignationDate),
+              category: classification || null,
+              jobTitle: jobTitle || null,
+              department: department || null,
+              dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+              nationalId: nationalId || null,
+              nationalIdValidTill: nationalIdValidTill ? new Date(nationalIdValidTill) : null,
+              barAssociation: barAssociation || null,
+              barAssociationDegree: barAssociationDegree || null,
+              joiningDate: joiningDate ? new Date(joiningDate) : null,
+            }
+          });
+          created++;
+          console.log(`  ✅ Created: ${newEmployee.name} (Status: Resigned)`);
+        }
+      } catch (error: any) {
+        const errorMsg = error.message || 'Unknown error';
+        errors.push(`Row ${candidate.rowIndex} (${candidate.name}): ${errorMsg}`);
+        skipped++;
+        console.error(`  ❌ Error creating candidate ${candidate.name}:`, errorMsg);
+      }
+    }
+
+    await prisma.$disconnect();
+
+    res.json({
+      success: errors.length === 0,
+      created,
+      skipped,
+      errors
+    });
+  } catch (error: any) {
+    console.error('Create candidates error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/import/resigned/resolve-conflicts
+ * Resolve resigned import conflicts (multiple matches)
+ * Body: { 
+ *   resolutions: Array<{
+ *     rowIndex: number,
+ *     employeeId: string,
+ *     action: 'update' | 'skip',
+ *     incomingData: {
+ *       name: string,
+ *       nationalId?: string | null,
+ *       classification?: string | null,
+ *       jobTitle?: string | null,
+ *       department?: string | null,
+ *       resignationDate: Date,
+ *       dateOfBirth?: Date | null,
+ *       nationalIdValidTill?: Date | null,
+ *       barAssociation?: string | null,
+ *       barAssociationDegree?: string | null,
+ *       joiningDate?: Date | null,
+ *     }
+ *   }>
+ * }
+ */
+importRouter.post('/resigned/resolve-conflicts', async (req, res) => {
+  try {
+    const { resolutions } = req.body;
+    
+    if (!resolutions || !Array.isArray(resolutions)) {
+      return res.status(400).json({
+        success: false,
+        error: 'resolutions array is required'
+      });
+    }
+
+    console.log(`Resolving ${resolutions.length} resigned import conflicts`);
+
+    const prisma = new PrismaClient();
+    await prisma.$connect();
+
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const resolution of resolutions) {
+      try {
+        const { employeeId, action, incomingData } = resolution;
+        
+        if (!employeeId || !action) {
+          errors.push('Invalid resolution: missing required fields');
+          continue;
+        }
+
+        const employee = await prisma.employee.findUnique({
+          where: { id: employeeId }
+        });
+
+        if (!employee) {
+          errors.push(`Employee not found: ${employeeId}`);
+          continue;
+        }
+
+        if (action === 'skip') {
+          skipped++;
+          console.log(`  ⏭️  Skipped: ${employee.name}`);
+        } else if (action === 'update') {
+          const updateData: any = {
+            status: 'Resigned',
+            resignationDate: new Date(incomingData.resignationDate),
+          };
+
+          // Update category if provided
+          if (incomingData.classification) {
+            updateData.category = incomingData.classification;
+          }
+
+          // Update other fields if missing in employee record
+          if (!employee.jobTitle && incomingData.jobTitle) {
+            updateData.jobTitle = incomingData.jobTitle;
+          }
+          if (!employee.department && incomingData.department) {
+            updateData.department = incomingData.department;
+          }
+          if (!employee.dateOfBirth && incomingData.dateOfBirth) {
+            updateData.dateOfBirth = new Date(incomingData.dateOfBirth);
+          }
+          if (!employee.nationalId && incomingData.nationalId) {
+            updateData.nationalId = incomingData.nationalId;
+          }
+          if (!employee.nationalIdValidTill && incomingData.nationalIdValidTill) {
+            updateData.nationalIdValidTill = new Date(incomingData.nationalIdValidTill);
+          }
+          if (!employee.barAssociation && incomingData.barAssociation && incomingData.barAssociation !== 'N/A') {
+            updateData.barAssociation = incomingData.barAssociation;
+          }
+          if (!employee.barAssociationDegree && incomingData.barAssociationDegree && incomingData.barAssociationDegree !== 'N/A') {
+            updateData.barAssociationDegree = incomingData.barAssociationDegree;
+          }
+
+          await prisma.employee.update({
+            where: { id: employeeId },
+            data: updateData
+          });
+
+          // Create resignation record (Phase 3)
+          await prisma.resignationRecord.create({
+            data: {
+              employeeId: employee.id,
+              resignationDate: new Date(incomingData.resignationDate),
+              jobTitle: incomingData.jobTitle || employee.jobTitle || null,
+              department: incomingData.department || employee.department || null,
+              category: incomingData.classification || employee.category || null,
+              reason: null,
+              importedFrom: 'Resigned sheet (conflict resolution)',
+              notes: `Resolved conflict from row ${resolution.rowIndex}`
+            }
+          });
+
+          updated++;
+          console.log(`  ✅ Updated: ${employee.name} (Status: Resigned)`);
+        }
+      } catch (error: any) {
+        const errorMsg = error.message || 'Unknown error';
+        errors.push(`Row ${resolution.rowIndex} (${incomingData.name}): ${errorMsg}`);
+        console.error(`  ❌ Error resolving conflict:`, errorMsg);
+      }
+    }
+
+    await prisma.$disconnect();
+
+    res.json({
+      success: errors.length === 0,
+      updated,
+      skipped,
+      errors
+    });
+  } catch (error: any) {
+    console.error('Resolve conflicts error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /api/import/employees/upload
  * Import employees from uploaded SEPEmployees.xlsx file
  */

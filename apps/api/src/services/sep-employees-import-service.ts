@@ -153,12 +153,13 @@ function parseNationalId(value: any): string | null {
     const trimmed = value.trim();
     if (trimmed === '' || trimmed === '-' || trimmed === 'N/A') return null;
     
-    // Check if it's in scientific notation (e.g., "2.87072E+13")
-    if (trimmed.includes('e+') || trimmed.includes('E+') || trimmed.includes('e-') || trimmed.includes('E-')) {
+    // Check if it's in scientific notation (e.g., "2.74091E+13" or "2.74091e+13")
+    if (trimmed.match(/^[\d.]+[eE][+-]\d+$/)) {
       const num = parseFloat(trimmed);
       if (!isNaN(num)) {
         // Convert to full number string without scientific notation
-        return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+        // Use toFixed(0) to remove decimals, then convert to string
+        return num.toFixed(0);
       }
     }
     return trimmed;
@@ -166,13 +167,26 @@ function parseNationalId(value: any): string | null {
   
   // If it's a number, convert to string without scientific notation
   if (typeof value === 'number') {
-    // Always use toLocaleString with useGrouping: false to preserve full number
-    return value.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
+    // For very large numbers, use toFixed(0) to avoid scientific notation
+    if (value >= 1e12) {
+      return value.toFixed(0);
+    }
+    return value.toString();
   }
   
-  // For other types, convert to string
+  // For other types, convert to string first
   const str = String(value).trim();
   if (str === '' || str === '-' || str === 'N/A') return null;
+  
+  // Check if the string representation is in scientific notation
+  if (str.match(/^[\d.]+[eE][+-]\d+$/)) {
+    const num = parseFloat(str);
+    if (!isNaN(num)) {
+      return num.toFixed(0);
+    }
+  }
+  
+  return str;
   
   // Check if the string representation is in scientific notation
   if (str.includes('e+') || str.includes('E+') || str.includes('e-') || str.includes('E-')) {

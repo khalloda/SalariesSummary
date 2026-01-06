@@ -36,6 +36,7 @@ interface Employee {
   contractType?: string;
   contractDuration?: string;
   contractRenewalDate?: string;
+  resignationDate?: string;
   salaries?: Array<{
     year: number;
     month: number;
@@ -323,13 +324,14 @@ export default function EmployeeCard() {
     return num.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: false });
   };
 
-  const calculateWorkDuration = (joiningDate: string | null | undefined) => {
+  const calculateWorkDuration = (joiningDate: string | null | undefined, resignationDate?: string | null) => {
     if (!joiningDate) return 'N/A';
     
     const start = new Date(joiningDate);
-    const end = new Date();
+    // Use resignation date if available, otherwise use today's date
+    const end = resignationDate ? new Date(resignationDate) : new Date();
     
-    if (isNaN(start.getTime())) return 'N/A';
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A';
     
     let years = end.getFullYear() - start.getFullYear();
     let months = end.getMonth() - start.getMonth();
@@ -887,7 +889,7 @@ export default function EmployeeCard() {
                     <td className="p-3 border">
                       <div className="space-y-2">
                         <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('contractType')}:</span> {emp.contractType || 'N/A'}</div>
-                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('workDuration')}:</span> {calculateWorkDuration(emp.joiningDate)}</div>
+                        <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('workDuration')}:</span> {calculateWorkDuration(emp.joiningDate, emp.resignationDate)}</div>
                         <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nextRenewalDate')}:</span> {formatDateOrNotSpecified(emp.contractRenewalDate)}</div>
                       </div>
                     </td>
@@ -1076,7 +1078,7 @@ export default function EmployeeCard() {
                 <td className="p-3 border">
                   <div className="space-y-2">
                     <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('contractType')}:</span> {selectedEmployee.contractType || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('workDuration')}:</span> {calculateWorkDuration(selectedEmployee.joiningDate)}</div>
+                    <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('workDuration')}:</span> {calculateWorkDuration(selectedEmployee.joiningDate, selectedEmployee.resignationDate)}</div>
                     <div><span className="font-semibold text-gray-600 w-32 inline-block">{t('nextRenewalDate')}:</span> {formatDateOrNotSpecified(selectedEmployee.contractRenewalDate)}</div>
                   </div>
                 </td>

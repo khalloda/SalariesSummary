@@ -6,6 +6,8 @@ import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
 import ConflictResolutionModal from '../components/ConflictResolutionModal';
+import CandidateSelectionModal from '../components/CandidateSelectionModal';
+import ResignedConflictModal from '../components/ResignedConflictModal';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -43,6 +45,15 @@ export default function Dashboard() {
   const [importConflicts, setImportConflicts] = useState<any[]>([]);
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictType, setConflictType] = useState<'salary' | 'employee' | 'contract' | 'personnel'>('salary');
+  const [importingResigned, setImportingResigned] = useState(false);
+  const [selectedResignedFile, setSelectedResignedFile] = useState<File | null>(null);
+  const [useResignedFileUpload, setUseResignedFileUpload] = useState(true);
+  const [resignedImportReport, setResignedImportReport] = useState<any>(null);
+  const [showResignedImportReport, setShowResignedImportReport] = useState(false);
+  const [resignedCandidates, setResignedCandidates] = useState<any[]>([]);
+  const [showCandidateModal, setShowCandidateModal] = useState(false);
+  const [resignedConflicts, setResignedConflicts] = useState<any[]>([]);
+  const [showResignedConflictModal, setShowResignedConflictModal] = useState(false);
   
   useEffect(() => {
     // Fetch available years from database
@@ -93,6 +104,13 @@ export default function Dashboard() {
     const files = event.target.files;
     if (files && files.length > 0) {
       setSelectedPersonnelFile(files[0]);
+    }
+  };
+
+  const handleResignedFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setSelectedResignedFile(files[0]);
     }
   };
 
@@ -293,6 +311,140 @@ export default function Dashboard() {
       console.error('Personnel import error:', error);
     } finally {
       setImportingPersonnel(false);
+    }
+  };
+
+  const handleImportResigned = async () => {
+    setImportingResigned(true);
+    setResignedImportReport(null);
+    setShowResignedImportReport(false);
+    setResignedCandidates([]);
+    setShowCandidateModal(false);
+    try {
+      let response;
+      
+      if (useResignedFileUpload && selectedResignedFile) {
+        // Upload file from client
+        const formData = new FormData();
+        formData.append('file', selectedResignedFile);
+        
+        response = await axios.post(`${API_BASE_URL}/import/resigned/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        // Use server-side Sheets directory
+        response = await axios.post(`${API_BASE_URL}/import/resigned`);
+      }
+      
+      if (response.data.success) {
+        setResignedImportReport(response.data);
+        setShowResignedImportReport(true);
+        
+        // Check for conflicts (multiple matches) - handle first
+        if (response.data.conflicts && response.data.conflicts.length > 0) {
+          setResignedConflicts(response.data.conflicts);
+          setShowResignedConflictModal(true);
+        } else if (response.data.candidates && response.data.candidates.length > 0) {
+          // Check for candidates (employees not found)
+          setResignedCandidates(response.data.candidates);
+          setShowCandidateModal(true);
+        } else {
+          const errorMsg = response.data.errors && response.data.errors.length > 0
+            ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
+            : '';
+          alert(t('resignedImportSuccessful', { 
+            updated: response.data.recordsUpdated,
+            notFound: response.data.recordsNotFound,
+            errors: errorMsg
+          }) || `Resigned import completed successfully!\n\nUpdated: ${response.data.recordsUpdated}\nNot Found: ${response.data.recordsNotFound}${errorMsg}`);
+          // Clear selected file after successful import
+          setSelectedResignedFile(null);
+          // Reset file input
+          const fileInput = document.getElementById('resigned-file-input') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        }
+      } else {
+        const errorMsg = response.data.errors && response.data.errors.length > 0
+          ? response.data.errors.slice(0, 10).join('\n')
+          : 'Unknown error';
+        alert(t('resignedImportCompletedWithErrors', { errors: errorMsg }) || `Resigned import completed with errors:\n${errorMsg}`);
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      const errorDetails = error.response?.data?.stack 
+        ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
+        : '';
+      alert(t('resignedImportFailed', { error: errorMsg + errorDetails }) || `Resigned import failed: ${errorMsg}${errorDetails}`);
+      console.error('Resigned import error:', error);
+    } finally {
+      setImportingResigned(false);
+    }
+  };
+
+  const handleCandidateComplete = (created: number, skipped: number) => {
+    // Refresh the import report
+    if (resignedImportReport) {
+      setResignedImportReport({
+        ...resignedImportReport,
+        recordsUpdated: resignedImportReport.recordsUpdated + created,
+        recordsNotFound: resignedImportReport.recordsNotFound - created,
+        candidates: []
+      });
+    }
+    // Clear selected file after successful creation
+    setSelectedResignedFile(null);
+    // Reset file input
+    const fileInput = document.getElementById('resigned-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleResolveResignedConflicts = async (resolutions: any[]) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/import/resigned/resolve-conflicts`, {
+        resolutions
+      });
+      
+      if (response.data.success) {
+        alert(
+          t('conflictsResolvedSuccessfully', {
+            updated: response.data.updated,
+            skipped: response.data.skipped
+          }) || `Resolved ${response.data.updated} conflict(s), skipped ${response.data.skipped}`
+        );
+        setShowResignedConflictModal(false);
+        setResignedConflicts([]);
+        
+        // Refresh import report
+        if (resignedImportReport) {
+          setResignedImportReport({
+            ...resignedImportReport,
+            recordsUpdated: resignedImportReport.recordsUpdated + response.data.updated,
+            conflicts: []
+          });
+        }
+
+        // Check if there are candidates after resolving conflicts
+        if (resignedImportReport?.candidates && resignedImportReport.candidates.length > 0) {
+          setResignedCandidates(resignedImportReport.candidates);
+          setShowCandidateModal(true);
+        } else {
+          // Clear selected file after successful resolution
+          setSelectedResignedFile(null);
+          const fileInput = document.getElementById('resigned-file-input') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        }
+      } else {
+        const errorMsg = response.data.errors && response.data.errors.length > 0
+          ? response.data.errors.slice(0, 5).join('\n')
+          : 'Unknown error';
+        alert(t('failedToResolveConflicts', { error: errorMsg }) || `Failed to resolve conflicts: ${errorMsg}`);
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      alert(t('conflictResolutionError', { error: errorMsg }) || `Error resolving conflicts: ${errorMsg}`);
+      console.error('Resolve conflicts error:', error);
     }
   };
 
@@ -1064,6 +1216,129 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Resigned Import Section */}
+      <div className="mb-6 bg-white p-6 rounded-lg shadow">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">{t('importResignedEmployees') || 'Import Resigned Employees'}</h2>
+          <p className="text-sm text-gray-600">
+            {t('importResignedEmployeesDescription') || 'Import resigned employee data from SEPEmployees.xlsx - Resigned sheet'}
+          </p>
+        </div>
+        
+        {/* File Upload Section */}
+        <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="mb-3">
+            <label className="flex items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                checked={useResignedFileUpload}
+                onChange={(e) => setUseResignedFileUpload(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm font-medium">{t('uploadFilesFromComputer')}</span>
+            </label>
+            <p className="text-xs text-gray-500 ml-6">
+              {useResignedFileUpload 
+                ? t('selectSEPEmployeesFromComputer')
+                : 'Use SEPEmployees.xlsx from server Sheets directory (legacy method)'}
+            </p>
+          </div>
+          
+          {useResignedFileUpload && (
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {t('selectSEPEmployeesFile')}
+              </label>
+              <input
+                id="resigned-file-input"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleResignedFileSelect}
+                disabled={importingResigned || importing || clearing || merging}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 disabled:opacity-50"
+              />
+              {selectedResignedFile && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-600">
+                    <strong>{t('selected')}:</strong> {selectedResignedFile.name} ({(selectedResignedFile.size / 1024).toFixed(1)} KB)
+                  </p>
+                </div>
+              )}
+              {useResignedFileUpload && !selectedResignedFile && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  ⚠️ {t('pleaseSelectEmployeeFile')}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex gap-2 flex-wrap">
+          <Tooltip content={t('importResignedEmployeesTooltip') || 'Import resigned employees from the Resigned sheet'}>
+            <button
+              onClick={handleImportResigned}
+              disabled={importingResigned || importing || clearing || merging || (useResignedFileUpload && !selectedResignedFile)}
+              className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+            >
+              {importingResigned ? (t('importingResigned') || 'Importing...') : (t('importResigned') || 'Import Resigned')}
+            </button>
+          </Tooltip>
+          {resignedImportReport && (
+            <Tooltip content={t('viewImportReport') || 'View import report'}>
+              <button
+                onClick={() => setShowResignedImportReport(!showResignedImportReport)}
+                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+              >
+                {showResignedImportReport ? t('hide') : t('view')} {t('importReport')}
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      </div>
+
+      {/* Resigned Import Report */}
+      {showResignedImportReport && resignedImportReport && (
+        <div className="mb-6 bg-white p-6 rounded-lg shadow">
+          <h3 className="text-xl font-bold mb-4">{t('resignedImport') || 'Resigned Import'} {t('reports')}</h3>
+          <div className="mb-4">
+            <p><strong>{t('recordsUpdated') || 'Records Updated'}:</strong> {resignedImportReport.recordsUpdated}</p>
+            <p><strong>{t('recordsNotFound') || 'Records Not Found'}:</strong> {resignedImportReport.recordsNotFound}</p>
+            {resignedImportReport.conflicts && resignedImportReport.conflicts.length > 0 && (
+              <p className="text-red-600 mt-2">
+                ⚠️ <strong>{resignedImportReport.conflicts.length}</strong> {t('conflictsRequiringResolution') || 'conflict(s) requiring resolution'}
+              </p>
+            )}
+            {resignedImportReport.candidates && resignedImportReport.candidates.length > 0 && (
+              <p className="text-orange-600 mt-2">
+                ⚠️ <strong>{resignedImportReport.candidates.length}</strong> {t('candidatesForCreation') || 'candidate(s) available for creation'}
+              </p>
+            )}
+            {resignedImportReport.errors && resignedImportReport.errors.length > 0 && (
+              <div className="mt-2">
+                <p><strong>{t('errors')}:</strong> {resignedImportReport.errors.length}</p>
+                <ul className="list-disc list-inside text-red-600 text-sm max-h-48 overflow-y-auto">
+                  {resignedImportReport.errors.map((error: string, idx: number) => (
+                    <li key={idx}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {resignedImportReport.errors && resignedImportReport.errors.length === 0 && (
+              <p className="text-green-600 mt-2">✅ {t('noErrors')}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Candidate Selection Modal */}
+      {showCandidateModal && resignedCandidates.length > 0 && (
+        <CandidateSelectionModal
+          candidates={resignedCandidates}
+          onClose={() => setShowCandidateModal(false)}
+          onComplete={handleCandidateComplete}
+        />
       )}
       
       {/* Import Report */}
