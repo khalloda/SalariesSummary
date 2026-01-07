@@ -1280,6 +1280,186 @@ reportsRouter.get('/employee-tenure', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reports/contract-renewals
+ * Get contract renewal report with filtering options
+ * Query params: year, month, category, hideRenewed
+ */
+reportsRouter.get('/contract-renewals', requireAuth, async (req, res) => {
+  try {
+    const year = req.query.year ? parseInt(req.query.year as string) : null;
+    const month = req.query.month ? parseInt(req.query.month as string) : null;
+    const category = req.query.category as string | undefined;
+    const hideRenewed = req.query.hideRenewed === 'true';
+
+    // Get all contract records with employee info
+    const contracts = await prisma.contractRecord.findMany({
+      where: {
+        contractDate: {
+          not: null,
+        },
+        ...(year && !month && {
+          contractDate: {
+            gte: new Date(year, 0, 1),
+            lt: new Date(year + 1, 0, 1),
+          },
+        }),
+        ...(year && month && {
+          contractDate: {
+            gte: new Date(year, month - 1, 1),
+            lt: new Date(year, month, 1),
+          },
+        }),
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            nameArabic: true,
+            employeeCode: true,
+            category: true,
+            department: true,
+            jobTitle: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: {
+        contractDate: 'asc',
+      },
+    });
+
+    // Filter out resigned employees and by category if provided
+    // Exclude contracts where employee status is 'Resigned'
+    // Include contracts with no employee (unlinked) or with status 'Active' or null
+    let filteredContracts = contracts.filter(
+      (c) => !c.employee || c.employee.status !== 'Resigned'
+    );
+    if (category) {
+      filteredContracts = filteredContracts.filter(
+        (c) => c.employee?.category === category
+      );
+    }
+
+    // Apply "hide renewed" logic: if an employee has multiple contracts, only show the latest one
+    let processedContracts = filteredContracts;
+    if (hideRenewed) {
+      // Group contracts by employee
+      const contractsByEmployee = new Map<string, typeof filteredContracts>();
+      filteredContracts.forEach((contract) => {
+        const empId = contract.employeeId || contract.employeeName || 'unlinked';
+        if (!contractsByEmployee.has(empId)) {
+          contractsByEmployee.set(empId, []);
+        }
+        contractsByEmployee.get(empId)!.push(contract);
+      });
+
+      // For each employee, keep only the latest contract (by date)
+      processedContracts = Array.from(contractsByEmployee.values())
+        .map((employeeContracts) => {
+          // Sort by date descending and take the first (latest)
+          return employeeContracts.sort((a, b) => {
+            const dateA = a.contractDate?.getTime() || 0;
+            const dateB = b.contractDate?.getTime() || 0;
+            return dateB - dateA;
+          })[0];
+        })
+        .filter((c) => c !== undefined);
+    }
+
+    // Calculate days until renewal and add color coding info
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const contractData = processedContracts.map((contract) => {
+      const contractDate = contract.contractDate;
+      if (!contractDate) {
+        return null;
+      }
+
+      const contractDateOnly = new Date(contractDate);
+      contractDateOnly.setHours(0, 0, 0, 0);
+
+      const daysUntilRenewal = Math.ceil(
+        (contractDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Color coding: red for within 30 days, green for beyond
+      const isNear = daysUntilRenewal <= 30 && daysUntilRenewal >= 0;
+      const isPast = daysUntilRenewal < 0;
+
+      return {
+        id: contract.id,
+        employeeId: contract.employeeId,
+        employeeName: contract.employee?.name || contract.employeeName || 'Unlinked',
+        employeeNameArabic: contract.employee?.nameArabic || null,
+        employeeCode: contract.employee?.employeeCode || contract.employeeCode || null,
+        contractDate: contractDate.toISOString(), // Convert to ISO string for JSON serialization
+        contractDuration: contract.contractDuration || null,
+        category: contract.employee?.category || null,
+        department: contract.employee?.department || null,
+        jobTitle: contract.employee?.jobTitle || null,
+        status: contract.employee?.status || null,
+        daysUntilRenewal,
+        isNear, // within 30 days
+        isPast, // past due
+        colorCode: isPast ? 'past' : isNear ? 'near' : 'later', // 'past', 'near', 'later'
+        comments: contract.comments || null,
+      };
+    }).filter((c) => c !== null);
+
+    // Sort by contract date
+    contractData.sort((a, b) => {
+      const dateA = a!.contractDate ? new Date(a!.contractDate).getTime() : 0;
+      const dateB = b!.contractDate ? new Date(b!.contractDate).getTime() : 0;
+      return dateA - dateB;
+    });
+
+    // Group by date for calendar view
+    const contractsByDate = new Map<string, typeof contractData>();
+    contractData.forEach((contract) => {
+      if (!contract) return;
+      const dateKey = contract.contractDate!.split('T')[0]; // YYYY-MM-DD (already ISO string)
+      if (!contractsByDate.has(dateKey)) {
+        contractsByDate.set(dateKey, []);
+      }
+      contractsByDate.get(dateKey)!.push(contract);
+    });
+
+    // Calculate statistics
+    const stats = {
+      total: contractData.length,
+      near: contractData.filter((c) => c?.isNear).length,
+      later: contractData.filter((c) => c?.colorCode === 'later').length,
+      past: contractData.filter((c) => c?.isPast).length,
+    };
+
+    await logAudit(req.user, 'REPORT_CONTRACT_RENEWALS_VIEW', 'report', undefined, {
+      year,
+      month,
+      category,
+      hideRenewed,
+      totalContracts: stats.total,
+    });
+
+    res.json({
+      filters: {
+        year,
+        month,
+        category,
+        hideRenewed,
+      },
+      stats,
+      contracts: contractData,
+      contractsByDate: Object.fromEntries(contractsByDate),
+    });
+  } catch (error: any) {
+    console.error('Error fetching contract renewals report:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 function getMonthName(month: number): string {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',

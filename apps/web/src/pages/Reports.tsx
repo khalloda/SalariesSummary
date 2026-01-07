@@ -181,6 +181,13 @@ export default function Reports() {
       path: '/reports/personnel-dashboard',
       icon: '📋',
       color: 'rose'
+    },
+    {
+      title: t('contractRenewals'),
+      description: t('contractRenewalsDescription'),
+      path: '/reports/contract-renewals',
+      icon: '📅',
+      color: 'amber'
     }
   ];
 

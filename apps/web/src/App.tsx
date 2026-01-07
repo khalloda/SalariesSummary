@@ -38,6 +38,7 @@ import AssetInventoryReport from './pages/AssetInventoryReport';
 import PersonnelStatusDashboard from './pages/PersonnelStatusDashboard';
 import NotificationSettings from './pages/NotificationSettings';
 import UserManagement from './pages/UserManagement';
+import ContractRenewals from './pages/ContractRenewals';
 import Login from './pages/Login';
 import { RequireAuth, RequireRole } from './hooks/useAuth';
 
@@ -97,6 +98,7 @@ function InnerAppRoutes() {
           <Route path="/reports/document-compliance" element={<DocumentComplianceReport />} />
           <Route path="/reports/asset-inventory" element={<AssetInventoryReport />} />
           <Route path="/reports/personnel-dashboard" element={<PersonnelStatusDashboard />} />
+          <Route path="/reports/contract-renewals" element={<ContractRenewals />} />
           <Route path="/import/bonus" element={<BonusImport />} />
           <Route path="/personnel-diagnostics" element={<PersonnelDiagnostics />} />
           <Route path="/settings/notifications" element={

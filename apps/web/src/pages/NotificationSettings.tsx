@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import { useAuth } from '../hooks/useAuth';
 
 interface EmailConfig {
   host: string;
@@ -24,10 +25,12 @@ interface NotificationSettings {
 
 export default function NotificationSettings() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [sending, setSending] = useState(false);
+  const [forceSending, setForceSending] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
@@ -313,6 +316,40 @@ export default function NotificationSettings() {
     }
   };
 
+  const handleForceSend30Days = async () => {
+    if (!confirm(t('forceSend30DaysConfirm') || 'Are you sure you want to force send notifications for all contracts and IDs expiring within 30 days?')) {
+      return;
+    }
+
+    setForceSending(true);
+    setMessage(null);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/notifications/force-send-30-days`);
+      if (response.data.success) {
+        const details = response.data.sentNotifications && response.data.sentNotifications.length > 0
+          ? `\n\nSent notifications:\n${response.data.sentNotifications.map((n: any) => `- ${n.type === 'contract' ? 'Contract' : 'ID'} renewal for ${n.employee} (${n.days} days)`).join('\n')}`
+          : '';
+        setMessage({ 
+          type: 'success', 
+          text: response.data.message + details
+        });
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: response.data.error || response.data.message || 'Failed to force send notifications' 
+        });
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to force send notifications';
+      setMessage({
+        type: 'error',
+        text: errorMessage,
+      });
+    } finally {
+      setForceSending(false);
+    }
+  };
+
   const handleDaysChange = (type: 'contract' | 'id', value: string) => {
     const days = value
       .split(',')
@@ -575,6 +612,16 @@ export default function NotificationSettings() {
             >
               {sending ? 'Sending...' : 'Send Test Email'}
             </button>
+            {user && user.roles.includes('SUPER_ADMIN') && (
+              <button
+                onClick={handleForceSend30Days}
+                disabled={forceSending}
+                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
+                title={t('forceSend30DaysTooltip') || 'Force send notifications for all contracts and IDs expiring within 30 days'}
+              >
+                {forceSending ? 'Sending...' : (t('forceSend30Days') || 'Force Send (<30 Days)')}
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import express from 'express';
+import { PrismaClient } from '@prisma/client';
 import { emailService } from '../services/email-service.js';
 import {
   loadNotificationSettings,
@@ -6,6 +7,8 @@ import {
   checkAndSendNotifications,
 } from '../services/notification-scheduler.js';
 import { requireAuth, requireRole } from '../utils/auth.js';
+
+const prisma = new PrismaClient();
 
 const notificationsRouter = express.Router();
 
@@ -156,6 +159,179 @@ notificationsRouter.post('/email/test', requireAuth, requireRole('ADMIN', 'SUPER
     res.status(400).json({
       success: false,
       error: 'Email connection failed: ' + error.message,
+    });
+  }
+});
+
+// Force send notifications for contracts and IDs expiring in less than 30 days (SuperAdmin only)
+notificationsRouter.post('/force-send-30-days', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const settings = loadNotificationSettings();
+
+    if (!settings.enabled) {
+      return res.status(400).json({
+        success: false,
+        error: 'Notifications are disabled',
+      });
+    }
+
+    if (settings.recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No notification recipients configured',
+      });
+    }
+
+    // Check if email service is initialized
+    try {
+      await emailService.testConnection();
+    } catch (error: any) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email service is not configured or connection failed. Please configure email settings first.',
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thirtyDaysFromNow = new Date(today);
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    let totalSent = 0;
+    let totalErrors = 0;
+    const errors: string[] = [];
+    const sentNotifications: Array<{ type: string; employee: string; days: number }> = [];
+
+    // Check contract renewals (expiring within 30 days)
+    const contractsExpiring = await prisma.employee.findMany({
+      where: {
+        contractRenewalDate: {
+          gte: today,
+          lte: thirtyDaysFromNow,
+        },
+        status: {
+          not: 'Resigned',
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        employeeCode: true,
+        contractRenewalDate: true,
+      },
+    });
+
+    for (const employee of contractsExpiring) {
+      if (employee.contractRenewalDate) {
+        const daysUntilRenewal = Math.ceil(
+          (employee.contractRenewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        try {
+          await emailService.sendContractRenewalNotification(
+            {
+              id: employee.id,
+              name: employee.name,
+              employeeCode: employee.employeeCode,
+              contractRenewalDate: employee.contractRenewalDate,
+            },
+            daysUntilRenewal,
+            settings.recipients,
+            {
+              employeeId: employee.id,
+              baseUrl: settings.baseUrl,
+              language: settings.language,
+            }
+          );
+          console.log(`Force sent contract renewal notification for ${employee.name} (${daysUntilRenewal} days)`);
+          totalSent++;
+          sentNotifications.push({
+            type: 'contract',
+            employee: employee.name,
+            days: daysUntilRenewal,
+          });
+        } catch (error: any) {
+          const errorMsg = `Failed to send contract renewal notification for ${employee.name}: ${error.message || error}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+          totalErrors++;
+        }
+      }
+    }
+
+    // Check ID expiries (expiring within 30 days)
+    const idsExpiring = await prisma.employee.findMany({
+      where: {
+        nationalIdValidTill: {
+          gte: today,
+          lte: thirtyDaysFromNow,
+        },
+        status: {
+          not: 'Resigned',
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        employeeCode: true,
+        nationalIdValidTill: true,
+      },
+    });
+
+    for (const employee of idsExpiring) {
+      if (employee.nationalIdValidTill) {
+        const daysUntilExpiry = Math.ceil(
+          (employee.nationalIdValidTill.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        try {
+          await emailService.sendIdExpiryNotification(
+            {
+              id: employee.id,
+              name: employee.name,
+              employeeCode: employee.employeeCode,
+              nationalIdValidTill: employee.nationalIdValidTill,
+            },
+            daysUntilExpiry,
+            settings.recipients,
+            {
+              employeeId: employee.id,
+              baseUrl: settings.baseUrl,
+              language: settings.language,
+            }
+          );
+          console.log(`Force sent ID expiry notification for ${employee.name} (${daysUntilExpiry} days)`);
+          totalSent++;
+          sentNotifications.push({
+            type: 'id',
+            employee: employee.name,
+            days: daysUntilExpiry,
+          });
+        } catch (error: any) {
+          const errorMsg = `Failed to send ID expiry notification for ${employee.name}: ${error.message || error}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+          totalErrors++;
+        }
+      }
+    }
+
+    res.json({
+      success: totalErrors === 0,
+      message: totalSent > 0
+        ? `Force sent ${totalSent} notification(s)${totalErrors > 0 ? ` with ${totalErrors} error(s)` : ''}`
+        : totalErrors > 0
+        ? `No notifications sent. ${totalErrors} error(s) occurred.`
+        : 'No notifications to send. No contracts or IDs expiring within 30 days found.',
+      totalSent,
+      totalErrors,
+      sentNotifications,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to force send notifications',
     });
   }
 });
