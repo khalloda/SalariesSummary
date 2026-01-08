@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, requireRole, canViewSalaryAmounts, redactSalaryArrayForRoles, type RoleName } from '../utils/auth.js';
+import { requireRole, canViewSalaryAmounts, redactSalaryArrayForRoles, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
@@ -10,7 +10,7 @@ export const bulkSalaryRouter = Router();
  * GET /api/bulk-salary/last-month/:year/:month
  * Get last month's salary data for all employees, grouped by category
  */
-bulkSalaryRouter.get('/last-month/:year/:month', requireAuth, async (req, res) => {
+bulkSalaryRouter.get('/last-month/:year/:month', async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const month = parseInt(req.params.month);
@@ -316,7 +316,7 @@ bulkSalaryRouter.get('/last-month/:year/:month', requireAuth, async (req, res) =
  * POST /api/bulk-salary/create
  * Create salary records for multiple employees at once
  */
-bulkSalaryRouter.post('/create', requireAuth, requireRole('OFFICE_MANAGER', 'FINANCE', 'SUPER_ADMIN'), async (req, res) => {
+bulkSalaryRouter.post('/create', requireRole('OFFICE_MANAGER', 'FINANCE', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { year, month, employees } = req.body;
 

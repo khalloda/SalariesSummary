@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
 export const monthlySummaryExportRouter = Router();
@@ -27,7 +27,7 @@ function getLogoBase64(): string {
  * POST /api/exports/monthly-summary/pdf
  * Export monthly summary report as PDF
  */
-monthlySummaryExportRouter.post('/monthly-summary/pdf', requireAuth, async (req, res) => {
+monthlySummaryExportRouter.post('/monthly-summary/pdf', async (req, res) => {
   try {
     const { year, data } = req.body;
     
@@ -71,7 +71,7 @@ monthlySummaryExportRouter.post('/monthly-summary/pdf', requireAuth, async (req,
  * POST /api/exports/monthly-summary/xlsx
  * Export monthly summary report as XLSX
  */
-monthlySummaryExportRouter.post('/monthly-summary/xlsx', requireAuth, async (req, res) => {
+monthlySummaryExportRouter.post('/monthly-summary/xlsx', async (req, res) => {
   try {
     const { year, data } = req.body;
     

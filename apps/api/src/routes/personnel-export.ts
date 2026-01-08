@@ -4,7 +4,6 @@ import ExcelJS from 'exceljs';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { requireAuth } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
 export const personnelExportRouter = Router();
@@ -27,7 +26,7 @@ function getLogoBase64(): string {
  * POST /api/exports/document-compliance/pdf
  * Export Document Compliance Report as PDF
  */
-personnelExportRouter.post('/document-compliance/pdf', requireAuth, async (req, res) => {
+personnelExportRouter.post('/document-compliance/pdf', async (req, res) => {
   try {
     const { data, categoryFilter, minComplianceFilter } = req.body;
     
@@ -64,7 +63,7 @@ personnelExportRouter.post('/document-compliance/pdf', requireAuth, async (req, 
  * POST /api/exports/asset-inventory/pdf
  * Export Asset Inventory Report as PDF
  */
-personnelExportRouter.post('/asset-inventory/pdf', requireAuth, async (req, res) => {
+personnelExportRouter.post('/asset-inventory/pdf', async (req, res) => {
   try {
     const { data, categoryFilter, assetFilter } = req.body;
     
@@ -101,7 +100,7 @@ personnelExportRouter.post('/asset-inventory/pdf', requireAuth, async (req, res)
  * POST /api/exports/personnel-dashboard/pdf
  * Export Personnel Status Dashboard as PDF
  */
-personnelExportRouter.post('/personnel-dashboard/pdf', requireAuth, async (req, res) => {
+personnelExportRouter.post('/personnel-dashboard/pdf', async (req, res) => {
   try {
     const { data } = req.body;
     
@@ -939,7 +938,7 @@ function generatePersonnelDashboardHTML(data: any): string {
  * POST /api/exports/employee-tenure/pdf
  * Export Employee Tenure Report as PDF
  */
-personnelExportRouter.post('/employee-tenure/pdf', requireAuth, async (req, res) => {
+personnelExportRouter.post('/employee-tenure/pdf', async (req, res) => {
   try {
     const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
     
@@ -976,7 +975,7 @@ personnelExportRouter.post('/employee-tenure/pdf', requireAuth, async (req, res)
  * POST /api/exports/employee-tenure/xlsx
  * Export Employee Tenure Report as XLSX
  */
-personnelExportRouter.post('/employee-tenure/xlsx', requireAuth, async (req, res) => {
+personnelExportRouter.post('/employee-tenure/xlsx', async (req, res) => {
   try {
     const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
     
@@ -1037,7 +1036,7 @@ personnelExportRouter.post('/employee-tenure/xlsx', requireAuth, async (req, res
  * POST /api/exports/employee-tenure/csv
  * Export Employee Tenure Report as CSV
  */
-personnelExportRouter.post('/employee-tenure/csv', requireAuth, async (req, res) => {
+personnelExportRouter.post('/employee-tenure/csv', async (req, res) => {
   try {
     const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
     

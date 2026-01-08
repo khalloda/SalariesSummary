@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { normalizeEmployeeName } from '../utils/normalize.js';
-import { requireAuth, requireRole } from '../utils/auth.js';
+import { requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { EmployeeCreateSchema, EmployeeUpdateSchema, EmployeeIdParamSchema } from '../validation/schemas/employees.js';
@@ -14,7 +14,6 @@ export const employeesCrudRouter = Router();
  * Create a new employee
  */
 employeesCrudRouter.post('/', 
-  requireAuth, 
   requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
   validateBody(EmployeeCreateSchema),
   async (req, res) => {
@@ -123,7 +122,6 @@ employeesCrudRouter.post('/',
  * Update an employee
  */
 employeesCrudRouter.put('/:id', 
-  requireAuth, 
   requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
   validateParams(EmployeeIdParamSchema),
   validateBody(EmployeeUpdateSchema),
@@ -245,7 +243,6 @@ employeesCrudRouter.put('/:id',
  * Delete an employee
  */
 employeesCrudRouter.delete('/:id', 
-  requireAuth, 
   requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
   validateParams(EmployeeIdParamSchema),
   async (req, res) => {

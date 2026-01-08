@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { requireAuth, requireRole } from '../utils/auth.js';
+import { requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { ContractCreateSchema, ContractUpdateSchema, ContractIdParamSchema } from '../validation/schemas/contracts.js';
@@ -13,7 +13,7 @@ export const contractsCrudRouter = Router();
  * POST /api/contracts
  * Create a new contract record
  */
-contractsCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+contractsCrudRouter.post('/', requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const {
       employeeId,
@@ -79,7 +79,7 @@ contractsCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_M
  * GET /api/contracts
  * List all contract records
  */
-contractsCrudRouter.get('/', requireAuth, async (req, res) => {
+contractsCrudRouter.get('/', async (req, res) => {
   try {
     const { employeeId, page = '1', limit = '50' } = req.query;
     const pageNum = parseInt(page as string) || 1;
@@ -132,7 +132,6 @@ contractsCrudRouter.get('/', requireAuth, async (req, res) => {
  * Get a single contract record
  */
 contractsCrudRouter.get('/:id', 
-  requireAuth,
   validateParams(ContractIdParamSchema),
   async (req, res) => {
   try {
@@ -165,7 +164,7 @@ contractsCrudRouter.get('/:id',
  * PUT /api/contracts/:id
  * Update a contract record
  */
-contractsCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+contractsCrudRouter.put('/:id', requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -238,7 +237,6 @@ contractsCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE
  * Delete a contract record
  */
 contractsCrudRouter.delete('/:id', 
-  requireAuth, 
   requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
   validateParams(ContractIdParamSchema),
   async (req, res) => {

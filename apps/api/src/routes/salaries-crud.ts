@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { SalaryCreateSchema, SalaryUpdateSchema, SalaryIdParamSchema } from '../validation/schemas/salaries.js';
@@ -14,7 +14,6 @@ export const salariesCrudRouter = Router();
  * Create a new salary record
  */
 salariesCrudRouter.post('/', 
-  requireAuth,
   validateBody(SalaryCreateSchema),
   async (req, res) => {
   try {
@@ -121,7 +120,7 @@ salariesCrudRouter.post('/',
  * GET /api/salaries
  * List all salary records
  */
-salariesCrudRouter.get('/', requireAuth, async (req, res) => {
+salariesCrudRouter.get('/', async (req, res) => {
   try {
     const { employeeId, year, month, page = '1', limit = '50' } = req.query;
     const pageNum = parseInt(page as string) || 1;
@@ -197,7 +196,6 @@ salariesCrudRouter.get('/', requireAuth, async (req, res) => {
  * Get a single salary record
  */
 salariesCrudRouter.get('/:id', 
-  requireAuth,
   validateParams(SalaryIdParamSchema),
   async (req, res) => {
   try {
@@ -245,7 +243,6 @@ salariesCrudRouter.get('/:id',
  * Update a salary record
  */
 salariesCrudRouter.put('/:id', 
-  requireAuth,
   validateParams(SalaryIdParamSchema),
   validateBody(SalaryUpdateSchema),
   async (req, res) => {
@@ -357,7 +354,6 @@ salariesCrudRouter.put('/:id',
  * Delete a salary record
  */
 salariesCrudRouter.delete('/:id', 
-  requireAuth,
   validateParams(SalaryIdParamSchema),
   async (req, res) => {
   try {

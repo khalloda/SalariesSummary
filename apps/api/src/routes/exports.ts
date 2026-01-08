@@ -6,7 +6,7 @@ import { Readable } from 'stream';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
@@ -31,7 +31,7 @@ function getLogoBase64(): string {
 /**
  * GET /api/exports/employee/:id/annual?year=YYYY&format=csv|xlsx|pdf
  */
-exportsRouter.get('/employee/:id/annual', requireAuth, async (req, res) => {
+exportsRouter.get('/employee/:id/annual', async (req, res) => {
   try {
     const format = (req.query.format as string) || 'csv';
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -387,7 +387,7 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
  * GET /api/exports/salary-changes?year=YYYY&format=pdf
  * Export salary changes report as PDF
  */
-exportsRouter.get('/salary-changes', requireAuth, async (req, res) => {
+exportsRouter.get('/salary-changes', async (req, res) => {
   try {
     const format = (req.query.format as string) || 'pdf';
     const year = parseInt(req.query.year as string) || new Date().getFullYear();

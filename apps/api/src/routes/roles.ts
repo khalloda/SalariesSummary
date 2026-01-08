@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, requireRole } from '../utils/auth.js';
+import { requireRole } from '../utils/auth.js';
 
 const prisma = new PrismaClient();
 export const rolesRouter = Router();
 
 // GET /api/roles - List all roles (ADMIN+ only)
-rolesRouter.get('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+rolesRouter.get('/', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const roles = await prisma.role.findMany({
       include: {
@@ -44,7 +44,7 @@ rolesRouter.get('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (re
 });
 
 // GET /api/permissions - List all permissions (ADMIN+ only)
-rolesRouter.get('/permissions', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+rolesRouter.get('/permissions', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const permissions = await prisma.permission.findMany({
       orderBy: {

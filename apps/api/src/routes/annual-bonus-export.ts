@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { shouldShowBonusHalves } from '../utils/config.js';
-import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
 export const annualBonusExportRouter = Router();
@@ -28,7 +28,7 @@ function getLogoBase64(): string {
  * POST /api/exports/annual-bonus-report/pdf
  * Export annual bonus report as PDF
  */
-annualBonusExportRouter.post('/annual-bonus-report/pdf', requireAuth, async (req, res) => {
+annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
   try {
     const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
     // Use server config if client doesn't specify, otherwise use client value
@@ -76,7 +76,7 @@ annualBonusExportRouter.post('/annual-bonus-report/pdf', requireAuth, async (req
  * POST /api/exports/annual-bonus-report/xlsx
  * Export annual bonus report as XLSX
  */
-annualBonusExportRouter.post('/annual-bonus-report/xlsx', requireAuth, async (req, res) => {
+annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
   try {
     const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
     // Use server config if client doesn't specify, otherwise use client value

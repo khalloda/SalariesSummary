@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, requireRole, type RoleName } from '../utils/auth.js';
+import { requireRole, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { UserCreateSchema, UserUpdateSchema, UserIdParamSchema } from '../validation/schemas/users.js';
@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 export const usersRouter = Router();
 
 // GET /api/users - List all users (ADMIN+ only)
-usersRouter.get('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+usersRouter.get('/', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       include: {
@@ -46,7 +46,6 @@ usersRouter.get('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (re
 
 // GET /api/users/:id - Get a specific user (ADMIN+ only)
 usersRouter.get('/:id', 
-  requireAuth, 
   requireRole('ADMIN', 'SUPER_ADMIN'),
   validateParams(UserIdParamSchema),
   async (req, res) => {
@@ -87,7 +86,7 @@ usersRouter.get('/:id',
 });
 
 // POST /api/users - Create a new user (ADMIN+ only)
-usersRouter.post('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+usersRouter.post('/', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const { username, password, email, fullName, systemId, roles, isActive } = req.body;
 
@@ -185,7 +184,6 @@ usersRouter.post('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (r
 
 // PUT /api/users/:id - Update a user (ADMIN+ only)
 usersRouter.put('/:id', 
-  requireAuth, 
   requireRole('ADMIN', 'SUPER_ADMIN'),
   validateParams(UserIdParamSchema),
   validateBody(UserUpdateSchema),
@@ -321,7 +319,6 @@ usersRouter.put('/:id',
 
 // DELETE /api/users/:id - Delete a user (ADMIN+ only, but cannot delete self or SUPER_ADMIN)
 usersRouter.delete('/:id', 
-  requireAuth, 
   requireRole('ADMIN', 'SUPER_ADMIN'),
   validateParams(UserIdParamSchema),
   async (req, res) => {

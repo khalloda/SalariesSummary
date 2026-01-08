@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateQuery } from '../validation/middleware.js';
 import {
@@ -22,7 +22,7 @@ export const reportsRouter = Router();
  * GET /api/reports/available-years
  * Get all available years from salary records
  */
-reportsRouter.get('/available-years', requireAuth, async (req, res) => {
+reportsRouter.get('/available-years', async (req, res) => {
   try {
     // Use groupBy for SQLite compatibility (distinct doesn't work well with SQLite)
     const salaryYearsData = await prisma.salaryRecord.groupBy({
@@ -60,7 +60,6 @@ reportsRouter.get('/available-years', requireAuth, async (req, res) => {
  * Get totals by category (Partners, Lawyers, Admins, Consultants)
  */
 reportsRouter.get('/category-totals', 
-  requireAuth,
   validateQuery(CategoryTotalsQuerySchema),
   async (req, res) => {
   try {
@@ -196,7 +195,7 @@ reportsRouter.get('/category-totals',
  * GET /api/reports/joiners-leavers?year=YYYY
  * Get joiners and leavers report
  */
-reportsRouter.get('/joiners-leavers', requireAuth, async (req, res) => {
+reportsRouter.get('/joiners-leavers', async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -306,7 +305,6 @@ reportsRouter.get('/joiners-leavers', requireAuth, async (req, res) => {
  * Get salary changes report
  */
 reportsRouter.get('/salary-changes', 
-  requireAuth,
   validateQuery(SalaryChangesQuerySchema),
   async (req, res) => {
   try {
@@ -376,7 +374,6 @@ reportsRouter.get('/salary-changes',
  * Get annual bonus report data
  */
 reportsRouter.get('/annual-bonus', 
-  requireAuth,
   validateQuery(AnnualBonusQuerySchema),
   async (req, res) => {
   try {
@@ -681,7 +678,7 @@ reportsRouter.get('/annual-bonus',
  * GET /api/reports/quick-stats?year=YYYY
  * Get quick statistics for the dashboard
  */
-reportsRouter.get('/quick-stats', requireAuth, async (req, res) => {
+reportsRouter.get('/quick-stats', async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -756,7 +753,7 @@ reportsRouter.get('/quick-stats', requireAuth, async (req, res) => {
  * GET /api/reports/bonus-incentive-analysis?year=YYYY
  * Get bonus and incentive analysis report
  */
-reportsRouter.get('/bonus-incentive-analysis', requireAuth, async (req, res) => {
+reportsRouter.get('/bonus-incentive-analysis', async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -850,7 +847,6 @@ reportsRouter.get('/bonus-incentive-analysis', requireAuth, async (req, res) => 
  * Get monthly summary report
  */
 reportsRouter.get('/monthly-summary', 
-  requireAuth,
   validateQuery(MonthlySummaryQuerySchema),
   async (req, res) => {
   try {
@@ -979,7 +975,6 @@ reportsRouter.get('/monthly-summary',
  * Get additions and deductions breakdown report
  */
 reportsRouter.get('/additions-deductions-breakdown', 
-  requireAuth,
   validateQuery(AdditionsDeductionsQuerySchema),
   async (req, res) => {
   try {
@@ -1141,7 +1136,7 @@ reportsRouter.get('/additions-deductions-breakdown',
  * GET /api/reports/employee-tenure?year=YYYY
  * Get employee tenure report
  */
-reportsRouter.get('/employee-tenure', requireAuth, async (req, res) => {
+reportsRouter.get('/employee-tenure', async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -1313,7 +1308,6 @@ reportsRouter.get('/employee-tenure', requireAuth, async (req, res) => {
  * Query params: year, month, category, hideRenewed
  */
 reportsRouter.get('/contract-renewals', 
-  requireAuth,
   validateQuery(ContractRenewalsQuerySchema),
   async (req, res) => {
   try {

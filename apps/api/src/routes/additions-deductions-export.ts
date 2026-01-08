@@ -4,7 +4,6 @@ import puppeteer from 'puppeteer';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { requireAuth } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
 export const additionsDeductionsExportRouter = Router();
@@ -27,7 +26,7 @@ function getLogoBase64(): string {
  * POST /api/exports/additions-deductions/pdf
  * Export additions and deductions breakdown report as PDF
  */
-additionsDeductionsExportRouter.post('/additions-deductions/pdf', requireAuth, async (req, res) => {
+additionsDeductionsExportRouter.post('/additions-deductions/pdf', async (req, res) => {
   try {
     const { year, detailView, data } = req.body;
     
@@ -65,7 +64,7 @@ additionsDeductionsExportRouter.post('/additions-deductions/pdf', requireAuth, a
  * POST /api/exports/additions-deductions/xlsx
  * Export additions and deductions breakdown report as XLSX
  */
-additionsDeductionsExportRouter.post('/additions-deductions/xlsx', requireAuth, async (req, res) => {
+additionsDeductionsExportRouter.post('/additions-deductions/xlsx', async (req, res) => {
   try {
     const { year, detailView, data } = req.body;
     

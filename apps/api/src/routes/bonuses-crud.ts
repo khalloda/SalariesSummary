@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { BonusCreateSchema, BonusUpdateSchema, BonusIdParamSchema } from '../validation/schemas/bonuses.js';
@@ -13,7 +13,6 @@ export const bonusesCrudRouter = Router();
  * Create a new annual bonus record
  */
 bonusesCrudRouter.post('/', 
-  requireAuth,
   validateBody(BonusCreateSchema),
   async (req, res) => {
   try {
@@ -113,7 +112,7 @@ bonusesCrudRouter.post('/',
  * GET /api/bonuses
  * List all bonus records
  */
-bonusesCrudRouter.get('/', requireAuth, async (req, res) => {
+bonusesCrudRouter.get('/', async (req, res) => {
   try {
     const { employeeId, year, page = '1', limit = '50' } = req.query;
     const pageNum = parseInt(page as string) || 1;
@@ -186,7 +185,6 @@ bonusesCrudRouter.get('/', requireAuth, async (req, res) => {
  * Get a single bonus record
  */
 bonusesCrudRouter.get('/:id', 
-  requireAuth,
   validateParams(BonusIdParamSchema),
   async (req, res) => {
   try {
@@ -233,7 +231,7 @@ bonusesCrudRouter.get('/:id',
  * PUT /api/bonuses/:id
  * Update a bonus record
  */
-bonusesCrudRouter.put('/:id', requireAuth, async (req, res) => {
+bonusesCrudRouter.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -341,7 +339,7 @@ bonusesCrudRouter.put('/:id', requireAuth, async (req, res) => {
  * DELETE /api/bonuses/:id
  * Delete a bonus record
  */
-bonusesCrudRouter.delete('/:id', requireAuth, async (req, res) => {
+bonusesCrudRouter.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 

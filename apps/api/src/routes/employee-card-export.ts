@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
@@ -29,7 +29,7 @@ function getLogoBase64(): string {
  * POST /api/exports/employee-card/pdf
  * Export employee card as PDF
  */
-employeeCardExportRouter.post('/employee-card/pdf', requireAuth, async (req, res) => {
+employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
   try {
     const { employeeId } = req.body;
     
@@ -147,7 +147,7 @@ employeeCardExportRouter.post('/employee-card/pdf', requireAuth, async (req, res
  * POST /api/exports/employee-card/xlsx
  * Export employee card as XLSX
  */
-employeeCardExportRouter.post('/employee-card/xlsx', requireAuth, async (req, res) => {
+employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
   try {
     const { employeeId } = req.body;
     

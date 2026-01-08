@@ -33,6 +33,7 @@ import notificationsRouter from './routes/notifications.js';
 import { usersRouter } from './routes/users.js';
 import { rolesRouter } from './routes/roles.js';
 import { startNotificationScheduler } from './services/cron-scheduler.js';
+import { requireAuth } from './utils/auth.js';
 
 console.log('📦 Routes loaded successfully');
 
@@ -54,13 +55,27 @@ app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Health check
+// ============================================
+// PUBLIC ROUTES (mounted BEFORE requireAuth)
+// ============================================
+
+// Health check - public endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
+// Auth routes - login is public, logout/me require auth (handled in authRouter)
 app.use('/api/auth', authRouter);
+
+// ============================================
+// GLOBAL AUTHENTICATION MIDDLEWARE
+// ============================================
+// All routes below this line require authentication
+app.use('/api', requireAuth);
+
+// ============================================
+// PROTECTED ROUTES (automatically require auth)
+// ============================================
 app.use('/api/import', importRouter);
 app.use('/api/employees', employeesRouter);
 app.use('/api/employees', employeesCrudRouter); // CRUD operations

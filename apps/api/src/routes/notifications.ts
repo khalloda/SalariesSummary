@@ -6,7 +6,7 @@ import {
   saveNotificationSettings,
   checkAndSendNotifications,
 } from '../services/notification-scheduler.js';
-import { requireAuth, requireRole } from '../utils/auth.js';
+import { requireRole } from '../utils/auth.js';
 import { validateBody } from '../validation/middleware.js';
 import {
   EmailConfigurationSchema,
@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 const notificationsRouter = express.Router();
 
 // Configure email service
-notificationsRouter.post('/email/configure', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), validateBody(EmailConfigurationSchema), async (req, res) => {
+notificationsRouter.post('/email/configure', requireRole('ADMIN', 'SUPER_ADMIN'), validateBody(EmailConfigurationSchema), async (req, res) => {
   try {
     const { host, port, secure, auth } = req.body;
 
@@ -59,7 +59,7 @@ notificationsRouter.post('/email/configure', requireAuth, requireRole('ADMIN', '
 });
 
 // Get notification settings
-notificationsRouter.get('/settings', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), (req, res) => {
+notificationsRouter.get('/settings', requireRole('ADMIN', 'SUPER_ADMIN'), (req, res) => {
   try {
     const settings = loadNotificationSettings();
     res.json({
@@ -75,7 +75,7 @@ notificationsRouter.get('/settings', requireAuth, requireRole('ADMIN', 'SUPER_AD
 });
 
 // Update notification settings
-notificationsRouter.post('/settings', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), validateBody(NotificationSettingsSchema), (req, res) => {
+notificationsRouter.post('/settings', requireRole('ADMIN', 'SUPER_ADMIN'), validateBody(NotificationSettingsSchema), (req, res) => {
   try {
     const {
       enabled,
@@ -112,7 +112,7 @@ notificationsRouter.post('/settings', requireAuth, requireRole('ADMIN', 'SUPER_A
 });
 
 // Manually trigger notification check
-notificationsRouter.post('/send', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+notificationsRouter.post('/send', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const result = await checkAndSendNotifications();
     res.json({
@@ -131,7 +131,7 @@ notificationsRouter.post('/send', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN
 });
 
 // Test email connection
-notificationsRouter.post('/email/test', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+notificationsRouter.post('/email/test', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     await emailService.testConnection();
     res.json({
@@ -147,7 +147,7 @@ notificationsRouter.post('/email/test', requireAuth, requireRole('ADMIN', 'SUPER
 });
 
 // Force send notifications for contracts and IDs expiring in less than 30 days (SuperAdmin only)
-notificationsRouter.post('/force-send-30-days', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+notificationsRouter.post('/force-send-30-days', requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
     const settings = loadNotificationSettings();
 
@@ -320,7 +320,7 @@ notificationsRouter.post('/force-send-30-days', requireAuth, requireRole('SUPER_
 });
 
 // Send test notification email
-notificationsRouter.post('/email/send-test', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+notificationsRouter.post('/email/send-test', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     const settings = loadNotificationSettings();
 

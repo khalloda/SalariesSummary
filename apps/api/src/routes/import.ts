@@ -10,7 +10,7 @@ import { importContracts } from '../services/contracts-import-service.js';
 import { importPersonnel } from '../services/personnel-import-service.js';
 import { importResigned } from '../services/resigned-import-service.js';
 import XLSX from 'xlsx';
-import { requireAuth, requireRole } from '../utils/auth.js';
+import { requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody } from '../validation/middleware.js';
 import {
@@ -54,7 +54,7 @@ const uploadMultiple = multer({
  * POST /api/import/salaries/upload
  * Import salary workbooks from uploaded files
  */
-importRouter.post('/salaries/upload', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), uploadMultiple.array('files', 50), async (req, res) => {
+importRouter.post('/salaries/upload', requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), uploadMultiple.array('files', 50), async (req, res) => {
   try {
     if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
       return res.status(400).json({
@@ -117,7 +117,7 @@ importRouter.post('/salaries/upload', requireAuth, requireRole('OFFICE_MANAGER',
  * POST /api/import/salaries
  * Import all salary workbooks from the Sheets directory (legacy method)
  */
-importRouter.post('/salaries', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+importRouter.post('/salaries', requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Salary import request received (server-side Sheets directory)');
     const result = await importAllWorkbooks();
@@ -139,7 +139,7 @@ importRouter.post('/salaries', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN
  * POST /api/import
  * Legacy endpoint - redirects to salaries import
  */
-importRouter.post('/', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+importRouter.post('/', requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Import request received (legacy endpoint, redirecting to salaries)');
     const result = await importAllWorkbooks();
@@ -162,7 +162,7 @@ importRouter.post('/', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPE
  * Clear all imported data (employees, salary records, import logs)
  * Use with caution - this deletes all data!
  */
-importRouter.delete('/clear', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+importRouter.delete('/clear', requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Clear database request received');
     
@@ -198,7 +198,7 @@ importRouter.delete('/clear', requireAuth, requireRole('SUPER_ADMIN'), async (re
  * GET /api/import/preview-duplicates
  * Preview potential duplicate employees without merging
  */
-importRouter.get('/preview-duplicates', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+importRouter.get('/preview-duplicates', requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
     console.log('Preview duplicates request received');
     const { previewDuplicateEmployees } = await import('../scripts/preview-duplicates.js');
@@ -221,7 +221,7 @@ importRouter.get('/preview-duplicates', requireAuth, requireRole('HR_PERSONNEL',
  * Merge duplicate employees based on normalized names
  * Body (optional): { selectedPairs: Array<{employee1Id: string, employee2Id: string}> }
  */
-importRouter.post('/merge-duplicates', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), validateBody(MergeDuplicatesSchema), async (req, res) => {
+importRouter.post('/merge-duplicates', requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), validateBody(MergeDuplicatesSchema), async (req, res) => {
   try {
     const { selectedPairs } = req.body;
     console.log('Merge duplicates request received', selectedPairs ? `with ${selectedPairs.length} selected pairs` : 'all pairs');
@@ -291,7 +291,7 @@ importRouter.post('/merge-duplicates', requireAuth, requireRole('HR_PERSONNEL', 
  *   }>
  * }
  */
-importRouter.post('/resolve-conflicts', requireAuth, validateBody(SalaryConflictResolutionsSchema), async (req, res) => {
+importRouter.post('/resolve-conflicts', validateBody(SalaryConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
     
@@ -391,7 +391,7 @@ importRouter.post('/resolve-conflicts', requireAuth, validateBody(SalaryConflict
  *   }>
  * }
  */
-importRouter.post('/resolve-employee-conflicts', requireAuth, validateBody(EmployeeConflictResolutionsSchema), async (req, res) => {
+importRouter.post('/resolve-employee-conflicts', validateBody(EmployeeConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
     
@@ -469,7 +469,7 @@ importRouter.post('/resolve-employee-conflicts', requireAuth, validateBody(Emplo
  *   }>
  * }
  */
-importRouter.post('/resolve-contract-conflicts', requireAuth, validateBody(ContractConflictResolutionsSchema), async (req, res) => {
+importRouter.post('/resolve-contract-conflicts', validateBody(ContractConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
     
@@ -560,7 +560,7 @@ importRouter.post('/resolve-contract-conflicts', requireAuth, validateBody(Contr
  *   }>
  * }
  */
-importRouter.post('/resolve-personnel-conflicts', requireAuth, validateBody(PersonnelConflictResolutionsSchema), async (req, res) => {
+importRouter.post('/resolve-personnel-conflicts', validateBody(PersonnelConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
     
@@ -653,7 +653,7 @@ importRouter.post('/resolve-personnel-conflicts', requireAuth, validateBody(Pers
  * Manually merge specific employees into a target employee
  * Body: { targetEmployeeId: string, employeeIdsToMerge: string[] }
  */
-importRouter.post('/manual-merge', requireAuth, validateBody(ManualMergeSchema), async (req, res) => {
+importRouter.post('/manual-merge', validateBody(ManualMergeSchema), async (req, res) => {
   try {
     const { targetEmployeeId, employeeIdsToMerge } = req.body;
     
@@ -1002,7 +1002,7 @@ importRouter.post('/resigned/upload', upload.single('file'), async (req, res) =>
  *   }>
  * }
  */
-importRouter.post('/resigned/create-candidates', requireAuth, validateBody(CreateResignedCandidatesSchema), async (req, res) => {
+importRouter.post('/resigned/create-candidates', validateBody(CreateResignedCandidatesSchema), async (req, res) => {
   try {
     const { candidates } = req.body;
 
@@ -1141,7 +1141,7 @@ importRouter.post('/resigned/create-candidates', requireAuth, validateBody(Creat
  *   }>
  * }
  */
-importRouter.post('/resigned/resolve-conflicts', requireAuth, validateBody(ResignedConflictResolutionsSchema), async (req, res) => {
+importRouter.post('/resigned/resolve-conflicts', validateBody(ResignedConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
 
@@ -1315,7 +1315,7 @@ importRouter.post('/employees/upload', upload.single('file'), async (req, res) =
  * POST /api/import/bonus/import
  * Import bonus data from uploaded file and selected sheet
  */
-importRouter.post('/bonus/import', requireAuth, upload.single('file'), validateBody(BonusImportBodySchema), async (req, res) => {
+importRouter.post('/bonus/import', upload.single('file'), validateBody(BonusImportBodySchema), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
