@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { normalizeEmployeeName } from '../utils/normalize.js';
 import { requireAuth, requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody, validateParams } from '../validation/middleware.js';
+import { EmployeeCreateSchema, EmployeeUpdateSchema, EmployeeIdParamSchema } from '../validation/schemas/employees.js';
 
 const prisma = new PrismaClient();
 export const employeesCrudRouter = Router();
@@ -11,7 +13,11 @@ export const employeesCrudRouter = Router();
  * POST /api/employees
  * Create a new employee
  */
-employeesCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+employeesCrudRouter.post('/', 
+  requireAuth, 
+  requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
+  validateBody(EmployeeCreateSchema),
+  async (req, res) => {
   try {
     const {
       name,
@@ -51,10 +57,6 @@ employeesCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_M
       resignationDate,
       resignationReason
     } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ error: 'Name is required' });
-    }
 
     const normalizedName = normalizeEmployeeName(name);
 
@@ -120,7 +122,12 @@ employeesCrudRouter.post('/', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_M
  * PUT /api/employees/:id
  * Update an employee
  */
-employeesCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+employeesCrudRouter.put('/:id', 
+  requireAuth, 
+  requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
+  validateParams(EmployeeIdParamSchema),
+  validateBody(EmployeeUpdateSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -237,7 +244,11 @@ employeesCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE
  * DELETE /api/employees/:id
  * Delete an employee
  */
-employeesCrudRouter.delete('/:id', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+employeesCrudRouter.delete('/:id', 
+  requireAuth, 
+  requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
+  validateParams(EmployeeIdParamSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
 

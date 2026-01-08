@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, requireRole, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody, validateParams } from '../validation/middleware.js';
+import { UserCreateSchema, UserUpdateSchema, UserIdParamSchema } from '../validation/schemas/users.js';
 
 const prisma = new PrismaClient();
 export const usersRouter = Router();
@@ -43,7 +45,11 @@ usersRouter.get('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (re
 });
 
 // GET /api/users/:id - Get a specific user (ADMIN+ only)
-usersRouter.get('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+usersRouter.get('/:id', 
+  requireAuth, 
+  requireRole('ADMIN', 'SUPER_ADMIN'),
+  validateParams(UserIdParamSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const user = await prisma.user.findUnique({
@@ -178,7 +184,12 @@ usersRouter.post('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (r
 });
 
 // PUT /api/users/:id - Update a user (ADMIN+ only)
-usersRouter.put('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+usersRouter.put('/:id', 
+  requireAuth, 
+  requireRole('ADMIN', 'SUPER_ADMIN'),
+  validateParams(UserIdParamSchema),
+  validateBody(UserUpdateSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { username, password, email, fullName, systemId, roles, isActive } = req.body;
@@ -309,7 +320,11 @@ usersRouter.put('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async 
 });
 
 // DELETE /api/users/:id - Delete a user (ADMIN+ only, but cannot delete self or SUPER_ADMIN)
-usersRouter.delete('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+usersRouter.delete('/:id', 
+  requireAuth, 
+  requireRole('ADMIN', 'SUPER_ADMIN'),
+  validateParams(UserIdParamSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
 

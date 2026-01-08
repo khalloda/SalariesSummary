@@ -7,48 +7,31 @@ import {
   checkAndSendNotifications,
 } from '../services/notification-scheduler.js';
 import { requireAuth, requireRole } from '../utils/auth.js';
+import { validateBody } from '../validation/middleware.js';
+import {
+  EmailConfigurationSchema,
+  NotificationSettingsSchema,
+} from '../validation/schemas/notifications.js';
 
 const prisma = new PrismaClient();
 
 const notificationsRouter = express.Router();
 
 // Configure email service
-notificationsRouter.post('/email/configure', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+notificationsRouter.post('/email/configure', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), validateBody(EmailConfigurationSchema), async (req, res) => {
   try {
     const { host, port, secure, auth } = req.body;
 
-    // Validate required fields
-    if (!host || !port) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: host and port are required',
-      });
-    }
-
-    if (!auth || !auth.user || !auth.password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: auth.user and auth.password are required',
-      });
-    }
-
-    // Trim and validate values
-    const trimmedHost = String(host).trim();
-    const trimmedUser = String(auth.user).trim();
-    const trimmedPassword = String(auth.password).trim();
-
-    if (!trimmedHost || !trimmedUser || !trimmedPassword) {
-      return res.status(400).json({
-        success: false,
-        error: 'All fields must have non-empty values',
-      });
-    }
+    // Trim values
+    const trimmedHost = host.trim();
+    const trimmedUser = auth.user.trim();
+    const trimmedPassword = auth.password.trim();
 
     try {
       emailService.initialize({
         host: trimmedHost,
-        port: parseInt(String(port)),
-        secure: secure === true,
+        port: port,
+        secure: secure || false,
         auth: {
           user: trimmedUser,
           password: trimmedPassword,
@@ -92,7 +75,7 @@ notificationsRouter.get('/settings', requireAuth, requireRole('ADMIN', 'SUPER_AD
 });
 
 // Update notification settings
-notificationsRouter.post('/settings', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), (req, res) => {
+notificationsRouter.post('/settings', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), validateBody(NotificationSettingsSchema), (req, res) => {
   try {
     const {
       enabled,
@@ -106,11 +89,11 @@ notificationsRouter.post('/settings', requireAuth, requireRole('ADMIN', 'SUPER_A
     const currentSettings = loadNotificationSettings();
     const newSettings = {
       enabled: enabled !== undefined ? enabled : currentSettings.enabled,
-      contractRenewalDays: contractRenewalDays || currentSettings.contractRenewalDays,
-      idExpiryDays: idExpiryDays || currentSettings.idExpiryDays,
-      recipients: recipients || currentSettings.recipients,
-      baseUrl: baseUrl || currentSettings.baseUrl,
-      language: language || currentSettings.language,
+      contractRenewalDays: contractRenewalDays !== undefined ? contractRenewalDays : currentSettings.contractRenewalDays,
+      idExpiryDays: idExpiryDays !== undefined ? idExpiryDays : currentSettings.idExpiryDays,
+      recipients: recipients !== undefined ? recipients : currentSettings.recipients,
+      baseUrl: baseUrl !== undefined ? baseUrl : currentSettings.baseUrl,
+      language: language !== undefined ? language : currentSettings.language,
     };
 
     saveNotificationSettings(newSettings);

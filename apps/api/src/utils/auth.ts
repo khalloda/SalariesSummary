@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient, type User } from '@prisma/client';
+import { AuthUserPayloadSchema } from '../validation/schemas/auth.js';
+import { ZodError } from 'zod';
 
 const prisma = new PrismaClient();
 
@@ -9,19 +11,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_ME_IN_PRODUCTION';
 const JWT_COOKIE_NAME = 'salaries_auth';
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 8; // 8 hours
 
-export type RoleName =
-  | 'HR_PERSONNEL'
-  | 'OFFICE_MANAGER'
-  | 'FINANCE'
-  | 'VIEW_ONLY'
-  | 'ADMIN'
-  | 'SUPER_ADMIN';
-
-export interface AuthUserPayload {
-  id: string;
-  username: string;
-  roles: RoleName[];
-}
+// Re-export RoleName from validation schemas for backward compatibility
+export type { RoleName } from '../validation/schemas/rbac.js';
+export type { AuthUserPayload } from '../validation/schemas/auth.js';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -80,15 +72,29 @@ export async function loadUserWithRoles(userId: string): Promise<AuthUserPayload
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = (req as any).cookies?.[JWT_COOKIE_NAME];
   if (!token) {
+    console.log('[AUTH] No token found in cookies');
     return res.status(401).json({ error: 'Authentication required' });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthUserPayload;
-    req.user = decoded;
+    const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('[AUTH] JWT decoded successfully:', { id: (decoded as any).id, username: (decoded as any).username });
+    
+    // Validate JWT payload structure with Zod
+    const validatedPayload = AuthUserPayloadSchema.parse(decoded);
+    req.user = validatedPayload;
     return next();
-  } catch {
+  } catch (error) {
     clearAuthCookie(res);
+    // Check if it's a validation error or JWT error
+    if (error instanceof ZodError) {
+      console.error('[AUTH] Invalid JWT payload structure:', error.errors);
+      console.error('[AUTH] Decoded token was:', (error as any).input || 'unknown');
+      return res.status(401).json({ error: 'Invalid session token structure' });
+    }
+    if (error instanceof Error) {
+      console.error('[AUTH] JWT verification failed:', error.message);
+    }
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
 }

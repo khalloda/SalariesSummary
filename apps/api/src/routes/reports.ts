@@ -2,6 +2,18 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateQuery } from '../validation/middleware.js';
+import {
+  CategoryTotalsQuerySchema,
+  MonthlySummaryQuerySchema,
+  SalaryChangesQuerySchema,
+  AnnualBonusQuerySchema,
+  EmployeeAnnualQuerySchema,
+  BonusComparisonQuerySchema,
+  ContractRenewalsQuerySchema,
+  QuickStatsQuerySchema,
+  AdditionsDeductionsQuerySchema,
+} from '../validation/schemas/reports.js';
 
 const prisma = new PrismaClient();
 export const reportsRouter = Router();
@@ -47,7 +59,10 @@ reportsRouter.get('/available-years', requireAuth, async (req, res) => {
  * GET /api/reports/category-totals?year=YYYY
  * Get totals by category (Partners, Lawyers, Admins, Consultants)
  */
-reportsRouter.get('/category-totals', requireAuth, async (req, res) => {
+reportsRouter.get('/category-totals', 
+  requireAuth,
+  validateQuery(CategoryTotalsQuerySchema),
+  async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -290,7 +305,10 @@ reportsRouter.get('/joiners-leavers', requireAuth, async (req, res) => {
  * GET /api/reports/salary-changes?year=YYYY
  * Get salary changes report
  */
-reportsRouter.get('/salary-changes', requireAuth, async (req, res) => {
+reportsRouter.get('/salary-changes', 
+  requireAuth,
+  validateQuery(SalaryChangesQuerySchema),
+  async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -357,7 +375,10 @@ reportsRouter.get('/salary-changes', requireAuth, async (req, res) => {
  * GET /api/reports/annual-bonus?year=YYYY&includeConsultants=true|false
  * Get annual bonus report data
  */
-reportsRouter.get('/annual-bonus', requireAuth, async (req, res) => {
+reportsRouter.get('/annual-bonus', 
+  requireAuth,
+  validateQuery(AnnualBonusQuerySchema),
+  async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     const includeConsultants = req.query.includeConsultants === 'true' || req.query.includeConsultants === undefined;
@@ -828,7 +849,10 @@ reportsRouter.get('/bonus-incentive-analysis', requireAuth, async (req, res) => 
  * GET /api/reports/monthly-summary?year=YYYY
  * Get monthly summary report
  */
-reportsRouter.get('/monthly-summary', requireAuth, async (req, res) => {
+reportsRouter.get('/monthly-summary', 
+  requireAuth,
+  validateQuery(MonthlySummaryQuerySchema),
+  async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -954,7 +978,10 @@ reportsRouter.get('/monthly-summary', requireAuth, async (req, res) => {
  * GET /api/reports/additions-deductions-breakdown?year=YYYY
  * Get additions and deductions breakdown report
  */
-reportsRouter.get('/additions-deductions-breakdown', requireAuth, async (req, res) => {
+reportsRouter.get('/additions-deductions-breakdown', 
+  requireAuth,
+  validateQuery(AdditionsDeductionsQuerySchema),
+  async (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     
@@ -1285,7 +1312,10 @@ reportsRouter.get('/employee-tenure', requireAuth, async (req, res) => {
  * Get contract renewal report with filtering options
  * Query params: year, month, category, hideRenewed
  */
-reportsRouter.get('/contract-renewals', requireAuth, async (req, res) => {
+reportsRouter.get('/contract-renewals', 
+  requireAuth,
+  validateQuery(ContractRenewalsQuerySchema),
+  async (req, res) => {
   try {
     const year = req.query.year ? parseInt(req.query.year as string) : null;
     const month = req.query.month ? parseInt(req.query.month as string) : null;

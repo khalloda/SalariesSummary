@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
 import { requireAuth, requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody, validateParams } from '../validation/middleware.js';
+import { ContractCreateSchema, ContractUpdateSchema, ContractIdParamSchema } from '../validation/schemas/contracts.js';
 
 const prisma = new PrismaClient();
 export const contractsCrudRouter = Router();
@@ -128,7 +131,10 @@ contractsCrudRouter.get('/', requireAuth, async (req, res) => {
  * GET /api/contracts/:id
  * Get a single contract record
  */
-contractsCrudRouter.get('/:id', requireAuth, async (req, res) => {
+contractsCrudRouter.get('/:id', 
+  requireAuth,
+  validateParams(ContractIdParamSchema),
+  async (req, res) => {
   try {
     const contract = await prisma.contractRecord.findUnique({
       where: { id: req.params.id },
@@ -231,7 +237,11 @@ contractsCrudRouter.put('/:id', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE
  * DELETE /api/contracts/:id
  * Delete a contract record
  */
-contractsCrudRouter.delete('/:id', requireAuth, requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+contractsCrudRouter.delete('/:id', 
+  requireAuth, 
+  requireRole('OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
+  validateParams(ContractIdParamSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
 

@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
 import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody, validateParams } from '../validation/middleware.js';
+import { SalaryCreateSchema, SalaryUpdateSchema, SalaryIdParamSchema } from '../validation/schemas/salaries.js';
 
 const prisma = new PrismaClient();
 export const salariesCrudRouter = Router();
@@ -10,7 +13,10 @@ export const salariesCrudRouter = Router();
  * POST /api/salaries
  * Create a new salary record
  */
-salariesCrudRouter.post('/', requireAuth, async (req, res) => {
+salariesCrudRouter.post('/', 
+  requireAuth,
+  validateBody(SalaryCreateSchema),
+  async (req, res) => {
   try {
     const {
       employeeId,
@@ -190,7 +196,10 @@ salariesCrudRouter.get('/', requireAuth, async (req, res) => {
  * GET /api/salaries/:id
  * Get a single salary record
  */
-salariesCrudRouter.get('/:id', requireAuth, async (req, res) => {
+salariesCrudRouter.get('/:id', 
+  requireAuth,
+  validateParams(SalaryIdParamSchema),
+  async (req, res) => {
   try {
     const salary = await prisma.salaryRecord.findUnique({
       where: { id: req.params.id },
@@ -235,7 +244,11 @@ salariesCrudRouter.get('/:id', requireAuth, async (req, res) => {
  * PUT /api/salaries/:id
  * Update a salary record
  */
-salariesCrudRouter.put('/:id', requireAuth, async (req, res) => {
+salariesCrudRouter.put('/:id', 
+  requireAuth,
+  validateParams(SalaryIdParamSchema),
+  validateBody(SalaryUpdateSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -343,7 +356,10 @@ salariesCrudRouter.put('/:id', requireAuth, async (req, res) => {
  * DELETE /api/salaries/:id
  * Delete a salary record
  */
-salariesCrudRouter.delete('/:id', requireAuth, async (req, res) => {
+salariesCrudRouter.delete('/:id', 
+  requireAuth,
+  validateParams(SalaryIdParamSchema),
+  async (req, res) => {
   try {
     const { id } = req.params;
 

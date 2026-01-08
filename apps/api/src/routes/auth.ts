@@ -10,17 +10,15 @@ import {
   requireAuth,
 } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody } from '../validation/middleware.js';
+import { LoginRequestSchema } from '../validation/schemas/auth.js';
 
 const prisma = new PrismaClient();
 export const authRouter = Router();
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', validateBody(LoginRequestSchema), async (req, res) => {
   try {
-    const { username, password } = req.body ?? {};
-
-    if (!username || !password) {
-      return res.status(400).json({ error: 'username and password are required' });
-    }
+    const { username, password } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { username },

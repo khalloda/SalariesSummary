@@ -1,6 +1,10 @@
 console.log('📦 Starting API server...');
 console.log('📦 Loading dependencies...');
 
+// Validate environment variables first (fail fast if invalid)
+import { env } from './validation/env.js';
+console.log('✅ Environment variables validated');
+
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -33,7 +37,7 @@ import { startNotificationScheduler } from './services/cron-scheduler.js';
 console.log('📦 Routes loaded successfully');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = env.PORT;
 
 // CORS configuration - allow salaries.local
 const corsOptions = {

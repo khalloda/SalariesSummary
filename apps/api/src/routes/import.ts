@@ -12,6 +12,18 @@ import { importResigned } from '../services/resigned-import-service.js';
 import XLSX from 'xlsx';
 import { requireAuth, requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody } from '../validation/middleware.js';
+import {
+  SalaryConflictResolutionsSchema,
+  EmployeeConflictResolutionsSchema,
+  ContractConflictResolutionsSchema,
+  PersonnelConflictResolutionsSchema,
+  ResignedConflictResolutionsSchema,
+  MergeDuplicatesSchema,
+  ManualMergeSchema,
+  CreateResignedCandidatesSchema,
+  BonusImportBodySchema,
+} from '../validation/schemas/imports.js';
 
 export const importRouter = Router();
 const prisma = new PrismaClient();
@@ -209,9 +221,9 @@ importRouter.get('/preview-duplicates', requireAuth, requireRole('HR_PERSONNEL',
  * Merge duplicate employees based on normalized names
  * Body (optional): { selectedPairs: Array<{employee1Id: string, employee2Id: string}> }
  */
-importRouter.post('/merge-duplicates', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+importRouter.post('/merge-duplicates', requireAuth, requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), validateBody(MergeDuplicatesSchema), async (req, res) => {
   try {
-    const { selectedPairs } = req.body || {};
+    const { selectedPairs } = req.body;
     console.log('Merge duplicates request received', selectedPairs ? `with ${selectedPairs.length} selected pairs` : 'all pairs');
     
     if (selectedPairs && Array.isArray(selectedPairs) && selectedPairs.length > 0) {
@@ -279,16 +291,9 @@ importRouter.post('/merge-duplicates', requireAuth, requireRole('HR_PERSONNEL', 
  *   }>
  * }
  */
-importRouter.post('/resolve-conflicts', async (req, res) => {
+importRouter.post('/resolve-conflicts', requireAuth, validateBody(SalaryConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
-    
-    if (!resolutions || !Array.isArray(resolutions)) {
-      return res.status(400).json({
-        success: false,
-        error: 'resolutions array is required'
-      });
-    }
     
     console.log(`Resolving ${resolutions.length} conflicts`);
     
@@ -386,16 +391,9 @@ importRouter.post('/resolve-conflicts', async (req, res) => {
  *   }>
  * }
  */
-importRouter.post('/resolve-employee-conflicts', async (req, res) => {
+importRouter.post('/resolve-employee-conflicts', requireAuth, validateBody(EmployeeConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
-    
-    if (!resolutions || !Array.isArray(resolutions)) {
-      return res.status(400).json({
-        success: false,
-        error: 'resolutions array is required'
-      });
-    }
     
     console.log(`Resolving ${resolutions.length} employee conflicts`);
     
@@ -471,16 +469,9 @@ importRouter.post('/resolve-employee-conflicts', async (req, res) => {
  *   }>
  * }
  */
-importRouter.post('/resolve-contract-conflicts', async (req, res) => {
+importRouter.post('/resolve-contract-conflicts', requireAuth, validateBody(ContractConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
-    
-    if (!resolutions || !Array.isArray(resolutions)) {
-      return res.status(400).json({
-        success: false,
-        error: 'resolutions array is required'
-      });
-    }
     
     console.log(`Resolving ${resolutions.length} contract conflicts`);
     
@@ -569,16 +560,9 @@ importRouter.post('/resolve-contract-conflicts', async (req, res) => {
  *   }>
  * }
  */
-importRouter.post('/resolve-personnel-conflicts', async (req, res) => {
+importRouter.post('/resolve-personnel-conflicts', requireAuth, validateBody(PersonnelConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
-    
-    if (!resolutions || !Array.isArray(resolutions)) {
-      return res.status(400).json({
-        success: false,
-        error: 'resolutions array is required'
-      });
-    }
     
     console.log(`Resolving ${resolutions.length} personnel conflicts`);
     
@@ -669,16 +653,9 @@ importRouter.post('/resolve-personnel-conflicts', async (req, res) => {
  * Manually merge specific employees into a target employee
  * Body: { targetEmployeeId: string, employeeIdsToMerge: string[] }
  */
-importRouter.post('/manual-merge', async (req, res) => {
+importRouter.post('/manual-merge', requireAuth, validateBody(ManualMergeSchema), async (req, res) => {
   try {
     const { targetEmployeeId, employeeIdsToMerge } = req.body;
-    
-    if (!targetEmployeeId || !employeeIdsToMerge || !Array.isArray(employeeIdsToMerge)) {
-      return res.status(400).json({
-        success: false,
-        error: 'targetEmployeeId and employeeIdsToMerge (array) are required'
-      });
-    }
     
     console.log(`Manual merge request: merging ${employeeIdsToMerge.length} employees into ${targetEmployeeId}`);
     const { manualMergeEmployees } = await import('../scripts/manual-merge.js');
@@ -1025,16 +1002,9 @@ importRouter.post('/resigned/upload', upload.single('file'), async (req, res) =>
  *   }>
  * }
  */
-importRouter.post('/resigned/create-candidates', async (req, res) => {
+importRouter.post('/resigned/create-candidates', requireAuth, validateBody(CreateResignedCandidatesSchema), async (req, res) => {
   try {
     const { candidates } = req.body;
-    
-    if (!candidates || !Array.isArray(candidates) || candidates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'candidates array is required and must not be empty'
-      });
-    }
 
     console.log(`Creating ${candidates.length} candidate employees from Resigned sheet`);
 
@@ -1171,16 +1141,9 @@ importRouter.post('/resigned/create-candidates', async (req, res) => {
  *   }>
  * }
  */
-importRouter.post('/resigned/resolve-conflicts', async (req, res) => {
+importRouter.post('/resigned/resolve-conflicts', requireAuth, validateBody(ResignedConflictResolutionsSchema), async (req, res) => {
   try {
     const { resolutions } = req.body;
-    
-    if (!resolutions || !Array.isArray(resolutions)) {
-      return res.status(400).json({
-        success: false,
-        error: 'resolutions array is required'
-      });
-    }
 
     console.log(`Resolving ${resolutions.length} resigned import conflicts`);
 
@@ -1352,7 +1315,7 @@ importRouter.post('/employees/upload', upload.single('file'), async (req, res) =
  * POST /api/import/bonus/import
  * Import bonus data from uploaded file and selected sheet
  */
-importRouter.post('/bonus/import', upload.single('file'), async (req, res) => {
+importRouter.post('/bonus/import', requireAuth, upload.single('file'), validateBody(BonusImportBodySchema), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -1360,14 +1323,7 @@ importRouter.post('/bonus/import', upload.single('file'), async (req, res) => {
 
     const { sheetName, year } = req.body;
     
-    if (!sheetName) {
-      return res.status(400).json({ error: 'Sheet name is required' });
-    }
-
-    const yearNum = parseInt(year || String(new Date().getFullYear()));
-    if (isNaN(yearNum)) {
-      return res.status(400).json({ error: 'Valid year is required' });
-    }
+    const yearNum = year || new Date().getFullYear();
 
     const filePath = req.file.path;
     const fileName = req.file.originalname;

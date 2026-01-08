@@ -1,3 +1,8 @@
+**Last Updated**: 2025-01-27  
+**Recent Updates**: Comprehensive Zod validation implementation completed across all backend API endpoints (see Section 10: Security Considerations for details).
+
+---
+
 ## 1. System Overview
 
 - **Purpose of the application**
@@ -53,6 +58,7 @@
   - `puppeteer` for server-side HTML→PDF generation.
   - `xlsx` (SheetJS) / `ExcelJS` for Excel parsing and generation.
   - `@prisma/client` with Prisma ORM.
+  - ✅ `zod` for runtime validation and type-safe schema validation (v4.3.5).
 
 - **Architecture style**
   - Express with:
@@ -204,10 +210,11 @@
 
 - **Authentication method**
   - **HTTP-only cookie-based JWT sessions**:
-    - `POST /api/auth/login` accepts `username` and `password`, validates against `User` table, sets HTTP-only cookie `salaries_auth` with JWT token.
+    - `POST /api/auth/login` accepts `username` and `password`, validates request body with Zod (`LoginRequestSchema`), validates against `User` table, sets HTTP-only cookie `salaries_auth` with JWT token.
     - `POST /api/auth/logout` clears the auth cookie.
     - `GET /api/auth/me` returns current authenticated user and roles.
     - JWT tokens expire after 8 hours (configurable via `JWT_EXPIRES_IN_SECONDS`).
+    - ✅ **JWT payload validation**: All JWT tokens are validated with `AuthUserPayloadSchema` using Zod, ensuring token structure integrity at runtime.
     - Password hashing uses `bcrypt` with salt rounds of 10.
     - All API routes (except `/api/health`) require authentication via `requireAuth` middleware.
 
@@ -716,11 +723,33 @@
 ## 10. Security Considerations
 
 - **Input validation approach**
-  - Basic validation:
-    - Required fields in CRUD endpoints (e.g. employeeId, year, month).
-    - Type casting via `parseInt`/`parseFloat`/`parseNumeric`.
-    - Import endpoints validate presence of files and some structural sanity (e.g. no sheets found).
-  - There is **no centralized validation layer** or schema-level validation (e.g. `zod`, `Joi`).
+  - ✅ **Comprehensive Zod-based validation implemented**:
+    - All API endpoints now have request body, query parameter, and path parameter validation using Zod schemas.
+    - Centralized validation middleware (`validateBody`, `validateQuery`, `validateParams`) applied across all routes.
+    - Type-safe validation with TypeScript inference.
+    - Standardized error responses with field-level error messages.
+  - **Validation coverage**:
+    - Environment variables validated on application startup.
+    - JWT payload validation with runtime checks.
+    - All CRUD operations validated (employees, salaries, contracts, bonuses, users).
+    - All report query parameters validated.
+    - All export request bodies validated.
+    - All import conflict resolution endpoints validated.
+    - Notification settings and email configuration validated.
+  - **Business logic validation**:
+    - Salary: Gross >= Net validation enforced.
+    - Bonus: FirstHalf + SecondHalf ≈ Amount validation.
+    - Contracts: EmployeeId OR EmployeeName required.
+    - Dates, years, months: Range validation (e.g., year 2000-2100, month 1-12).
+    - Email format validation for recipients.
+    - URL validation for baseUrl.
+    - Port range validation (1-65535).
+    - Reminder days validation (1-365).
+  - **Type casting and coercion**:
+    - Automatic type coercion for query parameters (string to number, boolean).
+    - Date coercion for date fields.
+    - CUID validation for all ID parameters.
+    - Numeric validation (non-negative, ranges).
 
 - **SQL injection protection**
   - Prisma ORM is used for DB access; no raw SQL strings.
@@ -744,18 +773,21 @@
   - **Authentication/Authorization**:
     - ✅ Authentication is now implemented with JWT-based sessions.
     - ✅ Role-based access control (RBAC) is enforced on all routes.
-    - ⚠️ JWT secret must be set via environment variable in production (defaults to insecure value).
+    - ✅ JWT payload validation with Zod ensures token structure integrity.
+    - ✅ Environment variables validated on startup (including JWT_SECRET validation).
+    - ⚠️ JWT secret must be set via environment variable in production (validated on startup, but defaults to insecure value if not set).
     - ⚠️ No CSRF protection for state-changing operations (relies on same-origin policy and CORS).
-    - ⚠️ Password complexity not enforced programmatically.
+    - ⚠️ Password complexity not enforced programmatically (though password length and format are validated via Zod schemas).
   - **Overpowered endpoints** (now protected):
     - ✅ `/api/import/clear` requires `SUPER_ADMIN` role.
-    - ✅ `/resolve-*` endpoints require appropriate roles and are audited.
-    - ⚠️ Bulk operations still exist but are now role-restricted and audited.
+    - ✅ `/resolve-*` endpoints require appropriate roles, are audited, and have request body validation.
+    - ✅ Bulk operations are role-restricted, audited, and have request body validation.
   - **File uploads**:
     - `multer` used with file-size limits, but:
       - File type is filtered only by extension in some flows.
       - Excel parsing does not sandbox formulas; although `xlsx` is used, there is still exposure to resource exhaustion via large or malformed files.
       - Upload endpoints now require authentication and appropriate roles.
+      - ✅ Import request bodies (conflict resolutions, merge operations) are validated with Zod schemas.
   - **Error responses**:
     - Some endpoints conditionally include `stack` in responses when `NODE_ENV === 'development'`; in production, stack is hidden, but this relies on proper environment configuration.
   - **Sensitive data handling** (improved):
@@ -805,9 +837,17 @@
 ## 12. Configuration & Environment
 
 - **Environment variables**
-  - `PORT` for API server.
-  - `NODE_ENV` used to control whether stack traces are returned in error responses.
-  - `VITE_API_URL` used by frontend to override default `/api` base URL in production builds.
+  - ✅ **Environment variable validation implemented**:
+    - All environment variables are validated on application startup using Zod (`envSchema`).
+    - Application fails fast with clear error messages if required environment variables are missing or invalid.
+    - Validated variables include: `PORT`, `NODE_ENV`, `JWT_SECRET`, `CORS_ORIGIN`, `DATABASE_URL` (optional), and SMTP configuration (optional).
+  - **Environment variables**:
+    - `PORT` for API server (validated as positive integer).
+    - `NODE_ENV` used to control whether stack traces are returned in error responses (validated as enum: 'development' | 'production' | 'test').
+    - `JWT_SECRET` for JWT token signing (validated as string with minimum length, warns if using default value).
+    - `CORS_ORIGIN` for CORS configuration (validated as URL or comma-separated URLs).
+    - `VITE_API_URL` used by frontend to override default `/api` base URL in production builds.
+    - SMTP configuration (optional): `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_SECURE`, `EMAIL_USER`, `EMAIL_PASSWORD`.
 
 - **Hard-coded values**
   - CORS origins:
@@ -845,8 +885,11 @@
   - Mixed responsibilities:
     - Some routes construct domain logic and data formatting (e.g., employing heavy in-route aggregation).
     - Some services directly talk to the DB and also handle reporting concerns.
-  - Heavy use of `any` and `Record<string, any>` in TypeScript:
-    - Reduces type safety and maintainability.
+  - ✅ **Type safety improvements**:
+    - Zod validation implementation has significantly improved type safety across API endpoints.
+    - Request bodies, query parameters, and path parameters are now type-safe with TypeScript inference.
+    - Reduced use of `any` types in validated request/response handling.
+    - Some legacy code still uses `any` and `Record<string, any>` in service layers and internal utilities, but API boundaries are now type-safe.
 
 - **Code smells**
   - Repeated logic for:
@@ -1423,7 +1466,11 @@ Any functionality in these areas would require substantial new code and is not p
       - Salary parsing.
       - Reports.
   - Some scripts under `scripts/` and `docs` are used for **manual analysis and schema discovery**, not as formal tests.
-  - **Conclusion**: There is no evidence of automated tests for the core payroll logic in the current codebase.**
+  - ✅ **Validation testing**:
+    - Zod schemas provide runtime validation that acts as a form of contract testing.
+    - Invalid inputs are automatically rejected with clear error messages.
+    - Type safety is enforced at both compile-time (TypeScript) and runtime (Zod).
+  - **Conclusion**: There is no evidence of comprehensive automated test suites for the core payroll logic in the current codebase, but input validation provides a layer of runtime contract enforcement.**
 
 - **Whether verification is manual**
   - Docs (e.g., `DATA_PARSING.md`, `schema_discovery.md`, analysis scripts) indicate:

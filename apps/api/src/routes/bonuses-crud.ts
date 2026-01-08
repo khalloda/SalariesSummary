@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody, validateParams } from '../validation/middleware.js';
+import { BonusCreateSchema, BonusUpdateSchema, BonusIdParamSchema } from '../validation/schemas/bonuses.js';
 
 const prisma = new PrismaClient();
 export const bonusesCrudRouter = Router();
@@ -10,7 +12,10 @@ export const bonusesCrudRouter = Router();
  * POST /api/bonuses
  * Create a new annual bonus record
  */
-bonusesCrudRouter.post('/', requireAuth, async (req, res) => {
+bonusesCrudRouter.post('/', 
+  requireAuth,
+  validateBody(BonusCreateSchema),
+  async (req, res) => {
   try {
     const {
       employeeId,
@@ -21,9 +26,9 @@ bonusesCrudRouter.post('/', requireAuth, async (req, res) => {
       currentYearGross,
       annualIncreaseNet,
       annualIncreaseGross,
-      bonusAmount,
-      bonusFirstHalf,
-      bonusSecondHalf,
+      amount: bonusAmount,
+      firstHalf: bonusFirstHalf,
+      secondHalf: bonusSecondHalf,
       previousYearBonus,
       reflectedInMonths,
       reflectedInPercent,
@@ -32,10 +37,6 @@ bonusesCrudRouter.post('/', requireAuth, async (req, res) => {
       notes,
       sourceFile
     } = req.body;
-
-    if (!employeeId || !year) {
-      return res.status(400).json({ error: 'Employee ID and year are required' });
-    }
 
     const roles = (req.user?.roles ?? []) as RoleName[];
     const canSee = canViewSalaryAmounts(roles);
@@ -184,7 +185,10 @@ bonusesCrudRouter.get('/', requireAuth, async (req, res) => {
  * GET /api/bonuses/:id
  * Get a single bonus record
  */
-bonusesCrudRouter.get('/:id', requireAuth, async (req, res) => {
+bonusesCrudRouter.get('/:id', 
+  requireAuth,
+  validateParams(BonusIdParamSchema),
+  async (req, res) => {
   try {
     const bonus = await prisma.annualBonus.findUnique({
       where: { id: req.params.id },
