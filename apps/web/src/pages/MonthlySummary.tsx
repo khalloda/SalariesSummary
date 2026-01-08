@@ -13,6 +13,7 @@ export default function MonthlySummary() {
   const [loading, setLoading] = useState(true);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [chartMetric, setChartMetric] = useState<'net' | 'gross' | 'basicSalary'>('net');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/reports/available-years`)
@@ -54,9 +55,59 @@ export default function MonthlySummary() {
     employees: month.employeeCount
   }));
 
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/exports/monthly-summary/pdf`,
+        { year, data },
+        { responseType: 'blob' }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Monthly_Summary_${year}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('PDF export error:', error);
+      alert(`Failed to export PDF: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportXLSX = async () => {
+    setExporting(true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/exports/monthly-summary/xlsx`,
+        { year, data },
+        { responseType: 'blob' }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Monthly_Summary_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('XLSX export error:', error);
+      alert(`Failed to export XLSX: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
-    <div className="print:hidden">
-      <div className="flex justify-between items-center mb-4">
+    <div className="print-container">
+      <div className="flex justify-between items-center mb-4 print:hidden">
         <h2 className="text-2xl font-bold">Monthly Summary - {year}</h2>
         <div className="flex items-center space-x-2">
           <select
@@ -72,12 +123,26 @@ export default function MonthlySummary() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <button onClick={handlePrint} className="px-4 py-2 bg-gray-600 text-white rounded">{t('print')}</button>
+          <button onClick={handlePrint} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">{t('print')}</button>
+          <button 
+            onClick={handleExportPDF} 
+            disabled={exporting}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            {exporting ? 'Exporting...' : 'Export PDF'}
+          </button>
+          <button 
+            onClick={handleExportXLSX} 
+            disabled={exporting}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            {exporting ? 'Exporting...' : 'Export XLSX'}
+          </button>
         </div>
       </div>
 
       {/* Chart Controls */}
-      <div className="mb-4 flex items-center space-x-4">
+      <div className="mb-4 flex items-center space-x-4 print:hidden">
         <label className="text-gray-700">Chart Metric:</label>
         <select value={chartMetric} onChange={(e) => setChartMetric(e.target.value as any)} className="border rounded px-3 py-2">
           <option value="net">Net</option>
@@ -87,10 +152,10 @@ export default function MonthlySummary() {
       </div>
 
       {/* Chart */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
+      <div className="bg-white p-4 rounded-lg shadow mb-6 print-chart-section">
         <h3 className="text-xl font-semibold mb-4">Monthly Trends</h3>
-        <div style={{ width: '100%', height: '400px' }}>
-          <ResponsiveContainer>
+        <div style={{ width: '100%', height: '400px', minWidth: 300, minHeight: 400 }}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
@@ -104,7 +169,7 @@ export default function MonthlySummary() {
       </div>
 
       {/* Monthly Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden print-table-section">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

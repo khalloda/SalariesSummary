@@ -20,11 +20,94 @@ model Employee {
   createdAt   DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
+  // SEPEmployees.xlsx fields - Basic Info
+  nameArabic  String?  // الاسم بالعربية
+  jobTitle    String?  // Job Title
+  department  String?  // Department
+  
+  // Dates
+  dateOfBirth DateTime? // Date of Birth
+  joiningDate DateTime? // Joining Date
+  
+  // Education
+  graduationCertificate String? // Graduation - Certificate (Ph.D., Masters, Bachelor, etc.)
+  graduationSection    String? // Graduation - Section (International Business Law, Private Law, etc.)
+  graduationUniversity  String? // Graduation - University / School
+  graduationYear        Int?    // Graduation - Year
+  
+  // Identification Numbers
+  socialInsurance       String? // Social Insurance Number
+  barAssociation        String? // Bar Association Number
+  barAssociationValidTill DateTime? // Bar Association Valid Till
+  barAssociationDegree  String? // درجة القيد (Bar Association Degree)
+  taxCard               String? // Tax Card Number
+  nationalId            String? // National ID Number (from NationalID column)
+  nationalIdValidTill   DateTime? // National ID Valid Till date
+  
+  // Contact Information
+  address               String? // Address Details
+  addressRegion         String? // Region / City
+  addressGovernorate    String? // Governorate
+  extension             String? // Extension
+  mobileNumber          String? // Mobile Number
+  
+  // Employment Details
+  contractType          String? // Contract Type
+  contractDuration      String? // Contract Duration
+  contractRenewalDate   DateTime? // Date of Renewal
+  status                String? // Status (Active, Resigned)
+  
+  // Experience
+  experienceInYears     Int?    // Experience In - Years
+  experienceInMonths    Int?    // Experience In - Months
+  experienceOutYears    Int?    // Experience Out - Years
+  experienceOutMonths   Int?    // Experience Out - Months
+  
+  // Additional metadata (stored as JSON for flexibility)
+  additionalData        String? // JSON string for any other fields
+  
+  // Personnel data (stored as JSON)
+  personnelData         String? // JSON: { criminalRecord, militaryCertificate, idCopy, educationCertificate, birthCertificate, recommendationLetter, personalPhotos, taxCard, associationId, form6, laptopPcTablet, workStub, insuranceStartDate }
+  
+  // Resignation data
+  resignationDate       DateTime? // Date of resignation
+  resignationReason     String? // Reason for resignation
+  
   salaries    SalaryRecord[]
   annualBonuses AnnualBonus[]
+  contractRecords ContractRecord[]
+  personnelRecord PersonnelRecord?
+  resignationRecords ResignationRecord[]
   
   @@index([normalizedName])
   @@index([category])
+  @@index([department])
+  @@index([status])
+  @@index([employeeCode])
+}
+
+model ResignationRecord {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Resignation details
+  resignationDate DateTime
+  jobTitle        String?  // Job title at time of resignation
+  department      String?  // Department at time of resignation
+  category        String?  // Category at time of resignation
+  reason          String?  // Reason for resignation (if available)
+  
+  // Metadata
+  importedFrom    String?  // Source file/sheet
+  importedAt      DateTime @default(now())
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([resignationDate])
 }
 
 model SalaryRecord {
@@ -131,5 +214,136 @@ model AnnualBonus {
   @@index([year])
   @@index([employeeId])
   @@index([year, employeeId])
+}
+
+model ContractRecord {
+  id                String   @id @default(cuid())
+  employeeId        String?
+  employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Contract details
+  employeeName      String?  // Employee name (for matching)
+  employeeCode      String?  // Employee code (for matching)
+  contractDate      DateTime? // Contract/renewal date
+  contractDuration  String?  // Contract Duration (e.g., "Renewal for One Year")
+  comments          String?  // Comments/notes
+  
+  // Metadata
+  sourceFile        String?  // Source file name
+  importedAt        DateTime @default(now())
+  
+  @@index([employeeId])
+  @@index([employeeName])
+  @@index([employeeCode])
+  @@index([contractDate])
+}
+
+model PersonnelRecord {
+  id                    String    @id @default(cuid())
+  employeeId            String   @unique
+  employee              Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Document Status Fields
+  criminalRecord        String?  // 'Present', 'Missing'
+  militaryCertificate   String?  // 'Copy', 'Original', 'N/A', 'Missing'
+  idCopy                Boolean? @default(true)
+  educationCertificate  String?  // 'Copy', 'Original', 'Missing'
+  birthCertificate      String?  // 'Copy', 'Original', 'Missing'
+  recommendationLetter  Boolean? // true = Present, false = Missing
+  personalPhotos        Boolean? // true = Present, false = Missing
+  taxCard               Boolean? // true = Present, false = Missing
+  associationId         Boolean? // true = Present, false = Missing
+  form6                 String?  @default("N/A") // 'N/A', 'Present', 'Missing'
+  
+  // Asset Fields
+  laptopPcTablet        String?  // JSON array: ['Laptop', 'PC', 'Tablet'] or single value for backward compatibility
+  
+  // Other Fields
+  workStub              String?  @default("N/A") // 'N/A', 'Present', 'Missing'
+  insuranceStartDate    DateTime?
+
+  // Metadata
+  importedAt            DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  sourceFile            String?
+  
+  @@index([criminalRecord])
+  @@index([militaryCertificate])
+  @@index([laptopPcTablet])
+  @@index([insuranceStartDate])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String?  @unique
+  passwordHash String
+  fullName     String
+  systemId     String?
+  isActive     Boolean  @default(true)
+
+  roles        UserRole[]
+  auditLogs    AuditLog[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Role {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  description String?
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+
+  roles       RolePermission[]
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role        Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission  Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+
+  action     String
+  resource   String
+  resourceId String?
+  details    String?
+
+  @@index([timestamp])
 }
 

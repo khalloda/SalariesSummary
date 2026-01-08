@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
@@ -7,6 +7,7 @@ import { API_BASE_URL } from '../api/config';
 export default function JoinersLeavers() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,22 @@ export default function JoinersLeavers() {
             {data.joiners.length > 0 ? (
               data.joiners.map((item: any) => (
                 <div key={item.employee.id} className="border-b pb-2">
-                  <p className="font-medium">{item.employee.name}</p>
+                  <p className="font-medium">
+                    <span 
+                      onClick={() => navigate(`/employees/${item.employee.id}`)}
+                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer print:text-black print:no-underline print:cursor-default"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/employees/${item.employee.id}`);
+                        }
+                      }}
+                    >
+                      {item.employee.name}
+                    </span>
+                  </p>
                   <p className="text-sm text-gray-600">Joined in {item.firstMonthName}</p>
                 </div>
               ))
@@ -113,7 +129,22 @@ export default function JoinersLeavers() {
             {data.leavers.length > 0 ? (
               data.leavers.map((item: any) => (
                 <div key={item.employee.id} className="border-b pb-2">
-                  <p className="font-medium">{item.employee.name}</p>
+                  <p className="font-medium">
+                    <span 
+                      onClick={() => navigate(`/employees/${item.employee.id}`)}
+                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer print:text-black print:no-underline print:cursor-default"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/employees/${item.employee.id}`);
+                        }
+                      }}
+                    >
+                      {item.employee.name}
+                    </span>
+                  </p>
                   <p className="text-sm text-gray-600">Left in {item.lastMonthName}</p>
                 </div>
               ))

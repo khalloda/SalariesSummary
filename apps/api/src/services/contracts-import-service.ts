@@ -1,0 +1,435 @@
+/**
+ * Contracts Import Service
+ * Handles importing contract data from SEPEmployees.xlsx - Contracts sheet
+ */
+
+import { PrismaClient } from '@prisma/client';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import * as XLSX from 'xlsx';
+import { normalizeEmployeeName } from '../utils/normalize.js';
+import { compareContractRecords, type ContractData, type ComparisonResult } from '../utils/contract-comparison.js';
+
+const prisma = new PrismaClient();
+
+// Get Sheets directory
+const getSheetsDir = () => {
+  const cwd = process.cwd();
+  if (cwd.endsWith('apps/api') || cwd.endsWith('apps\\api')) {
+    return join(cwd, '..', '..', 'Sheets');
+  }
+  return join(cwd, 'Sheets');
+};
+
+export interface ContractConflictRecord {
+  contractId?: string;
+  employeeId: string | null;
+  employeeName: string | null;
+  employeeCode: string | null;
+  existingRecord: any;
+  incomingRecord: any;
+  comparison: ComparisonResult;
+}
+
+export interface ContractsImportResult {
+  success: boolean;
+  recordsImported: number;
+  recordsUpdated: number;
+  recordsLinked: number;
+  recordsSkipped: number; // 100% identical records
+  recordsWithConflicts: number; // Records needing review
+  errors: string[];
+  conflicts?: ContractConflictRecord[]; // Records that need user review
+}
+
+/**
+ * Parse date from Excel cell value
+ * Handles formats: Date object, ISO string, MM/DD/YYYY, DD-Mon-YY, Excel date codes
+ */
+function parseDate(value: any): Date | null {
+  if (!value) return null;
+  
+  if (value instanceof Date) {
+    return value;
+  }
+  
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    
+    // Try standard Date parsing first
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      // Check if it's a reasonable date (not 1900 or 2000 placeholder)
+      const year = parsed.getFullYear();
+      if (year >= 2000 && year <= 2100) {
+        return parsed;
+      }
+    }
+    
+    // Handle DD-Mon-YY format (e.g., "20-Jan-26", "21-Jul-22")
+    const ddmonyyMatch = trimmed.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/);
+    if (ddmonyyMatch) {
+      const day = parseInt(ddmonyyMatch[1], 10);
+      const monthStr = ddmonyyMatch[2].toLowerCase();
+      let year = parseInt(ddmonyyMatch[3], 10);
+      
+      const monthMap: Record<string, number> = {
+        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+        'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+      };
+      
+      const month = monthMap[monthStr];
+      if (month !== undefined) {
+        // Assume years 00-50 are 2000-2050, 51-99 are 1951-1999
+        year += year < 50 ? 2000 : 1900;
+        
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+    
+    // Handle MM/DD/YYYY format
+    const parts = trimmed.split('/');
+    if (parts.length === 3) {
+      const month = parseInt(parts[0], 10) - 1;
+      const day = parseInt(parts[1], 10);
+      let year = parseInt(parts[2], 10);
+      
+      if (year < 100) {
+        year += year < 50 ? 2000 : 1900;
+      }
+      
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+  }
+  
+  if (typeof value === 'number') {
+    const date = XLSX.SSF.parse_date_code(value);
+    if (date) {
+      const parsedDate = new Date(date.y, date.m - 1, date.d);
+      // Check if it's a reasonable date (not 1900 or 2000 placeholder)
+      if (parsedDate.getFullYear() >= 2000 && parsedDate.getFullYear() <= 2100) {
+        return parsedDate;
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Parse string value
+ */
+function parseString(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' || trimmed === '-' || trimmed === 'N/A' || trimmed === 'Resigned' ? null : trimmed;
+  }
+  return String(value).trim() || null;
+}
+
+/**
+ * Import contracts from SEPEmployees.xlsx
+ */
+export async function importContracts(filePath?: string): Promise<ContractsImportResult> {
+  const result: ContractsImportResult = {
+    success: true,
+    recordsImported: 0,
+    recordsUpdated: 0,
+    recordsLinked: 0,
+    recordsSkipped: 0,
+    recordsWithConflicts: 0,
+    errors: []
+  };
+
+  try {
+    await prisma.$connect();
+
+    const sheetsDir = getSheetsDir();
+    const targetFile = filePath || join(sheetsDir, 'SEPEmployees.xlsx');
+
+    if (!existsSync(targetFile)) {
+      result.success = false;
+      result.errors.push(`File not found: ${targetFile}`);
+      return result;
+    }
+
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`Importing Contracts sheet from: ${targetFile}`);
+    console.log('='.repeat(60));
+
+    const data = readFileSync(targetFile);
+    const workbook = XLSX.read(data, {
+      type: 'buffer',
+      cellDates: true,
+      cellFormula: false,
+      cellStyles: false,
+      cellNF: false,
+      cellText: false
+    });
+
+    if (!workbook.SheetNames.includes('Contracts')) {
+      result.success = false;
+      result.errors.push(`Sheet "Contracts" not found. Available sheets: ${workbook.SheetNames.join(', ')}`);
+      return result;
+    }
+
+    const worksheet = workbook.Sheets['Contracts'];
+    const rawData = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      raw: false,
+      defval: null
+    }) as any[][];
+
+    if (rawData.length < 2) {
+      result.success = false;
+      result.errors.push('Sheet has insufficient data');
+      return result;
+    }
+
+    // Headers are in row 0
+    const headers = (rawData[0] || []) as any[];
+    const nameColIdx = headers.findIndex((h: any) => h && String(h).trim().toLowerCase() === 'name');
+    const contractDurationColIdx = headers.findIndex((h: any) => h && String(h).trim().toLowerCase().includes('contract duration'));
+    const commentsColIdx = headers.findIndex((h: any) => h && String(h).trim().toLowerCase() === 'comments');
+
+    console.log(`Found columns: Name=${nameColIdx}, Contract Duration=${contractDurationColIdx}, Comments=${commentsColIdx}`);
+    console.log(`Processing ${rawData.length - 1} data rows...\n`);
+
+    // Track current employee info across rows (contracts are grouped by employee)
+    let currentEmployeeCode: string | null = null;
+    let currentEmployeeName: string | null = null;
+    let currentEmployee: any = null;
+
+    // Process data rows (starting from row 1)
+    for (let i = 1; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (!row || row.every(cell => !cell || cell === '')) {
+        continue;
+      }
+
+      try {
+        // Get values from columns A, B, C, D directly
+        // Column A (index 0): "From" date or employee code
+        // Column B (index 1): "To" date or employee name
+        // Column C (index 2): "Contract Duration"
+        // Column D (index 3): "Comments"
+        const columnA = row[0];
+        const columnB = row[1];
+        const contractDuration = contractDurationColIdx >= 0 ? parseString(row[contractDurationColIdx]) : null;
+        const comments = commentsColIdx >= 0 ? parseString(row[commentsColIdx]) : null;
+
+        // Check if column A contains an employee code (e.g., "3-1", "2-4")
+        // This indicates the start of a new employee's contract section
+        const columnAStr = columnA ? String(columnA).trim() : '';
+        const isEmployeeRow = /^\d+-\d+/.test(columnAStr);
+        
+        if (isEmployeeRow) {
+          // This is an employee identifier row
+          currentEmployeeCode = columnAStr;
+          currentEmployeeName = columnB ? String(columnB).trim() : null;
+          
+          // Try to find the employee in the database
+          currentEmployee = await prisma.employee.findFirst({
+            where: { employeeCode: currentEmployeeCode }
+          });
+          
+          if (!currentEmployee && currentEmployeeName) {
+            const normalizedName = normalizeEmployeeName(currentEmployeeName);
+            currentEmployee = await prisma.employee.findUnique({
+              where: { normalizedName }
+            });
+          }
+          
+          if (i <= 5) {
+            console.log(`  📋 Row ${i + 1}: Found employee ${currentEmployeeCode} - ${currentEmployeeName || 'N/A'} ${currentEmployee ? `(Linked)` : '(Not found in DB)'}`);
+          }
+          
+          // Check if there's a date in the Comments column (sometimes the latest renewal date is here)
+          // This is informational - we'll use individual contract dates from the records below
+          continue; // Move to next row (contract records follow)
+        }
+        
+        // This is a contract record row
+        // Skip if no contract duration (empty rows or header rows like "From"/"To")
+        if (!contractDuration) {
+          // Skip rows that are just headers or separators
+          if (columnAStr === 'From' || columnAStr === 'Resigned' || columnAStr === '') {
+            continue;
+          }
+          // If we have dates but no duration, it might be a valid record - continue processing
+        }
+        
+        // Parse contract dates from columns A ("From") and B ("To")
+        // Use "To" date as the contract date (renewal/end date)
+        let contractDate: Date | null = null;
+        const dateFromA = parseDate(columnA); // "From" date
+        const dateFromB = parseDate(columnB); // "To" date
+        
+        // Prefer "To" date as it represents when the contract ends/renews
+        contractDate = dateFromB || dateFromA;
+        
+        // If we still don't have a contract date, check comments
+        if (!contractDate && comments) {
+          const dateFromComments = parseDate(comments);
+          if (dateFromComments) {
+            contractDate = dateFromComments;
+          }
+        }
+        
+        // Check for existing contract record
+        // Try to find by employeeId + contractDate + contractDuration
+        let existingContract = null;
+        if (currentEmployee?.id && contractDate) {
+          existingContract = await prisma.contractRecord.findFirst({
+            where: {
+              employeeId: currentEmployee.id,
+              contractDate: contractDate,
+              contractDuration: contractDuration || null
+            }
+          });
+        }
+
+        const contractData: ContractData = {
+          employeeId: currentEmployee?.id || null,
+          employeeName: currentEmployeeName,
+          employeeCode: currentEmployeeCode,
+          contractDate,
+          contractDuration: contractDuration || null,
+          comments
+        };
+
+        if (existingContract) {
+          // Compare existing contract with incoming contract
+          const existingData: ContractData = {
+            employeeId: existingContract.employeeId,
+            employeeName: existingContract.employeeName,
+            employeeCode: existingContract.employeeCode,
+            contractDate: existingContract.contractDate,
+            contractDuration: existingContract.contractDuration,
+            comments: existingContract.comments
+          };
+
+          const comparison = compareContractRecords(existingData, contractData);
+
+          if (comparison.isIdentical) {
+            // 100% identical - skip this record
+            result.recordsSkipped++;
+            console.log(`  ⏭️  Skipped identical contract for ${currentEmployeeName || currentEmployeeCode} (${contractDate ? contractDate.toISOString().split('T')[0] : 'No date'})`);
+          } else {
+            // Different - add to conflicts for user review
+            if (!result.conflicts) {
+              result.conflicts = [];
+            }
+            result.conflicts.push({
+              contractId: existingContract.id,
+              employeeId: currentEmployee?.id || null,
+              employeeName: currentEmployeeName,
+              employeeCode: currentEmployeeCode,
+              existingRecord: existingContract,
+              incomingRecord: {
+                ...contractData,
+                sourceFile: 'SEPEmployees.xlsx'
+              },
+              comparison
+            });
+            result.recordsWithConflicts++;
+            console.log(`  ⚠️  Conflict detected for ${currentEmployeeName || currentEmployeeCode}: ${comparison.similarity}% similar`);
+          }
+        } else {
+          // New contract - import it
+          await prisma.contractRecord.create({
+            data: {
+              ...contractData,
+              sourceFile: 'SEPEmployees.xlsx'
+            }
+          });
+          
+          if (currentEmployee) {
+            result.recordsLinked++;
+          }
+          
+          result.recordsImported++;
+          if (result.recordsImported <= 5) {
+            console.log(`  ✅ Row ${i + 1}: Imported ${contractDuration || 'N/A'} ${contractDate ? `(Date: ${contractDate.toISOString().split('T')[0]})` : '(No date)'} ${currentEmployee ? `(Linked to ${currentEmployee.name})` : `(Employee: ${currentEmployeeCode || 'N/A'})`}`);
+          }
+        }
+
+      } catch (error: any) {
+        const errorMsg = error.message || 'Unknown error';
+        console.error(`  ❌ Error processing row ${i + 1}:`, errorMsg);
+        result.errors.push(`Row ${i + 1}: ${errorMsg}`);
+      }
+    }
+
+    // After all contracts are imported, update employees with their latest contract renewal date
+    console.log('\nUpdating employees with latest contract renewal dates...');
+    const allEmployees = await prisma.employee.findMany({
+      where: {
+        contractRecords: {
+          some: {
+            contractDate: { not: null }
+          }
+        }
+      },
+      include: {
+        contractRecords: {
+          where: {
+            contractDate: { not: null }
+          },
+          orderBy: { contractDate: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    for (const employee of allEmployees) {
+      if (employee.contractRecords.length > 0) {
+        const latestContract = employee.contractRecords[0];
+        await prisma.employee.update({
+          where: { id: employee.id },
+          data: {
+            contractDuration: latestContract.contractDuration,
+            contractRenewalDate: latestContract.contractDate
+          }
+        });
+        result.recordsUpdated++;
+        if (result.recordsUpdated <= 5) {
+          console.log(`  ✅ Updated ${employee.name}: Renewal Date = ${latestContract.contractDate?.toISOString().split('T')[0] || 'N/A'}`);
+        }
+      }
+    }
+
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`Import Summary:`);
+    console.log(`  Created: ${result.recordsImported}`);
+    console.log(`  Linked to Employees: ${result.recordsLinked}`);
+    console.log(`  Updated Employees: ${result.recordsUpdated}`);
+    console.log(`  Errors: ${result.errors.length}`);
+    console.log('='.repeat(60) + '\n');
+
+  } catch (error: any) {
+    result.success = false;
+    const errorMsg = error.message || 'Unknown error';
+    console.error('Fatal import error:', errorMsg);
+    if (error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
+    result.errors.push(`Fatal error: ${errorMsg}`);
+  } finally {
+    try {
+      await prisma.$disconnect();
+    } catch (disconnectError: any) {
+      console.error('Error disconnecting from database:', disconnectError.message);
+    }
+  }
+
+  return result;
+}
+

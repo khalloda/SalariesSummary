@@ -181,7 +181,38 @@ export async function parseBonusSheet(
       `current vs ${currentYearStr} gross`, `إجمالي الحالي مقابل ${currentYearStr}`
     ]);
     
-    // Bonus columns - previous year and current year
+    // Detect ALL bonus year columns in the sheet (not just current/previous year)
+    // This allows importing multiple years from the same sheet
+    const bonusYearColumns: Map<number, { total?: number; firstHalf?: number; secondHalf?: number }> = new Map();
+    
+    // Scan all header columns to find bonus columns for any year
+    for (let i = 0; i < headerRow.length; i++) {
+      const cell = getCellValue(headerRow, i);
+      const cellStr = String(cell || '').toLowerCase();
+      
+      // Match patterns like "bonus 2024", "bonus 2023", "علاوة 2024", etc.
+      const bonusMatch = cellStr.match(/bonus\s*(\d{4})|علاوة\s*(\d{4})/);
+      if (bonusMatch) {
+        const bonusYear = parseInt(bonusMatch[1] || bonusMatch[2]);
+        if (bonusYear >= 2000 && bonusYear <= 2100) { // Valid year range
+          if (!bonusYearColumns.has(bonusYear)) {
+            bonusYearColumns.set(bonusYear, {});
+          }
+          const yearData = bonusYearColumns.get(bonusYear)!;
+          
+          // Check if it's a split bonus (1/2 or 2/2)
+          if (cellStr.includes('1/2') || cellStr.includes('1')) {
+            yearData.firstHalf = i;
+          } else if (cellStr.includes('2/2') || cellStr.includes('2')) {
+            yearData.secondHalf = i;
+          } else if (cellStr.includes('total') || cellStr.includes('إجمالي') || (!cellStr.includes('/'))) {
+            yearData.total = i;
+          }
+        }
+      }
+    }
+    
+    // Also check for the specific year being imported (for backward compatibility)
     const bonusPrevYearCol = findColumn([
       `bonus ${previousYear}`, `علاوة ${previousYear}`,
       `bonus ${previousYearShort}`, `علاوة ${previousYearStr}`
@@ -198,6 +229,20 @@ export async function parseBonusSheet(
       `bonus ${year} total`, `علاوة ${year} إجمالي`,
       `bonus ${currentYearShort} total`, `علاوة ${currentYearStr} إجمالي`
     ]);
+    
+    // Add detected columns to the map if not already found
+    if (bonusPrevYearCol !== -1 && !bonusYearColumns.has(previousYear)) {
+      bonusYearColumns.set(previousYear, { total: bonusPrevYearCol });
+    }
+    if (bonusCurrentYear_1_2Col !== -1 || bonusCurrentYear_2_2Col !== -1 || bonusCurrentYearTotalCol !== -1) {
+      if (!bonusYearColumns.has(year)) {
+        bonusYearColumns.set(year, {});
+      }
+      const yearData = bonusYearColumns.get(year)!;
+      if (bonusCurrentYear_1_2Col !== -1) yearData.firstHalf = bonusCurrentYear_1_2Col;
+      if (bonusCurrentYear_2_2Col !== -1) yearData.secondHalf = bonusCurrentYear_2_2Col;
+      if (bonusCurrentYearTotalCol !== -1) yearData.total = bonusCurrentYearTotalCol;
+    }
 
     if (nameCol === -1) {
       result.errors.push('Could not find employee name column');
@@ -245,50 +290,115 @@ export async function parseBonusSheet(
       const netSalary = currentYearNet > 0 ? currentYearNet : previousYearNet;
       const grossSalary = currentYearGross > 0 ? currentYearGross : previousYearGross;
 
-      // Get bonus values (year-agnostic)
-      const previousYearBonus = bonusPrevYearCol !== -1 ? parseNumeric(getCellValue(row, bonusPrevYearCol)) : undefined;
-      const bonusCurrentYear_1_2 = bonusCurrentYear_1_2Col !== -1 ? parseNumeric(getCellValue(row, bonusCurrentYear_1_2Col)) : undefined;
-      const bonusCurrentYear_2_2 = bonusCurrentYear_2_2Col !== -1 ? parseNumeric(getCellValue(row, bonusCurrentYear_2_2Col)) : undefined;
-      const bonusCurrentYearTotal = bonusCurrentYearTotalCol !== -1 ? parseNumeric(getCellValue(row, bonusCurrentYearTotalCol)) : 
-                                     (bonusCurrentYear_1_2 || 0) + (bonusCurrentYear_2_2 || 0);
+      // Create records for ALL detected bonus years (not just the import year)
+      const bonusYearsToImport = Array.from(bonusYearColumns.keys()).sort();
+      
+      if (bonusYearsToImport.length === 0) {
+        // Fallback to original logic if no bonus years detected
+        const previousYearBonus = bonusPrevYearCol !== -1 ? parseNumeric(getCellValue(row, bonusPrevYearCol)) : undefined;
+        const bonusCurrentYear_1_2 = bonusCurrentYear_1_2Col !== -1 ? parseNumeric(getCellValue(row, bonusCurrentYear_1_2Col)) : undefined;
+        const bonusCurrentYear_2_2 = bonusCurrentYear_2_2Col !== -1 ? parseNumeric(getCellValue(row, bonusCurrentYear_2_2Col)) : undefined;
+        const bonusCurrentYearTotal = bonusCurrentYearTotalCol !== -1 ? parseNumeric(getCellValue(row, bonusCurrentYearTotalCol)) : 
+                                       (bonusCurrentYear_1_2 || 0) + (bonusCurrentYear_2_2 || 0);
 
-      if (bonusCurrentYearTotal === 0 && !bonusCurrentYear_1_2 && !bonusCurrentYear_2_2) {
-        continue; // Skip rows with no bonus data
+        if (bonusCurrentYearTotal === 0 && !bonusCurrentYear_1_2 && !bonusCurrentYear_2_2) {
+          continue; // Skip rows with no bonus data
+        }
+
+        // Calculate metrics
+        const reflectedInMonths = netSalary > 0 ? bonusCurrentYearTotal / netSalary : undefined;
+        const reflectedInPercent = netSalary > 0 ? (bonusCurrentYearTotal / netSalary) * 100 : undefined;
+        const remainingFromPrevious = bonusCurrentYear_1_2 !== undefined && previousYearBonus !== undefined 
+          ? bonusCurrentYear_1_2 - previousYearBonus 
+          : undefined;
+        const yearComparison = (bonusCurrentYear_1_2 || 0) + (bonusCurrentYear_2_2 || 0) - (previousYearBonus || 0);
+
+        result.records.push({
+          employeeName: String(name),
+          normalizedName,
+          category,
+          year,
+          previousYearNet,
+          previousYearGross,
+          currentYearNet,
+          currentYearGross,
+          annualIncreaseNet,
+          annualIncreaseGross,
+          netSalary,
+          grossSalary,
+          bonusAmount: bonusCurrentYearTotal,
+          bonusFirstHalf: bonusCurrentYear_1_2,
+          bonusSecondHalf: bonusCurrentYear_2_2,
+          previousYearBonus,
+          reflectedInMonths,
+          reflectedInPercent,
+          remainingFromPrevious,
+          yearComparison
+        });
+      } else {
+        // Create a record for each detected bonus year
+        for (const bonusYear of bonusYearsToImport) {
+          const yearData = bonusYearColumns.get(bonusYear)!;
+          const bonusFirstHalf = yearData.firstHalf !== undefined ? parseNumeric(getCellValue(row, yearData.firstHalf)) : undefined;
+          const bonusSecondHalf = yearData.secondHalf !== undefined ? parseNumeric(getCellValue(row, yearData.secondHalf)) : undefined;
+          const bonusTotal = yearData.total !== undefined ? parseNumeric(getCellValue(row, yearData.total)) : 
+                            ((bonusFirstHalf || 0) + (bonusSecondHalf || 0));
+
+          if (bonusTotal === 0 && !bonusFirstHalf && !bonusSecondHalf) {
+            continue; // Skip if no bonus data for this year
+          }
+
+          // For each bonus year, determine the previous year for comparison
+          const prevYearForBonus = bonusYear - 1;
+          const prevYearData = bonusYearColumns.get(prevYearForBonus);
+          const previousYearBonus = prevYearData?.total !== undefined 
+            ? parseNumeric(getCellValue(row, prevYearData.total))
+            : (prevYearData?.firstHalf !== undefined && prevYearData?.secondHalf !== undefined
+              ? parseNumeric(getCellValue(row, prevYearData.firstHalf)) + parseNumeric(getCellValue(row, prevYearData.secondHalf))
+              : undefined);
+
+          // Get salary data for this bonus year (use year-specific columns if available)
+          let yearNetSalary = netSalary;
+          let yearGrossSalary = grossSalary;
+          
+          // Try to find year-specific salary columns
+          const yearNetCol = findColumn([`net ${bonusYear}`, `صافي ${bonusYear}`]);
+          const yearGrossCol = findColumn([`gross ${bonusYear}`, `إجمالي ${bonusYear}`]);
+          if (yearNetCol !== -1) yearNetSalary = parseNumeric(getCellValue(row, yearNetCol));
+          if (yearGrossCol !== -1) yearGrossSalary = parseNumeric(getCellValue(row, yearGrossCol));
+
+          // Calculate metrics
+          const reflectedInMonths = yearNetSalary > 0 ? bonusTotal / yearNetSalary : undefined;
+          const reflectedInPercent = yearNetSalary > 0 ? (bonusTotal / yearNetSalary) * 100 : undefined;
+          const remainingFromPrevious = bonusFirstHalf !== undefined && previousYearBonus !== undefined 
+            ? bonusFirstHalf - previousYearBonus 
+            : undefined;
+          const yearComparison = (bonusFirstHalf || 0) + (bonusSecondHalf || 0) - (previousYearBonus || 0);
+
+          result.records.push({
+            employeeName: String(name),
+            normalizedName,
+            category,
+            year: bonusYear, // Use the detected bonus year, not the import year
+            previousYearNet: prevYearForBonus === previousYear ? previousYearNet : 0,
+            previousYearGross: prevYearForBonus === previousYear ? previousYearGross : 0,
+            currentYearNet: bonusYear === year ? currentYearNet : yearNetSalary,
+            currentYearGross: bonusYear === year ? currentYearGross : yearGrossSalary,
+            annualIncreaseNet: bonusYear === year ? annualIncreaseNet : 0,
+            annualIncreaseGross: bonusYear === year ? annualIncreaseGross : 0,
+            netSalary: yearNetSalary,
+            grossSalary: yearGrossSalary,
+            bonusAmount: bonusTotal,
+            bonusFirstHalf,
+            bonusSecondHalf,
+            previousYearBonus,
+            reflectedInMonths,
+            reflectedInPercent,
+            remainingFromPrevious,
+            yearComparison
+          });
+        }
       }
-
-      // Calculate metrics
-      const reflectedInMonths = netSalary > 0 ? bonusCurrentYearTotal / netSalary : undefined;
-      const reflectedInPercent = netSalary > 0 ? (bonusCurrentYearTotal / netSalary) * 100 : undefined;
-      const remainingFromPrevious = bonusCurrentYear_1_2 !== undefined && previousYearBonus !== undefined 
-        ? bonusCurrentYear_1_2 - previousYearBonus 
-        : undefined;
-      const yearComparison = (bonusCurrentYear_1_2 || 0) + (bonusCurrentYear_2_2 || 0) - (previousYearBonus || 0);
-
-      result.records.push({
-        employeeName: String(name),
-        normalizedName,
-        category,
-        year,
-        // Unified annual increase data (year-agnostic)
-        previousYearNet,
-        previousYearGross,
-        currentYearNet,
-        currentYearGross,
-        annualIncreaseNet,
-        annualIncreaseGross,
-        // Legacy fields
-        netSalary,
-        grossSalary,
-        // Bonus data
-        bonusAmount: bonusCurrentYearTotal,
-        bonusFirstHalf: bonusCurrentYear_1_2,
-        bonusSecondHalf: bonusCurrentYear_2_2,
-        previousYearBonus,
-        reflectedInMonths,
-        reflectedInPercent,
-        remainingFromPrevious,
-        yearComparison
-      });
     }
 
     console.log(`Parsed ${result.records.length} bonus records from sheet "${sheetName}"`);

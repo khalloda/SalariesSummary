@@ -43,116 +43,151 @@ export default function Reports() {
 
   const reportCards = [
     {
-      title: 'Joiners/Leavers',
-      description: 'Employees who joined or left during the year',
+      title: t('joinersLeavers'),
+      description: t('joinersLeaversDescription'),
       path: '/reports/joiners-leavers',
       icon: '👥',
       color: 'blue'
     },
     {
-      title: 'Salary Changes',
-      description: 'Track basic salary changes across months',
+      title: t('salaryChanges'),
+      description: t('salaryChangesDescription'),
       path: '/reports/salary-changes',
       icon: '📈',
       color: 'green'
     },
     {
-      title: 'Category Totals',
-      description: 'Aggregated totals by category',
+      title: t('categoryTotals'),
+      description: t('categoryTotalsDescription'),
       path: '/reports/category-totals',
       icon: '📊',
       color: 'purple'
     },
     {
-      title: 'Monthly Summary',
-      description: 'Monthly totals and trends',
+      title: t('monthlySummary'),
+      description: t('monthlySummaryDescription'),
       path: '/reports/monthly-summary',
       icon: '📅',
       color: 'orange'
     },
     {
-      title: 'Category Comparison',
-      description: 'Compare categories side-by-side',
+      title: t('categoryComparison'),
+      description: t('categoryComparisonDescription'),
       path: '/reports/category-comparison',
       icon: '⚖️',
       color: 'indigo'
     },
     {
-      title: 'Category Migration',
-      description: 'Employees who changed categories',
+      title: t('categoryMigration'),
+      description: t('categoryMigrationDescription'),
       path: '/reports/category-migration',
       icon: '🔄',
       color: 'pink'
     },
     {
-      title: 'Additions & Deductions',
-      description: 'Breakdown of additions and deductions by category',
+      title: t('additionsDeductions'),
+      description: t('additionsDeductionsDescription'),
       path: '/reports/additions-deductions-breakdown',
       icon: '💰',
       color: 'teal'
     },
     {
-      title: 'Employee Tenure',
-      description: 'Employee tenure and service length analysis',
+      title: t('employeeTenure'),
+      description: t('employeeTenureDescription'),
       path: '/reports/employee-tenure',
       icon: '⏳',
       color: 'amber'
     },
     {
-      title: 'Payment Methods',
-      description: 'Distribution of payment methods and accounts',
+      title: t('paymentMethods'),
+      description: t('paymentMethodsDescription'),
       path: '/reports/payment-method-distribution',
       icon: '💳',
       color: 'cyan'
     },
     {
-      title: 'Custom Date Range',
-      description: 'Flexible date range analysis with custom metrics',
+      title: t('customDateRange'),
+      description: t('customDateRangeDescription'),
       path: '/reports/custom-date-range',
       icon: '📆',
       color: 'slate'
     },
     {
-      title: 'Bonus & Incentive',
-      description: 'Analyze bonuses and yearly increases',
+      title: t('bonusIncentive'),
+      description: t('bonusIncentiveDescription'),
       path: '/reports/bonus-incentive-analysis',
       icon: '🎁',
       color: 'emerald'
     },
     {
-      title: 'Year-End Summary',
-      description: 'Comprehensive annual summary with growth metrics',
+      title: t('yearEndSummary'),
+      description: t('yearEndSummaryDescription'),
       path: '/reports/year-end-summary',
       icon: '📋',
       color: 'rose'
     },
     {
-      title: 'Multi-Year Comparison',
-      description: 'Compare multiple years for categories or entire office',
+      title: t('multiYearComparison'),
+      description: t('multiYearComparisonDescription'),
       path: '/reports/multi-year-comparison',
       icon: '📊',
       color: 'violet'
     },
     {
-      title: 'Month-to-Month Comparison',
-      description: 'Compare any two months for categories or entire office',
+      title: t('monthToMonthComparison'),
+      description: t('monthToMonthComparisonDescription'),
       path: '/reports/month-to-month-comparison',
       icon: '📈',
       color: 'fuchsia'
     },
     {
-      title: 'Annual Bonus Report',
-      description: 'Comprehensive annual bonus analysis by category and office-wide',
+      title: t('annualBonusReport'),
+      description: t('annualBonusReportDescription'),
       path: '/reports/annual-bonus',
       icon: '🎁',
       color: 'emerald'
     },
     {
-      title: 'Bonus Comparison',
-      description: 'Compare bonuses between two years',
+      title: t('bonusComparison'),
+      description: t('bonusComparisonDescription'),
       path: '/reports/bonus-comparison',
       icon: '📊',
       color: 'teal'
+    },
+    {
+      title: t('employeeCard'),
+      description: t('employeeCardDescription'),
+      path: '/reports/employee-card',
+      icon: '🆔',
+      color: 'purple'
+    },
+    {
+      title: t('documentCompliance'),
+      description: t('documentComplianceDescription'),
+      path: '/reports/document-compliance',
+      icon: '✅',
+      color: 'emerald'
+    },
+    {
+      title: t('assetInventory'),
+      description: t('assetInventoryDescription'),
+      path: '/reports/asset-inventory',
+      icon: '💻',
+      color: 'cyan'
+    },
+    {
+      title: t('personnelDashboard'),
+      description: t('personnelDashboardDescription'),
+      path: '/reports/personnel-dashboard',
+      icon: '📋',
+      color: 'rose'
+    },
+    {
+      title: t('contractRenewals'),
+      description: t('contractRenewalsDescription'),
+      path: '/reports/contract-renewals',
+      icon: '📅',
+      color: 'amber'
     }
   ];
 
@@ -173,7 +208,7 @@ export default function Reports() {
     fuchsia: 'bg-fuchsia-50 border-fuchsia-200 hover:bg-fuchsia-100'
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div>{t('loading')}</div>;
 
   return (
     <div>
@@ -200,30 +235,30 @@ export default function Reports() {
       {quickStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Total Employees</div>
+            <div className="text-sm text-gray-600 mb-1">{t('totalEmployeesLabel')}</div>
             <div className="text-3xl font-bold text-gray-900">{quickStats.totalEmployees}</div>
-            <div className="text-xs text-gray-500 mt-1">For {year}</div>
+            <div className="text-xs text-gray-500 mt-1">{t('forYear', { year })}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Total Payroll</div>
+            <div className="text-sm text-gray-600 mb-1">{t('totalPayrollLabel')}</div>
             <div className="text-3xl font-bold text-green-600">
-              {quickStats.totalPayroll.toLocaleString()}
+              {(quickStats.totalPayroll || quickStats.totalNet || 0).toLocaleString()}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Net total for {year}</div>
+            <div className="text-xs text-gray-500 mt-1">{t('netTotalForYear', { year })}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Average Salary</div>
+            <div className="text-sm text-gray-600 mb-1">{t('averageSalaryLabel')}</div>
             <div className="text-3xl font-bold text-blue-600">
-              {Math.round(quickStats.averageSalary).toLocaleString()}
+              {quickStats.averageSalary ? Math.round(quickStats.averageSalary).toLocaleString() : 'N/A'}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Per month average</div>
+            <div className="text-xs text-gray-500 mt-1">{t('perMonthAverage')}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm text-gray-600 mb-1">Categories</div>
+            <div className="text-sm text-gray-600 mb-1">{t('categoriesLabel')}</div>
             <div className="text-3xl font-bold text-purple-600">
               {Object.keys(quickStats.categoryDistribution || {}).length}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Active categories</div>
+            <div className="text-xs text-gray-500 mt-1">{t('activeCategories')}</div>
           </div>
         </div>
       )}
@@ -231,7 +266,7 @@ export default function Reports() {
       {/* Category Distribution */}
       {quickStats && quickStats.categoryDistribution && Object.keys(quickStats.categoryDistribution).length > 0 && (
         <div className="bg-white p-6 rounded-lg shadow mb-8">
-          <h3 className="text-lg font-semibold mb-4">Category Distribution / توزيع الفئات</h3>
+          <h3 className="text-lg font-semibold mb-4">{t('categoryDistribution')}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(quickStats.categoryDistribution).map(([category, count]: [string, any]) => (
               <div key={category} className="text-center p-4 bg-gray-50 rounded">

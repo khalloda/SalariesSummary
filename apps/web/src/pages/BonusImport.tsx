@@ -19,7 +19,7 @@ export default function BonusImport() {
     if (!selectedFile) return;
 
     if (!selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
-      setError('Please select an Excel file (.xlsx or .xls)');
+      setError(t('selectExcelFile'));
       return;
     }
 
@@ -47,10 +47,10 @@ export default function BonusImport() {
           setSelectedSheet(response.data.sheets[0].name);
         }
       } else {
-        setError(response.data.error || 'Failed to read workbook');
+        setError(response.data.error || t('failedToReadWorkbook'));
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to upload file');
+      setError(err.response?.data?.error || err.message || t('failedToUploadFile'));
       console.error('Upload error:', err);
     } finally {
       setUploading(false);
@@ -59,7 +59,7 @@ export default function BonusImport() {
 
   const handleImport = async () => {
     if (!file || !selectedSheet) {
-      setError('Please select a file and sheet');
+      setError(t('selectFileAndSheet'));
       return;
     }
 
@@ -81,18 +81,18 @@ export default function BonusImport() {
 
       if (response.data.success) {
         setImportResult(response.data);
-        alert(`Import successful!\n\n- ${response.data.recordsImported} records imported\n- ${response.data.recordsParsed} records parsed\n\nClick "View Import Report" to see details.`);
+        alert(`${t('importSuccessful')}\n\n- ${response.data.recordsImported} ${t('recordsImported')}\n- ${response.data.recordsParsed} ${t('recordsParsed')}\n\n${t('clickViewReport')}`);
       } else {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.join('\n')
           : 'Unknown error';
         setError(errorMsg);
-        alert(`Import completed with errors:\n\n${errorMsg}`);
+        alert(`${t('importCompletedWithErrors')}\n\n${errorMsg}`);
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to import';
       setError(errorMsg);
-      alert(`Import failed: ${errorMsg}`);
+      alert(`${t('importFailed')}: ${errorMsg}`);
       console.error('Import error:', err);
     } finally {
       setImporting(false);
@@ -114,13 +114,13 @@ export default function BonusImport() {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Import Annual Bonuses</h2>
+      <h2 className="text-2xl font-bold mb-6">{t('importAnnualBonuses')}</h2>
 
       <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h3 className="text-lg font-semibold mb-4">Step 1: Select Excel File</h3>
+        <h3 className="text-lg font-semibold mb-4">{t('step1')}</h3>
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Choose Bonus Workbook (.xlsx)
+            {t('chooseBonusWorkbook')}
           </label>
           <input
             id="file-input"
@@ -138,21 +138,21 @@ export default function BonusImport() {
           />
           {file && (
             <p className="mt-2 text-sm text-gray-600">
-              Selected: <strong>{file.name}</strong> ({(file.size / 1024 / 1024).toFixed(2)} MB)
+              {t('selected')}: <strong>{file.name}</strong> ({(file.size / 1024 / 1024).toFixed(2)} MB)
             </p>
           )}
           {uploading && (
-            <p className="mt-2 text-sm text-blue-600">Reading workbook...</p>
+            <p className="mt-2 text-sm text-blue-600">{t('readingWorkbook')}</p>
           )}
         </div>
       </div>
 
       {sheets.length > 0 && (
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h3 className="text-lg font-semibold mb-4">Step 2: Select Sheet</h3>
+          <h3 className="text-lg font-semibold mb-4">{t('step2')}</h3>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Available Sheets ({sheets.length})
+              {t('availableSheets')} ({sheets.length})
             </label>
             <select
               value={selectedSheet}
@@ -171,10 +171,10 @@ export default function BonusImport() {
 
       {sheets.length > 0 && (
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h3 className="text-lg font-semibold mb-4">Step 3: Set Year</h3>
+          <h3 className="text-lg font-semibold mb-4">{t('step3')}</h3>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Year for Bonus Data
+              {t('yearForBonusData')}
             </label>
             <input
               type="number"
@@ -201,14 +201,14 @@ export default function BonusImport() {
             disabled={importing || !selectedSheet}
             className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
           >
-            {importing ? 'Importing...' : 'Import Bonuses'}
+            {importing ? t('importing') : t('importBonuses')}
           </button>
           <button
             onClick={handleReset}
             disabled={importing}
             className="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
           >
-            Reset
+            {t('reset')}
           </button>
         </div>
       )}
@@ -216,12 +216,12 @@ export default function BonusImport() {
       {importResult && (
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold">Import Report</h3>
+            <h3 className="text-xl font-bold">{t('importReport')}</h3>
             <button
               onClick={() => setImportResult(null)}
               className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600"
             >
-              Close
+              {t('close')}
             </button>
           </div>
           
@@ -290,13 +290,13 @@ export default function BonusImport() {
       )}
 
       <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-        <h4 className="font-semibold text-blue-800 mb-2">Import Instructions</h4>
+        <h4 className="font-semibold text-blue-800 mb-2">{t('importInstructions')}</h4>
         <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-          <li>Select an Excel workbook containing bonus data</li>
-          <li>Choose the sheet to import from (e.g., "Final 2025")</li>
-          <li>Set the year for the bonus data</li>
-          <li>Click "Import Bonuses" to import the data</li>
-          <li>The system will match employees by name and create/update bonus records</li>
+          <li>{t('selectExcelWorkbook')}</li>
+          <li>{t('chooseSheetToImport')}</li>
+          <li>{t('setYearForBonusData')}</li>
+          <li>{t('clickImportBonuses')}</li>
+          <li>{t('systemWillMatchEmployees')}</li>
         </ul>
       </div>
     </div>

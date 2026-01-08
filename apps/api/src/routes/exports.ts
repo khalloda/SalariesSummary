@@ -6,6 +6,8 @@ import { Readable } from 'stream';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { requireAuth, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
+import { logAudit } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 export const exportsRouter = Router();
@@ -29,7 +31,7 @@ function getLogoBase64(): string {
 /**
  * GET /api/exports/employee/:id/annual?year=YYYY&format=csv|xlsx|pdf
  */
-exportsRouter.get('/employee/:id/annual', async (req, res) => {
+exportsRouter.get('/employee/:id/annual', requireAuth, async (req, res) => {
   try {
     const format = (req.query.format as string) || 'csv';
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -51,6 +53,15 @@ exportsRouter.get('/employee/:id/annual', async (req, res) => {
       orderBy: { month: 'asc' }
     });
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+
+    if (!canSee) {
+      return res.status(403).json({ error: 'Salary exports are restricted for this role' });
+    }
+
+    await logAudit(req.user, 'EXPORT_EMPLOYEE_ANNUAL', 'employee', employee.id, { format, year });
+
     switch (format) {
       case 'csv':
         return exportCSV(res, employee, salaries, year);
@@ -247,7 +258,7 @@ async function exportPDF(res: any, employee: any, salaries: any[], year: number)
     
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox'] // For server environments
     });
     const page = await browser.newPage();
@@ -306,6 +317,13 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
   <meta charset="UTF-8">
   <title>${employee.name} - ${year}</title>
   <style>
+    @page {
+      @bottom-center {
+        content: "P " counter(page) " of " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+    }
     body { font-family: Arial, sans-serif; padding: 20px; }
     .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -369,7 +387,7 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
  * GET /api/exports/salary-changes?year=YYYY&format=pdf
  * Export salary changes report as PDF
  */
-exportsRouter.get('/salary-changes', async (req, res) => {
+exportsRouter.get('/salary-changes', requireAuth, async (req, res) => {
   try {
     const format = (req.query.format as string) || 'pdf';
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -425,6 +443,14 @@ exportsRouter.get('/salary-changes', async (req, res) => {
       change: 0
     });
     
+    const roles = (req.user?.roles ?? []) as RoleName[];
+    const canSee = canViewSalaryAmounts(roles);
+    if (!canSee) {
+      return res.status(403).json({ error: 'Salary exports are restricted for this role' });
+    }
+
+    await logAudit(req.user, 'EXPORT_SALARY_CHANGES_PDF', 'report', undefined, { year });
+
     return exportSalaryChangesPDF(res, changes, totals, year);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -436,7 +462,7 @@ async function exportSalaryChangesPDF(res: any, changes: any[], totals: any, yea
     const html = generateSalaryChangesHTML(changes, totals, year);
     
     const browser = await puppeteer.launch({ 
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
