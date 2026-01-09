@@ -190,7 +190,7 @@ export default function BulkSalaryEntry() {
           </div>
         )}
         <table className="w-full divide-y divide-gray-200 table-auto">
-          <thead className="bg-gray-200">
+          <thead className="bg-gray-200 sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="px-1.5 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">Employee</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Basic Salary</th>
@@ -455,7 +455,7 @@ export default function BulkSalaryEntry() {
     return (
       <div className="w-full">
         <table className="w-full divide-y divide-gray-200 table-auto">
-          <thead className="bg-gray-200">
+          <thead className="bg-gray-200 sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="px-1.5 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">Employee</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Phone Allowance</th>
@@ -697,7 +697,7 @@ export default function BulkSalaryEntry() {
     return (
       <div className="w-full">
         <table className="w-full divide-y divide-gray-200 table-auto">
-          <thead className="bg-gray-200">
+          <thead className="bg-gray-200 sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="px-1.5 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">Employee</th>
               <th className="px-1.5 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase">Medical Insurance Deducted</th>
@@ -992,7 +992,7 @@ export default function BulkSalaryEntry() {
           </div>
 
           {/* Table Content */}
-          <div className="bg-white rounded-lg shadow-sm p-2 overflow-x-auto">
+          <div className="bg-white rounded-lg shadow-sm p-2 overflow-x-auto max-h-[calc(100vh-300px)] overflow-y-auto">
             {activeTab === 'salaries' && renderSalariesTable()}
             {activeTab === 'additions' && renderAdditionsTable()}
             {activeTab === 'deductions' && renderDeductionsTable()}
