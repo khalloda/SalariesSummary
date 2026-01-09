@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import { ContractFormSchema } from '../validation/contracts';
 
 interface Contract {
   id: string;
@@ -35,6 +36,7 @@ export default function ContractManagement() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [formData, setFormData] = useState<Partial<Contract>>({});
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchContracts();
@@ -98,14 +100,26 @@ export default function ContractManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setSaving(true);
 
     try {
+      // Validate form data
+      const parseResult = ContractFormSchema.safeParse(formData);
+      if (!parseResult.success) {
+        const errorMessages = parseResult.error.errors.map((err) => err.message).join('\n');
+        setFormError(errorMessages || 'Validation error');
+        setSaving(false);
+        return;
+      }
+
+      const submitData = parseResult.data;
+
       if (editingContract) {
-        await axios.put(`${API_BASE_URL}/contracts/${editingContract.id}`, formData);
+        await axios.put(`${API_BASE_URL}/contracts/${editingContract.id}`, submitData);
         alert(t('contractUpdated'));
       } else {
-        await axios.post(`${API_BASE_URL}/contracts`, formData);
+        await axios.post(`${API_BASE_URL}/contracts`, submitData);
         alert(t('contractCreated'));
       }
       setShowForm(false);
@@ -269,6 +283,11 @@ export default function ContractManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6">
+                {formError && (
+                  <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded whitespace-pre-line text-sm">
+                    {formError}
+                  </div>
+                )}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('employees')}</label>

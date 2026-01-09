@@ -9,13 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "axios": "^1.6.2",
     "i18next": "^23.7.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hook-form": "^7.70.0",
     "react-i18next": "^13.5.0",
     "react-router-dom": "^6.21.1",
-    "recharts": "^3.6.0"
+    "recharts": "^3.6.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

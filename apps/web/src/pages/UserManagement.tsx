@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import { useAuth } from '../hooks/useAuth';
+import {
+  UserCreateFormSchema,
+  UserUpdateFormSchema,
+} from '../validation/users';
 
 interface User {
   id: string;
@@ -119,31 +123,43 @@ export default function UserManagement() {
     setSaving(true);
 
     try {
-      // Validate password if creating new user or if password is provided
-      if (!editingUser && !formData.password) {
-        setError(t('passwordRequired') || 'Password is required');
+      const schema = editingUser ? UserUpdateFormSchema : UserCreateFormSchema;
+
+      const parseResult = schema.safeParse({
+        username: formData.username ?? '',
+        fullName: formData.fullName ?? '',
+        email: formData.email ?? '',
+        systemId: formData.systemId ?? '',
+        isActive: formData.isActive ?? true,
+        roles: formData.roles ?? [],
+        password: formData.password ?? '',
+        confirmPassword: formData.confirmPassword ?? '',
+      });
+
+      if (!parseResult.success) {
+        const message =
+          parseResult.error.errors
+            .map((err) => err.message)
+            .join('\n') || (t('validationError') as string) || 'Validation error';
+        setError(message);
         setSaving(false);
         return;
       }
 
-      if (formData.password && formData.password !== formData.confirmPassword) {
-        setError(t('passwordsDoNotMatch') || 'Passwords do not match');
-        setSaving(false);
-        return;
-      }
+      const data = parseResult.data;
 
       const submitData: any = {
-        username: formData.username,
-        email: formData.email || null,
-        fullName: formData.fullName,
-        systemId: formData.systemId || null,
-        isActive: formData.isActive,
-        roles: formData.roles || [],
+        username: data.username,
+        email: data.email,
+        fullName: data.fullName,
+        systemId: data.systemId,
+        isActive: data.isActive,
+        roles: data.roles,
       };
 
       // Only include password if it's provided
-      if (formData.password) {
-        submitData.password = formData.password;
+      if (data.password) {
+        submitData.password = data.password;
       }
 
       if (editingUser) {

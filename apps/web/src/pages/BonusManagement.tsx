@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import { BonusFormSchema } from '../validation/bonuses';
 
 interface Bonus {
   id: string;
@@ -44,6 +46,7 @@ export default function BonusManagement() {
   const [editingBonus, setEditingBonus] = useState<Bonus | null>(null);
   const [formData, setFormData] = useState<Partial<Bonus>>({});
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBonuses();
@@ -109,23 +112,47 @@ export default function BonusManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setSaving(true);
 
     try {
+      // Validate form data
+      const parseResult = BonusFormSchema.safeParse(formData);
+      if (!parseResult.success) {
+        const errorMessages = parseResult.error.errors.map((err) => err.message).join('\n');
+        setFormError(errorMessages || 'Validation error');
+        setSaving(false);
+        return;
+      }
+
+      const validatedData = parseResult.data;
+
       // Calculate annual increase if not provided
-      const previousYearNet = parseFloat(String(formData.previousYearNet || 0));
-      const currentYearNet = parseFloat(String(formData.currentYearNet || 0));
-      const previousYearGross = parseFloat(String(formData.previousYearGross || 0));
-      const currentYearGross = parseFloat(String(formData.currentYearGross || 0));
+      const previousYearNet = validatedData.previousYearNet || 0;
+      const currentYearNet = validatedData.currentYearNet || 0;
+      const previousYearGross = validatedData.previousYearGross || 0;
+      const currentYearGross = validatedData.currentYearGross || 0;
 
       const submitData = {
-        ...formData,
-        annualIncreaseNet: formData.annualIncreaseNet !== undefined 
-          ? parseFloat(String(formData.annualIncreaseNet)) 
+        employeeId: validatedData.employeeId,
+        year: validatedData.year,
+        previousYearNet,
+        previousYearGross,
+        currentYearNet,
+        currentYearGross,
+        annualIncreaseNet: validatedData.annualIncreaseNet !== undefined 
+          ? validatedData.annualIncreaseNet
           : currentYearNet - previousYearNet,
-        annualIncreaseGross: formData.annualIncreaseGross !== undefined
-          ? parseFloat(String(formData.annualIncreaseGross))
-          : currentYearGross - previousYearGross
+        annualIncreaseGross: validatedData.annualIncreaseGross !== undefined
+          ? validatedData.annualIncreaseGross
+          : currentYearGross - previousYearGross,
+        amount: validatedData.bonusAmount,
+        firstHalf: validatedData.bonusFirstHalf ?? undefined,
+        secondHalf: validatedData.bonusSecondHalf ?? undefined,
+        previousYearBonus: validatedData.previousYearBonus ?? undefined,
+        reflectedInMonths: validatedData.reflectedInMonths ?? undefined,
+        reflectedInPercent: validatedData.reflectedInPercent ?? undefined,
+        notes: validatedData.notes ?? undefined,
       };
 
       if (editingBonus) {
@@ -305,6 +332,11 @@ export default function BonusManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6">
+                {formError && (
+                  <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded whitespace-pre-line text-sm">
+                    {formError}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>

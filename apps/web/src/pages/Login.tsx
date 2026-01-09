@@ -1,7 +1,10 @@
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../hooks/useAuth';
+import { LoginFormSchema, type LoginFormValues } from '../validation/auth';
 
 export default function Login() {
   const { t, i18n } = useTranslation();
@@ -10,24 +13,29 @@ export default function Login() {
   const location = useLocation() as any;
   const from = location.state?.from?.pathname || '/';
 
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(LoginFormSchema),
+    defaultValues: {
+      username: '',
+      password: '',
+    },
+  });
 
   const isRTL = i18n.language === 'ar';
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: LoginFormValues) => {
     setError(null);
-    setLoading(true);
     try {
-      await login(username.trim(), password);
+      await login(values.username.trim(), values.password);
       navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -41,7 +49,7 @@ export default function Login() {
           {t('login') || 'Login'}
         </h2>
 
-        <form onSubmit={handleSubmit} className={`space-y-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+        <form onSubmit={handleSubmit(onSubmit)} className={`space-y-4 ${isRTL ? 'text-right' : 'text-left'}`}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t('username') || 'Username'}
@@ -50,10 +58,13 @@ export default function Login() {
               type="text"
               autoComplete="username"
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
+              {...register('username')}
             />
+            {errors.username && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.username.message}
+              </p>
+            )}
           </div>
 
           <div>
@@ -64,10 +75,13 @@ export default function Login() {
               type="password"
               autoComplete="current-password"
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              {...register('password')}
             />
+            {errors.password && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.password.message}
+              </p>
+            )}
           </div>
 
           {error && (
@@ -78,10 +92,10 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 disabled:opacity-60"
           >
-            {loading ? (t('loading') || 'Loading...') : (t('login') || 'Login')}
+            {isSubmitting ? (t('loading') || 'Loading...') : (t('login') || 'Login')}
           </button>
         </form>
 

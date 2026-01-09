@@ -5,6 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
+import { EmployeeFormSchema } from '../validation/employees';
 
 interface Employee {
   id: string;
@@ -32,6 +33,7 @@ export default function EmployeeManagement() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState<Partial<Employee>>({});
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -93,14 +95,48 @@ export default function EmployeeManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setSaving(true);
 
     try {
+      const parseResult = EmployeeFormSchema.safeParse({
+        name: formData.name ?? '',
+        nameArabic: formData.nameArabic ?? '',
+        employeeCode: formData.employeeCode ?? '',
+        category: formData.category ?? '',
+        jobTitle: formData.jobTitle ?? '',
+        department: formData.department ?? '',
+        status: formData.status ?? 'Active',
+      });
+
+      if (!parseResult.success) {
+        const message =
+          parseResult.error.errors
+            .map((err) => err.message)
+            .join('\n') || 'Validation error';
+        setFormError(message);
+        setSaving(false);
+        return;
+      }
+
+      const data = parseResult.data;
+
+      const submitData: any = {
+        ...formData,
+        name: data.name,
+        nameArabic: data.nameArabic,
+        employeeCode: data.employeeCode,
+        category: data.category,
+        jobTitle: data.jobTitle,
+        department: data.department,
+        status: data.status,
+      };
+
       if (editingEmployee) {
-        await axios.put(`${API_BASE_URL}/employees/${editingEmployee.id}`, formData);
+        await axios.put(`${API_BASE_URL}/employees/${editingEmployee.id}`, submitData);
         alert(t('employeeUpdatedSuccessfully'));
       } else {
-        await axios.post(`${API_BASE_URL}/employees`, formData);
+        await axios.post(`${API_BASE_URL}/employees`, submitData);
         alert(t('employeeCreatedSuccessfully'));
       }
       setShowForm(false);
@@ -344,6 +380,11 @@ export default function EmployeeManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6">
+                {formError && (
+                  <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded whitespace-pre-line">
+                    {formError}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <div className="md:col-span-2">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import { BulkSalaryMetaSchema } from '../validation/salaries';
 
 interface EmployeeSalaryData {
   employeeId: string;
@@ -49,6 +50,7 @@ export default function BulkSalaryEntry() {
   const [employees, setEmployees] = useState<Record<string, EmployeeSalaryData[]>>({});
   const [previousYear, setPreviousYear] = useState<number | null>(null);
   const [previousMonth, setPreviousMonth] = useState<number | null>(null);
+  const [metaError, setMetaError] = useState<string | null>(null);
 
   const loadLastMonthData = async () => {
     setLoading(true);
@@ -123,6 +125,18 @@ export default function BulkSalaryEntry() {
   };
 
   const handleSave = async () => {
+    setMetaError(null);
+
+    const parseResult = BulkSalaryMetaSchema.safeParse({ year, month });
+    if (!parseResult.success) {
+      const message =
+        parseResult.error.errors
+          .map((err) => err.message)
+          .join('\n') || 'Validation error';
+      setMetaError(message);
+      return;
+    }
+
     if (!confirm(`Create salary records for ${MONTHS[month - 1]} ${year}?`)) {
       return;
     }
@@ -169,6 +183,11 @@ export default function BulkSalaryEntry() {
   const renderSalariesTable = () => {
     return (
       <div className="w-full">
+        {metaError && (
+          <div className="mb-3 p-2 bg-red-100 border border-red-400 text-red-700 text-xs rounded whitespace-pre-line">
+            {metaError}
+          </div>
+        )}
         <table className="w-full divide-y divide-gray-200 table-auto">
           <thead className="bg-gray-200">
             <tr>

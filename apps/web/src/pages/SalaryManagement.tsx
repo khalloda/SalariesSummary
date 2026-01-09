@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
+import { SalaryFormSchema } from '../validation/salaries';
 
 interface Salary {
   id: string;
@@ -75,6 +76,7 @@ export default function SalaryManagement() {
     otherDeductions: number;
   }>>({});
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSalaries();
@@ -203,29 +205,69 @@ export default function SalaryManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setSaving(true);
 
     try {
+      const parseResult = SalaryFormSchema.safeParse({
+        employeeId: formData.employeeId ?? '',
+        year: formData.year ?? '',
+        month: formData.month ?? '',
+        category: formData.category ?? '',
+        basicSalary: formData.basicSalary ?? 0,
+        phoneAllowance: formData.phoneAllowance ?? 0,
+        transportationAllowance: formData.transportationAllowance ?? 0,
+        accommodationAllowance: formData.accommodationAllowance ?? 0,
+        otherAllowances: formData.otherAllowances ?? 0,
+        yearlyIncrease: formData.yearlyIncrease ?? 0,
+        socialInsurance: formData.socialInsurance ?? 0,
+        taxes: formData.taxes ?? 0,
+        medicalInsurance: formData.medicalInsurance ?? 0,
+        annualBonus: formData.annualBonus ?? 0,
+        monthlyBonus: formData.monthlyBonus ?? 0,
+        medicalInsuranceDeducted: formData.medicalInsuranceDeducted ?? 0,
+        lawyersTaxes: formData.lawyersTaxes ?? 0,
+        otherBankWithdrawal: formData.otherBankWithdrawal ?? 0,
+        loansDeductions: formData.loansDeductions ?? 0,
+        phoneDeduction: formData.phoneDeduction ?? 0,
+        unpaidVacation: formData.unpaidVacation ?? 0,
+        lateArrivals: formData.lateArrivals ?? 0,
+        timeSheetDeductions: formData.timeSheetDeductions ?? 0,
+        otherDeductions: formData.otherDeductions ?? 0,
+      });
+
+      if (!parseResult.success) {
+        const message =
+          parseResult.error.errors
+            .map((err) => err.message)
+            .join('\n') || 'Validation error';
+        setFormError(message);
+        setSaving(false);
+        return;
+      }
+
+      const data = parseResult.data;
+
       // Extract breakdown values
-      const phoneAllowance = parseFloat(String(formData.phoneAllowance || 0));
-      const transportationAllowance = parseFloat(String(formData.transportationAllowance || 0));
-      const accommodationAllowance = parseFloat(String(formData.accommodationAllowance || 0));
-      const annualBonus = parseFloat(String(formData.annualBonus || 0));
-      const monthlyBonus = parseFloat(String(formData.monthlyBonus || 0));
-      const socialInsurance = parseFloat(String(formData.socialInsurance || 0));
-      const taxes = parseFloat(String(formData.taxes || 0));
-      const medicalInsurance = parseFloat(String(formData.medicalInsurance || 0));
-      const otherAllowances = parseFloat(String(formData.otherAllowances || 0));
+      const phoneAllowance = data.phoneAllowance ?? 0;
+      const transportationAllowance = data.transportationAllowance ?? 0;
+      const accommodationAllowance = data.accommodationAllowance ?? 0;
+      const annualBonus = data.annualBonus ?? 0;
+      const monthlyBonus = data.monthlyBonus ?? 0;
+      const socialInsurance = data.socialInsurance ?? 0;
+      const taxes = data.taxes ?? 0;
+      const medicalInsurance = data.medicalInsurance ?? 0;
+      const otherAllowances = data.otherAllowances ?? 0;
       
-      const medicalInsuranceDeducted = parseFloat(String(formData.medicalInsuranceDeducted || 0));
-      const lawyersTaxes = parseFloat(String(formData.lawyersTaxes || 0));
-      const otherBankWithdrawal = parseFloat(String(formData.otherBankWithdrawal || 0));
-      const loansDeductions = parseFloat(String(formData.loansDeductions || 0));
-      const phoneDeduction = parseFloat(String(formData.phoneDeduction || 0));
-      const unpaidVacation = parseFloat(String(formData.unpaidVacation || 0));
-      const lateArrivals = parseFloat(String(formData.lateArrivals || 0));
-      const timeSheetDeductions = parseFloat(String(formData.timeSheetDeductions || 0));
-      const otherDeductions = parseFloat(String(formData.otherDeductions || 0));
+      const medicalInsuranceDeducted = data.medicalInsuranceDeducted ?? 0;
+      const lawyersTaxes = data.lawyersTaxes ?? 0;
+      const otherBankWithdrawal = data.otherBankWithdrawal ?? 0;
+      const loansDeductions = data.loansDeductions ?? 0;
+      const phoneDeduction = data.phoneDeduction ?? 0;
+      const unpaidVacation = data.unpaidVacation ?? 0;
+      const lateArrivals = data.lateArrivals ?? 0;
+      const timeSheetDeductions = data.timeSheetDeductions ?? 0;
+      const otherDeductions = data.otherDeductions ?? 0;
 
       // Calculate totals using formulas from Excel sheets
       // Direct Additions = Phone Allowance + Transportation + Accommodation + Other Allowances
@@ -238,7 +280,7 @@ export default function SalaryManagement() {
       const bonuses = annualBonus + monthlyBonus;
       
       // Yearly Increase (from additions sheet)
-      const yearlyIncrease = parseFloat(String(formData.yearlyIncrease || 0));
+      const yearlyIncrease = data.yearlyIncrease ?? 0;
       
       // Gross Deductions = Medical Insurance Deducted + Lawyers Taxes
       const grossDeductions = medicalInsuranceDeducted + lawyersTaxes;
@@ -247,7 +289,7 @@ export default function SalaryManagement() {
       const salaryDeductions = otherBankWithdrawal + loansDeductions + phoneDeduction + unpaidVacation + lateArrivals + timeSheetDeductions + otherDeductions;
       
       // Basic Salary
-      const basicSalary = parseFloat(String(formData.basicSalary || 0));
+      const basicSalary = data.basicSalary ?? 0;
       
       // Gross = Basic Salary + Indirect Additions + Direct Additions + Yearly Increase + Bonuses
       const gross = basicSalary + indirectAdditions + directAdditions + yearlyIncrease + bonuses;
@@ -280,10 +322,10 @@ export default function SalaryManagement() {
       if (otherDeductions > 0) deductionsBreakdown.otherDeductions = otherDeductions;
 
       const submitData = {
-        employeeId: formData.employeeId,
-        year: formData.year,
-        month: formData.month,
-        monthName: MONTHS[(formData.month || 1) - 1],
+        employeeId: data.employeeId,
+        year: data.year,
+        month: data.month,
+        monthName: MONTHS[(data.month || 1) - 1],
         basicSalary,
         directAdditions,
         indirectAdditions,
@@ -298,7 +340,7 @@ export default function SalaryManagement() {
         paymentMethod: formData.paymentMethod,
         accountNumber: formData.accountNumber,
         notes: formData.notes,
-        category: formData.category,
+        category: data.category,
         sourceFile: formData.sourceFile || 'Manual Entry'
       };
 
@@ -477,6 +519,11 @@ export default function SalaryManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6">
+                {formError && (
+                  <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded whitespace-pre-line">
+                    {formError}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
