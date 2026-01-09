@@ -21,15 +21,57 @@ interface Employee {
   };
 }
 
+const FILTER_STORAGE_KEY = 'employees-filters';
+
 export default function Employees() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('Active');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  
+  // Load filters from localStorage on mount
+  const loadFilters = () => {
+    try {
+      const saved = localStorage.getItem(FILTER_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          search: parsed.search || '',
+          statusFilter: parsed.statusFilter || 'Active',
+          departmentFilter: parsed.departmentFilter || 'all',
+          categoryFilter: parsed.categoryFilter || 'all',
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load filters:', e);
+    }
+    return {
+      search: '',
+      statusFilter: 'Active',
+      departmentFilter: 'all',
+      categoryFilter: 'all',
+    };
+  };
+  
+  const initialFilters = loadFilters();
+  const [search, setSearch] = useState(initialFilters.search);
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilters.statusFilter);
+  const [departmentFilter, setDepartmentFilter] = useState<string>(initialFilters.departmentFilter);
+  const [categoryFilter, setCategoryFilter] = useState<string>(initialFilters.categoryFilter);
+  
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
+        search,
+        statusFilter,
+        departmentFilter,
+        categoryFilter,
+      }));
+    } catch (e) {
+      console.error('Failed to save filters:', e);
+    }
+  }, [search, statusFilter, departmentFilter, categoryFilter]);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [showManualMerge, setShowManualMerge] = useState(false);
   const [targetEmployeeId, setTargetEmployeeId] = useState<string>('');

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
@@ -151,7 +152,7 @@ export default function Dashboard() {
           const skippedMsg = response.data.recordsSkipped > 0
             ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
             : '';
-          alert(t('employeeImportSuccessful', { 
+          toast.success(t('employeeImportSuccessful', { 
             created: response.data.recordsImported, 
             updated: response.data.recordsUpdated, 
             errors: errorMsg + skippedMsg
@@ -166,14 +167,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(t('employeeImportCompletedWithErrors', { errors: errorMsg }));
+        toast.error(t('employeeImportCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(t('employeeImportFailed', { error: errorMsg + errorDetails }));
+      toast.error(t('employeeImportFailed', { error: errorMsg + errorDetails }));
       console.error('Employee import error:', error);
     } finally {
       setImportingEmployees(false);
@@ -218,7 +219,7 @@ export default function Dashboard() {
           const skippedMsg = response.data.recordsSkipped > 0
             ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
             : '';
-          alert(t('contractsImportSuccessful', { 
+          toast.success(t('contractsImportSuccessful', { 
             imported: response.data.recordsImported, 
             linked: response.data.recordsLinked, 
             updated: response.data.recordsUpdated, 
@@ -234,14 +235,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(t('contractsImportCompletedWithErrors', { errors: errorMsg }));
+        toast.error(t('contractsImportCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(t('contractsImportFailed', { error: errorMsg + errorDetails }));
+      toast.error(t('contractsImportFailed', { error: errorMsg + errorDetails }));
       console.error('Contracts import error:', error);
     } finally {
       setImportingContracts(false);
@@ -286,7 +287,7 @@ export default function Dashboard() {
           const skippedMsg = response.data.recordsSkipped > 0
             ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
             : '';
-          alert(t('personnelImportSuccessful', { 
+          toast.success(t('personnelImportSuccessful', { 
             updated: response.data.recordsUpdated, 
             errors: errorMsg + skippedMsg
           }));
@@ -300,14 +301,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(t('personnelImportCompletedWithErrors', { errors: errorMsg }));
+        toast.error(t('personnelImportCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(t('personnelImportFailed', { error: errorMsg + errorDetails }));
+      toast.error(t('personnelImportFailed', { error: errorMsg + errorDetails }));
       console.error('Personnel import error:', error);
     } finally {
       setImportingPersonnel(false);
@@ -354,7 +355,7 @@ export default function Dashboard() {
           const errorMsg = response.data.errors && response.data.errors.length > 0
             ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
             : '';
-          alert(t('resignedImportSuccessful', { 
+          toast.success(t('resignedImportSuccessful', { 
             updated: response.data.recordsUpdated,
             notFound: response.data.recordsNotFound,
             errors: errorMsg
@@ -369,14 +370,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(t('resignedImportCompletedWithErrors', { errors: errorMsg }) || `Resigned import completed with errors:\n${errorMsg}`);
+        toast.error(t('resignedImportCompletedWithErrors', { errors: errorMsg }) || `Resigned import completed with errors:\n${errorMsg}`);
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(t('resignedImportFailed', { error: errorMsg + errorDetails }) || `Resigned import failed: ${errorMsg}${errorDetails}`);
+      toast.error(t('resignedImportFailed', { error: errorMsg + errorDetails }) || `Resigned import failed: ${errorMsg}${errorDetails}`);
       console.error('Resigned import error:', error);
     } finally {
       setImportingResigned(false);
@@ -407,7 +408,7 @@ export default function Dashboard() {
       });
       
       if (response.data.success) {
-        alert(
+        toast.success(
           t('conflictsResolvedSuccessfully', {
             updated: response.data.updated,
             skipped: response.data.skipped
@@ -439,11 +440,11 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 5).join('\n')
           : 'Unknown error';
-        alert(t('failedToResolveConflicts', { error: errorMsg }) || `Failed to resolve conflicts: ${errorMsg}`);
+        toast.error(t('failedToResolveConflicts', { error: errorMsg }) || `Failed to resolve conflicts: ${errorMsg}`);
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-      alert(t('conflictResolutionError', { error: errorMsg }) || `Error resolving conflicts: ${errorMsg}`);
+      toast.error(t('conflictResolutionError', { error: errorMsg }) || `Error resolving conflicts: ${errorMsg}`);
       console.error('Resolve conflicts error:', error);
     }
   };
@@ -489,7 +490,7 @@ export default function Dashboard() {
           const skippedMsg = response.data.recordsSkipped > 0
             ? `\n\n${t('recordsSkipped')}: ${response.data.recordsSkipped}`
             : '';
-          alert(t('importSuccessfulMessage', { 
+          toast.success(t('importSuccessfulMessage', { 
             imported: response.data.recordsImported, 
             files: response.data.filesProcessed, 
             errors: errorMsg + skippedMsg
@@ -504,14 +505,14 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? response.data.errors.slice(0, 10).join('\n')
           : 'Unknown error';
-        alert(t('importCompletedWithErrors', { errors: errorMsg }));
+        toast.error(t('importCompletedWithErrors', { errors: errorMsg }));
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
       const errorDetails = error.response?.data?.stack 
         ? `\n\nDetails: ${error.response.data.stack.split('\n').slice(0, 3).join('\n')}`
         : '';
-      alert(t('importFailedMessage', { error: errorMsg + errorDetails }));
+      toast.error(t('importFailedMessage', { error: errorMsg + errorDetails }));
       console.error('Import error:', error);
     } finally {
       setImporting(false);
@@ -538,7 +539,7 @@ export default function Dashboard() {
         const errorMsg = response.data.errors && response.data.errors.length > 0
           ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}`
           : '';
-        alert(t('conflictsResolved', {
+        toast.success(t('conflictsResolved', {
           kept: response.data.kept,
           updated: response.data.updated,
           skipped: response.data.skipped,

@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
-import { BonusFormSchema } from '../validation/bonuses';
+import { BonusFormSchema, type BonusFormValues } from '../validation/bonuses';
+import LoadingButton from '../components/LoadingButton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FormattedNumberInput from '../components/FormattedNumberInput';
+import FieldCheckmark from '../components/FieldCheckmark';
+import Tooltip from '../components/Tooltip';
 
 interface Bonus {
   id: string;
@@ -44,9 +52,38 @@ export default function BonusManagement() {
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingBonus, setEditingBonus] = useState<Bonus | null>(null);
-  const [formData, setFormData] = useState<Partial<Bonus>>({});
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const {
+    register,
+    control,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isSubmitting, touchedFields },
+    reset,
+    watch,
+  } = useForm<BonusFormValues>({
+    resolver: zodResolver(BonusFormSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      employeeId: '',
+      year: new Date().getFullYear(),
+      previousYearNet: 0,
+      previousYearGross: 0,
+      currentYearNet: 0,
+      currentYearGross: 0,
+      annualIncreaseNet: 0,
+      annualIncreaseGross: 0,
+      bonusAmount: 0,
+      bonusFirstHalf: null,
+      bonusSecondHalf: null,
+      previousYearBonus: null,
+      reflectedInMonths: null,
+      reflectedInPercent: null,
+      notes: null,
+    },
+  });
 
   useEffect(() => {
     fetchBonuses();
@@ -60,7 +97,7 @@ export default function BonusManagement() {
       setBonuses(response.data.bonuses || []);
     } catch (error) {
       console.error('Error fetching bonuses:', error);
-      alert(t('failedToLoad') + ' ' + t('bonuses').toLowerCase());
+      toast.error(t('failedToLoad') + ' ' + t('bonuses').toLowerCase());
     } finally {
       setLoading(false);
     }
@@ -77,7 +114,9 @@ export default function BonusManagement() {
 
   const handleCreate = () => {
     setEditingBonus(null);
-    setFormData({
+    setServerError(null);
+    reset({
+      employeeId: '',
       year: new Date().getFullYear(),
       previousYearNet: 0,
       previousYearGross: 0,
@@ -85,47 +124,68 @@ export default function BonusManagement() {
       currentYearGross: 0,
       annualIncreaseNet: 0,
       annualIncreaseGross: 0,
-      bonusAmount: 0
+      bonusAmount: 0,
+      bonusFirstHalf: null,
+      bonusSecondHalf: null,
+      previousYearBonus: null,
+      reflectedInMonths: null,
+      reflectedInPercent: null,
+      notes: null,
     });
     setShowForm(true);
   };
 
   const handleEdit = (bonus: Bonus) => {
     setEditingBonus(bonus);
-    setFormData(bonus);
+    setServerError(null);
+    reset({
+      employeeId: bonus.employeeId,
+      year: bonus.year,
+      previousYearNet: bonus.previousYearNet,
+      previousYearGross: bonus.previousYearGross,
+      currentYearNet: bonus.currentYearNet,
+      currentYearGross: bonus.currentYearGross,
+      annualIncreaseNet: bonus.annualIncreaseNet,
+      annualIncreaseGross: bonus.annualIncreaseGross,
+      bonusAmount: bonus.bonusAmount,
+      bonusFirstHalf: bonus.bonusFirstHalf,
+      bonusSecondHalf: bonus.bonusSecondHalf,
+      previousYearBonus: bonus.previousYearBonus,
+      reflectedInMonths: bonus.reflectedInMonths,
+      reflectedInPercent: bonus.reflectedInPercent,
+      notes: bonus.notes,
+    });
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('deleteBonusConfirm'))) {
-      return;
-    }
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirm({ isOpen: true, bonusId: id });
+  };
 
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
     try {
-      await axios.delete(`${API_BASE_URL}/bonuses/${id}`);
-      alert(t('bonusDeleted'));
+      await axios.delete(`${API_BASE_URL}/bonuses/${deleteConfirm.bonusId}`);
+      toast.success(t('bonusDeleted'));
+      setDeleteConfirm({ isOpen: false, bonusId: '' });
       fetchBonuses();
     } catch (error: any) {
-      alert(`${t('failedToDelete')} ${t('bonuses').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+      toast.error(`${t('failedToDelete')} ${t('bonuses').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, bonusId: '' });
+  };
+
+  const onSubmit = async (data: BonusFormValues) => {
+    setServerError(null);
     setSaving(true);
 
     try {
-      // Validate form data
-      const parseResult = BonusFormSchema.safeParse(formData);
-      if (!parseResult.success) {
-        const errorMessages = parseResult.error.errors.map((err) => err.message).join('\n');
-        setFormError(errorMessages || 'Validation error');
-        setSaving(false);
-        return;
-      }
-
-      const validatedData = parseResult.data;
+      const validatedData = data;
 
       // Calculate annual increase if not provided
       const previousYearNet = validatedData.previousYearNet || 0;
@@ -157,16 +217,18 @@ export default function BonusManagement() {
 
       if (editingBonus) {
         await axios.put(`${API_BASE_URL}/bonuses/${editingBonus.id}`, submitData);
-        alert(t('bonusUpdated'));
+        toast.success(t('bonusUpdated'));
       } else {
         await axios.post(`${API_BASE_URL}/bonuses`, submitData);
-        alert(t('bonusCreated'));
+        toast.success(t('bonusCreated'));
       }
       setShowForm(false);
-      setFormData({});
+      reset();
       fetchBonuses();
     } catch (error: any) {
-      alert(`${t('failedToSave')} ${t('bonuses').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to save bonus';
+      setServerError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -290,7 +352,8 @@ export default function BonusManagement() {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(bonus.id)}
+                          onClick={() => handleDeleteClick(bonus.id)}
+                          disabled={deleting}
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete
@@ -320,7 +383,7 @@ export default function BonusManagement() {
                 <button
                   onClick={() => {
                     setShowForm(false);
-                    setFormData({});
+                    reset();
                     setEditingBonus(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
@@ -331,40 +394,64 @@ export default function BonusManagement() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6">
-                {formError && (
+              <form onSubmit={handleFormSubmit(onSubmit)} className="p-6">
+                {serverError && (
                   <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded whitespace-pre-line text-sm">
-                    {formError}
+                    {serverError}
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-                    <select
-                      required
-                      value={formData.employeeId || ''}
-                      onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
+                    <div className="relative">
+                      <select
+                        {...register('employeeId')}
+                        className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent pr-10 ${
+                          errors.employeeId
+                            ? 'border-red-500 focus:ring-red-500'
+                            : touchedFields.employeeId && !errors.employeeId && watch('employeeId')
+                            ? 'border-green-500 focus:ring-green-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                      >
                       <option value="">Select Employee</option>
                       {employees.map(emp => (
                         <option key={emp.id} value={emp.id}>
                           {emp.name} ({emp.employeeCode || 'N/A'})
                         </option>
                       ))}
-                    </select>
+                      </select>
+                      <FieldCheckmark
+                        show={!!(touchedFields.employeeId && !errors.employeeId && watch('employeeId'))}
+                      />
+                    </div>
+                    {errors.employeeId && (
+                      <p className="mt-1 text-xs text-red-600">{errors.employeeId.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Year *</label>
-                    <input
-                      type="number"
-                      required
-                      value={formData.year || ''}
-                      onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      min="2000"
-                      max="2100"
-                    />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        {...register('year')}
+                        className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent pr-10 ${
+                          errors.year
+                            ? 'border-red-500 focus:ring-red-500'
+                            : touchedFields.year && !errors.year && watch('year')
+                            ? 'border-green-500 focus:ring-green-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                        min="2000"
+                        max="2100"
+                      />
+                      <FieldCheckmark
+                        show={!!(touchedFields.year && !errors.year && watch('year'))}
+                      />
+                    </div>
+                    {errors.year && (
+                      <p className="mt-1 text-xs text-red-600">{errors.year.message}</p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -375,8 +462,7 @@ export default function BonusManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.previousYearNet || 0}
-                      onChange={(e) => setFormData({ ...formData, previousYearNet: parseFloat(e.target.value) || 0 })}
+                      {...register('previousYearNet')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -385,8 +471,7 @@ export default function BonusManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.currentYearNet || 0}
-                      onChange={(e) => setFormData({ ...formData, currentYearNet: parseFloat(e.target.value) || 0 })}
+                      {...register('currentYearNet')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -395,8 +480,7 @@ export default function BonusManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.previousYearGross || 0}
-                      onChange={(e) => setFormData({ ...formData, previousYearGross: parseFloat(e.target.value) || 0 })}
+                      {...register('previousYearGross')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -405,19 +489,23 @@ export default function BonusManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.currentYearGross || 0}
-                      onChange={(e) => setFormData({ ...formData, currentYearGross: parseFloat(e.target.value) || 0 })}
+                      {...register('currentYearGross')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('annualIncreaseNetAuto')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('annualIncreaseNetAuto')}
+                      <Tooltip content="Automatically calculated as the difference between current year net and previous year net salary.">
+                        <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
+                      </Tooltip>
+                    </label>
                     <input
                       type="number"
                       step="0.01"
                       value={(() => {
-                        const prev = parseFloat(String(formData.previousYearNet || 0));
-                        const curr = parseFloat(String(formData.currentYearNet || 0));
+                        const prev = parseFloat(String(watch('previousYearNet') || 0));
+                        const curr = parseFloat(String(watch('currentYearNet') || 0));
                         return curr - prev;
                       })()}
                       readOnly
@@ -430,8 +518,8 @@ export default function BonusManagement() {
                       type="number"
                       step="0.01"
                       value={(() => {
-                        const prev = parseFloat(String(formData.previousYearGross || 0));
-                        const curr = parseFloat(String(formData.currentYearGross || 0));
+                        const prev = parseFloat(String(watch('previousYearGross') || 0));
+                        const curr = parseFloat(String(watch('currentYearGross') || 0));
                         return curr - prev;
                       })()}
                       readOnly
@@ -446,20 +534,24 @@ export default function BonusManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('bonusAmountRequired')}</label>
                     <input
                       type="number"
-                      required
                       step="0.01"
-                      value={formData.bonusAmount || 0}
-                      onChange={(e) => setFormData({ ...formData, bonusAmount: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('bonusAmount')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.bonusAmount
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                     />
+                    {errors.bonusAmount && (
+                      <p className="mt-1 text-xs text-red-600">{errors.bonusAmount.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('previousYearBonus')}</label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.previousYearBonus || ''}
-                      onChange={(e) => setFormData({ ...formData, previousYearBonus: e.target.value ? parseFloat(e.target.value) : null })}
+                      {...register('previousYearBonus')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -468,18 +560,23 @@ export default function BonusManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.bonusFirstHalf || ''}
-                      onChange={(e) => setFormData({ ...formData, bonusFirstHalf: e.target.value ? parseFloat(e.target.value) : null })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('bonusFirstHalf')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.bonusFirstHalf
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                     />
+                    {errors.bonusFirstHalf && (
+                      <p className="mt-1 text-xs text-red-600">{errors.bonusFirstHalf.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('bonusSecondHalf')}</label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.bonusSecondHalf || ''}
-                      onChange={(e) => setFormData({ ...formData, bonusSecondHalf: e.target.value ? parseFloat(e.target.value) : null })}
+                      {...register('bonusSecondHalf')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -488,8 +585,7 @@ export default function BonusManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.reflectedInMonths || ''}
-                      onChange={(e) => setFormData({ ...formData, reflectedInMonths: e.target.value ? parseFloat(e.target.value) : null })}
+                      {...register('reflectedInMonths')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -498,16 +594,14 @@ export default function BonusManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.reflectedInPercent || ''}
-                      onChange={(e) => setFormData({ ...formData, reflectedInPercent: e.target.value ? parseFloat(e.target.value) : null })}
+                      {...register('reflectedInPercent')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                     <textarea
-                      value={formData.notes || ''}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      {...register('notes')}
                       rows={2}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
@@ -519,25 +613,35 @@ export default function BonusManagement() {
                     type="button"
                     onClick={() => {
                       setShowForm(false);
-                      setFormData({});
+                      reset();
                       setEditingBonus(null);
                     }}
                     className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </button>
-                  <button
+                  <LoadingButton
                     type="submit"
-                    disabled={saving}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    loading={isSubmitting || saving}
                   >
-                    {saving ? 'Saving...' : editingBonus ? 'Update' : 'Create'}
-                  </button>
+                    {editingBonus ? 'Update' : 'Create'}
+                  </LoadingButton>
                 </div>
               </form>
             </div>
           </div>
         )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t('deleteBonus') || 'Delete Bonus'}
+        message={t('deleteBonusConfirm') || 'Are you sure you want to delete this bonus record?'}
+        confirmText={t('delete') || 'Delete'}
+        cancelText={t('cancel') || 'Cancel'}
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 }

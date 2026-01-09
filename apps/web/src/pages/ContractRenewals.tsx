@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 
@@ -80,7 +81,7 @@ export default function ContractRenewals() {
       setData(response.data);
     } catch (error: any) {
       console.error('Error fetching contract renewals:', error);
-      alert(t('errorGeneratingReport', { error: error.response?.data?.error || error.message }) || 'Error generating report');
+      toast.error(t('errorGeneratingReport', { error: error.response?.data?.error || error.message }) || 'Error generating report');
     } finally {
       setLoading(false);
     }

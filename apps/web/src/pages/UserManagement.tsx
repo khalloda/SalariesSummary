@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import { useAuth } from '../hooks/useAuth';
+import LoadingButton from '../components/LoadingButton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FieldCheckmark from '../components/FieldCheckmark';
+import { useFormDraft } from '../hooks/useFormDraft';
+import { useKeyboardShortcuts, createSaveShortcut, createEscapeShortcut } from '../hooks/useKeyboardShortcuts';
+import { getErrorId, focusFirstInvalidField, getFirstInvalidField } from '../utils/formAccessibility';
 import {
   UserCreateFormSchema,
   UserUpdateFormSchema,
+  type UserFormCreateValues,
+  type UserFormUpdateValues,
 } from '../validation/users';
 
 interface User {
@@ -37,17 +48,95 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [formData, setFormData] = useState<Partial<User & { password: string; confirmPassword: string }>>({
-    isActive: true,
-    roles: [],
-  });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; userId: string; username: string }>({
+    isOpen: false,
+    userId: '',
+    username: '',
+  });
+  const [deleting, setDeleting] = useState(false);
+
+  // Custom resolver that dynamically selects schema based on editingUser
+  const customResolver = async (data: any, context: any, options: any) => {
+    const schema = editingUser ? UserUpdateFormSchema : UserCreateFormSchema;
+    const zodResolverInstance = zodResolver(schema);
+    return zodResolverInstance(data, context, options);
+  };
+
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isSubmitting, touchedFields },
+    reset,
+    watch,
+    setValue,
+  } = useForm<UserFormCreateValues | UserFormUpdateValues>({
+    resolver: customResolver,
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      username: '',
+      fullName: '',
+      email: '',
+      systemId: '',
+      isActive: true,
+      roles: [],
+      password: '',
+      confirmPassword: '',
+    },
+  });
+
+  const watchedRoles = watch('roles') || [];
+  const formValues = watch();
+  const watchedUsername = watch('username');
+  const watchedFullName = watch('fullName');
+  const watchedEmail = watch('email');
+  const watchedPassword = watch('password');
+  const watchedConfirmPassword = watch('confirmPassword');
+
+  // Auto-save form draft
+  const { loadDraft, clearDraft } = useFormDraft(
+    'user-form',
+    editingUser?.id || null,
+    formValues,
+    showForm // Only save when form is open
+  );
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    createSaveShortcut(() => {
+      if (showForm && !saving && !isSubmitting) {
+        handleFormSubmit(onSubmit)();
+      }
+    }, showForm && !saving && !isSubmitting),
+    createEscapeShortcut(() => {
+      if (showForm && !saving) {
+        setShowForm(false);
+        setServerError(null);
+        reset();
+        clearDraft();
+      }
+    }, showForm && !saving),
+  ]);
 
   useEffect(() => {
     fetchUsers();
     fetchRoles();
   }, []);
+
+  // Load draft when form opens
+  useEffect(() => {
+    if (showForm && !editingUser) {
+      const draft = loadDraft();
+      if (draft) {
+        Object.keys(draft).forEach((key) => {
+          setValue(key as any, draft[key]);
+        });
+        toast.success('Draft restored', { duration: 2000 });
+      }
+    }
+  }, [showForm, editingUser]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -56,7 +145,7 @@ export default function UserManagement() {
       setUsers(response.data.users);
     } catch (error: any) {
       console.error('Error fetching users:', error);
-      setError(error.response?.data?.error || 'Failed to load users');
+      toast.error(error.response?.data?.error || 'Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -73,7 +162,8 @@ export default function UserManagement() {
 
   const handleCreate = () => {
     setEditingUser(null);
-    setFormData({
+    setServerError(null);
+    reset({
       username: '',
       email: '',
       fullName: '',
@@ -83,13 +173,13 @@ export default function UserManagement() {
       isActive: true,
       roles: [],
     });
-    setError(null);
     setShowForm(true);
   };
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
-    setFormData({
+    setServerError(null);
+    reset({
       username: user.username,
       email: user.email || '',
       fullName: user.fullName,
@@ -99,55 +189,68 @@ export default function UserManagement() {
       isActive: user.isActive,
       roles: [...user.roles],
     });
-    setError(null);
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string, username: string) => {
-    if (!confirm(t('deleteUserConfirm', { username }) || `Are you sure you want to delete user "${username}"?`)) {
-      return;
-    }
+  const handleDeleteClick = (id: string, username: string) => {
+    setDeleteConfirm({ isOpen: true, userId: id, username });
+  };
 
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
     try {
-      await axios.delete(`${API_BASE_URL}/users/${id}`, { withCredentials: true });
-      alert(t('userDeletedSuccessfully') || 'User deleted successfully');
+      await axios.delete(`${API_BASE_URL}/users/${deleteConfirm.userId}`, { withCredentials: true });
+      toast.success(t('userDeletedSuccessfully') || 'User deleted successfully');
+      setDeleteConfirm({ isOpen: false, userId: '', username: '' });
       fetchUsers();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete user');
+      toast.error(error.response?.data?.error || 'Failed to delete user');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, userId: '', username: '' });
+  };
+
+  const handleToggleActive = async (user: User) => {
+    const newActiveState = !user.isActive;
+    
+    // Optimistic update
+    setUsers(prevUsers =>
+      prevUsers.map(u =>
+        u.id === user.id ? { ...u, isActive: newActiveState } : u
+      )
+    );
+
+    try {
+      await axios.put(
+        `${API_BASE_URL}/users/${user.id}`,
+        { ...user, isActive: newActiveState },
+        { withCredentials: true }
+      );
+      toast.success(
+        newActiveState
+          ? t('userActivatedSuccessfully') || 'User activated successfully'
+          : t('userDeactivatedSuccessfully') || 'User deactivated successfully'
+      );
+    } catch (error: any) {
+      // Rollback on error
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === user.id ? { ...u, isActive: user.isActive } : u
+        )
+      );
+      toast.error(error.response?.data?.error || 'Failed to update user status');
+    }
+  };
+
+  const onSubmit = async (data: UserFormCreateValues | UserFormUpdateValues) => {
+    setServerError(null);
     setSaving(true);
 
     try {
-      const schema = editingUser ? UserUpdateFormSchema : UserCreateFormSchema;
-
-      const parseResult = schema.safeParse({
-        username: formData.username ?? '',
-        fullName: formData.fullName ?? '',
-        email: formData.email ?? '',
-        systemId: formData.systemId ?? '',
-        isActive: formData.isActive ?? true,
-        roles: formData.roles ?? [],
-        password: formData.password ?? '',
-        confirmPassword: formData.confirmPassword ?? '',
-      });
-
-      if (!parseResult.success) {
-        const message =
-          parseResult.error.errors
-            .map((err) => err.message)
-            .join('\n') || (t('validationError') as string) || 'Validation error';
-        setError(message);
-        setSaving(false);
-        return;
-      }
-
-      const data = parseResult.data;
-
       const submitData: any = {
         username: data.username,
         email: data.email,
@@ -158,33 +261,36 @@ export default function UserManagement() {
       };
 
       // Only include password if it's provided
-      if (data.password) {
+      if (data.password && data.password.trim() !== '') {
         submitData.password = data.password;
       }
 
       if (editingUser) {
         await axios.put(`${API_BASE_URL}/users/${editingUser.id}`, submitData, { withCredentials: true });
-        alert(t('userUpdatedSuccessfully') || 'User updated successfully');
+        toast.success(t('userUpdatedSuccessfully') || 'User updated successfully');
       } else {
         await axios.post(`${API_BASE_URL}/users`, submitData, { withCredentials: true });
-        alert(t('userCreatedSuccessfully') || 'User created successfully');
+        toast.success(t('userCreatedSuccessfully') || 'User created successfully');
       }
 
       setShowForm(false);
+      clearDraft(); // Clear draft on successful save
       fetchUsers();
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to save user');
+      const errorMessage = error.response?.data?.error || 'Failed to save user';
+      setServerError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
   const toggleRole = (roleName: string) => {
-    const currentRoles = formData.roles || [];
+    const currentRoles = watchedRoles;
     if (currentRoles.includes(roleName)) {
-      setFormData({ ...formData, roles: currentRoles.filter((r) => r !== roleName) });
+      setValue('roles', currentRoles.filter((r) => r !== roleName), { shouldValidate: true });
     } else {
-      setFormData({ ...formData, roles: [...currentRoles, roleName] });
+      setValue('roles', [...currentRoles, roleName], { shouldValidate: true });
     }
   };
 
@@ -208,11 +314,6 @@ export default function UserManagement() {
         </button>
       </div>
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
@@ -263,15 +364,18 @@ export default function UserManagement() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-1 text-xs rounded ${
+                  <button
+                    onClick={() => handleToggleActive(user)}
+                    disabled={user.id === currentUser?.id}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
                       user.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
+                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                        : 'bg-red-100 text-red-800 hover:bg-red-200'
+                    } ${user.id === currentUser?.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    title={user.id === currentUser?.id ? 'Cannot deactivate your own account' : 'Click to toggle status'}
                   >
                     {user.isActive ? (t('active') || 'Active') : (t('inactive') || 'Inactive')}
-                  </span>
+                  </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
@@ -282,7 +386,8 @@ export default function UserManagement() {
                   </button>
                   {user.id !== currentUser?.id && user.username !== 'khelmy' && (
                     <button
-                      onClick={() => handleDelete(user.id, user.username)}
+                      onClick={() => handleDeleteClick(user.id, user.username)}
+                      disabled={deleting}
                       className="text-red-600 hover:text-red-900"
                     >
                       {t('delete') || 'Delete'}
@@ -301,44 +406,93 @@ export default function UserManagement() {
             <h2 className="text-2xl font-bold mb-4">
               {editingUser ? (t('editUser') || 'Edit User') : (t('createUser') || 'Create User')}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form id="user-form" onSubmit={handleFormSubmit(onSubmit, handleFormError)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('username') || 'Username'} *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.username || ''}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  disabled={!!editingUser}
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    {...register('username')}
+                    aria-invalid={errors.username ? 'true' : 'false'}
+                    aria-describedby={errors.username ? getErrorId('username') : undefined}
+                    className={`w-full px-3 py-2 border rounded-md pr-10 ${
+                      errors.username
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                        : touchedFields.username && !errors.username && watchedUsername
+                        ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                    }`}
+                    disabled={!!editingUser}
+                  />
+                  <FieldCheckmark
+                    show={!!(touchedFields.username && !errors.username && watchedUsername)}
+                  />
+                </div>
+                {errors.username && (
+                  <p id={getErrorId('username')} className="mt-1 text-xs text-red-600" role="alert">
+                    {errors.username.message}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('fullName') || 'Full Name'} *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.fullName || ''}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    {...register('fullName')}
+                    aria-invalid={errors.fullName ? 'true' : 'false'}
+                    aria-describedby={errors.fullName ? getErrorId('fullName') : undefined}
+                    className={`w-full px-3 py-2 border rounded-md pr-10 ${
+                      errors.fullName
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                        : touchedFields.fullName && !errors.fullName && watchedFullName
+                        ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                    }`}
+                  />
+                  <FieldCheckmark
+                    show={!!(touchedFields.fullName && !errors.fullName && watchedFullName)}
+                  />
+                </div>
+                {errors.fullName && (
+                  <p id={getErrorId('fullName')} className="mt-1 text-xs text-red-600" role="alert">
+                    {errors.fullName.message}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('email') || 'Email'}
                 </label>
-                <input
-                  type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
+                <div className="relative">
+                  <input
+                    type="email"
+                    {...register('email')}
+                    aria-invalid={errors.email ? 'true' : 'false'}
+                    aria-describedby={errors.email ? getErrorId('email') : undefined}
+                    className={`w-full px-3 py-2 border rounded-md pr-10 ${
+                      errors.email
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                        : touchedFields.email && !errors.email && watchedEmail
+                        ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                    }`}
+                  />
+                  <FieldCheckmark
+                    show={!!(touchedFields.email && !errors.email && watchedEmail)}
+                  />
+                </div>
+                {errors.email && (
+                  <p id={getErrorId('email')} className="mt-1 text-xs text-red-600" role="alert">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -347,38 +501,76 @@ export default function UserManagement() {
                 </label>
                 <input
                   type="text"
-                  value={formData.systemId || ''}
-                  onChange={(e) => setFormData({ ...formData, systemId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  {...register('systemId')}
+                  className={`w-full px-3 py-2 border rounded-md ${
+                    errors.systemId
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                 />
+                {errors.systemId && (
+                  <p className="mt-1 text-xs text-red-600">{errors.systemId.message}</p>
+                )}
               </div>
 
-              {(!editingUser || formData.password) && (
+              {(!editingUser || watch('password')) && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t('password') || 'Password'} {editingUser ? '' : '*'}
                     </label>
-                    <input
-                      type="password"
-                      value={formData.password || ''}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      required={!editingUser}
-                    />
+                    <div className="relative">
+                      <input
+                        type="password"
+                        {...register('password')}
+                        aria-invalid={errors.password ? 'true' : 'false'}
+                        aria-describedby={errors.password ? getErrorId('password') : undefined}
+                        className={`w-full px-3 py-2 border rounded-md pr-10 ${
+                          errors.password
+                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                            : touchedFields.password && !errors.password && watchedPassword
+                            ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                        }`}
+                      />
+                      <FieldCheckmark
+                        show={!!(touchedFields.password && !errors.password && watchedPassword)}
+                      />
+                    </div>
+                    {errors.password && (
+                      <p id={getErrorId('password')} className="mt-1 text-xs text-red-600" role="alert">
+                        {errors.password.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t('confirmPassword') || 'Confirm Password'} {editingUser ? '' : '*'}
                     </label>
-                    <input
-                      type="password"
-                      value={formData.confirmPassword || ''}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      required={!editingUser}
-                    />
+                    <div className="relative">
+                      <input
+                        type="password"
+                        {...register('confirmPassword')}
+                        aria-invalid={errors.confirmPassword ? 'true' : 'false'}
+                        aria-describedby={errors.confirmPassword ? getErrorId('confirmPassword') : undefined}
+                        className={`w-full px-3 py-2 border rounded-md pr-10 ${
+                          errors.confirmPassword
+                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                            : touchedFields.confirmPassword && !errors.confirmPassword && watchedConfirmPassword
+                            ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                        }`}
+                      />
+                      <FieldCheckmark
+                        show={!!(touchedFields.confirmPassword && !errors.confirmPassword && watchedConfirmPassword)}
+                      />
+                    </div>
+                    {errors.confirmPassword && (
+                      <p id={getErrorId('confirmPassword')} className="mt-1 text-xs text-red-600" role="alert">
+                        {errors.confirmPassword.message}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -392,7 +584,7 @@ export default function UserManagement() {
                     <label key={role.id} className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={formData.roles?.includes(role.name) || false}
+                        checked={watchedRoles.includes(role.name)}
                         onChange={() => toggleRole(role.name)}
                         className="mr-2"
                       />
@@ -402,23 +594,25 @@ export default function UserManagement() {
                     </label>
                   ))}
                 </div>
+                {errors.roles && (
+                  <p className="mt-1 text-xs text-red-600">{errors.roles.message}</p>
+                )}
               </div>
 
               <div>
                 <label className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={formData.isActive || false}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    {...register('isActive')}
                     className="mr-2"
                   />
                   <span className="text-sm">{t('active') || 'Active'}</span>
                 </label>
               </div>
 
-              {error && (
+              {serverError && (
                 <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                  {error}
+                  {serverError}
                 </div>
               )}
 
@@ -427,24 +621,35 @@ export default function UserManagement() {
                   type="button"
                   onClick={() => {
                     setShowForm(false);
-                    setError(null);
+                    setServerError(null);
+                    reset();
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
                   {t('cancel') || 'Cancel'}
                 </button>
-                <button
+                <LoadingButton
                   type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  loading={isSubmitting || saving}
                 >
-                  {saving ? (t('saving') || 'Saving...') : (t('save') || 'Save')}
-                </button>
+                  {t('save') || 'Save'}
+                </LoadingButton>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t('deleteUser') || 'Delete User'}
+        message={t('deleteUserConfirm', { username: deleteConfirm.username }) || `Are you sure you want to delete user "${deleteConfirm.username}"?`}
+        confirmText={t('delete') || 'Delete'}
+        cancelText={t('cancel') || 'Cancel'}
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 }

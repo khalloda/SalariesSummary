@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../hooks/useAuth';
 import { LoginFormSchema, type LoginFormValues } from '../validation/auth';
+import LoadingButton from '../components/LoadingButton';
+import FieldCheckmark from '../components/FieldCheckmark';
 
 export default function Login() {
   const { t, i18n } = useTranslation();
@@ -18,14 +20,19 @@ export default function Login() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    watch,
+    formState: { errors, isSubmitting, touchedFields },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(LoginFormSchema),
+    mode: 'onBlur',
     defaultValues: {
       username: '',
       password: '',
     },
   });
+
+  const username = watch('username');
+  const password = watch('password');
 
   const isRTL = i18n.language === 'ar';
 
@@ -54,14 +61,27 @@ export default function Login() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t('username') || 'Username'}
             </label>
-            <input
-              type="text"
-              autoComplete="username"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm"
-              {...register('username')}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                autoComplete="username"
+                aria-invalid={errors.username ? 'true' : 'false'}
+                aria-describedby={errors.username ? 'username-error' : undefined}
+                className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 text-sm pr-10 ${
+                  errors.username
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : touchedFields.username && !errors.username && username
+                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500'
+                    : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                }`}
+                {...register('username')}
+              />
+              <FieldCheckmark
+                show={!!(touchedFields.username && !errors.username && username)}
+              />
+            </div>
             {errors.username && (
-              <p className="mt-1 text-xs text-red-600">
+              <p id="username-error" className="mt-1 text-xs text-red-600" role="alert">
                 {errors.username.message}
               </p>
             )}
@@ -71,14 +91,27 @@ export default function Login() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t('password') || 'Password'}
             </label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm"
-              {...register('password')}
-            />
+            <div className="relative">
+              <input
+                type="password"
+                autoComplete="current-password"
+                aria-invalid={errors.password ? 'true' : 'false'}
+                aria-describedby={errors.password ? 'password-error' : undefined}
+                className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 text-sm pr-10 ${
+                  errors.password
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : touchedFields.password && !errors.password && password
+                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500'
+                    : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                }`}
+                {...register('password')}
+              />
+              <FieldCheckmark
+                show={!!(touchedFields.password && !errors.password && password)}
+              />
+            </div>
             {errors.password && (
-              <p className="mt-1 text-xs text-red-600">
+              <p id="password-error" className="mt-1 text-xs text-red-600" role="alert">
                 {errors.password.message}
               </p>
             )}
@@ -90,13 +123,13 @@ export default function Login() {
             </div>
           )}
 
-          <button
+          <LoadingButton
             type="submit"
-            disabled={isSubmitting}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 disabled:opacity-60"
+            loading={isSubmitting}
+            className="w-full"
           >
-            {isSubmitting ? (t('loading') || 'Loading...') : (t('login') || 'Login')}
-          </button>
+            {t('login') || 'Login'}
+          </LoadingButton>
         </form>
 
         <p className="mt-4 text-xs text-gray-500 text-center">

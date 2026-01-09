@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import PersonnelEditModal from '../components/PersonnelEditModal';
@@ -166,12 +167,12 @@ export default function EmployeeDetail() {
     setSavingPersonnel(true);
     try {
       await axios.put(`${API_BASE_URL}/personnel/employee/${employee.id}`, personnelFormData);
-      alert(t('personnelDataUpdatedSuccessfully'));
+      toast.success(t('personnelDataUpdatedSuccessfully'));
       setEditingPersonnel(false);
       fetchEmployee(); // Refresh employee data
     } catch (err: any) {
       console.error('Error saving personnel data:', err);
-      alert(`${t('failedToSave')} ${t('personnel').toLowerCase()}: ${err.response?.data?.error || err.message}`);
+      toast.error(`${t('failedToSave')} ${t('personnel').toLowerCase()}: ${err.response?.data?.error || err.message}`);
     } finally {
       setSavingPersonnel(false);
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
@@ -131,7 +132,7 @@ export default function EmployeeCard() {
       setEmployees(response.data);
     } catch (error: any) {
       console.error('Error fetching employees:', error);
-      alert('Failed to load employees: ' + (error.response?.data?.error || error.message));
+      toast.error('Failed to load employees: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -143,7 +144,7 @@ export default function EmployeeCard() {
       setSelectedEmployee(response.data);
     } catch (error: any) {
       console.error('Error fetching employee details:', error);
-      alert('Failed to load employee details: ' + (error.response?.data?.error || error.message));
+      toast.error('Failed to load employee details: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -196,7 +197,7 @@ export default function EmployeeCard() {
       }, 100);
     } catch (error: any) {
       console.error('Error fetching employee details:', error);
-      alert('Failed to load employee details: ' + (error.response?.data?.error || error.message));
+      toast.error('Failed to load employee details: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoadingBatch(false);
     }
@@ -204,7 +205,7 @@ export default function EmployeeCard() {
 
   const handlePrintSelected = () => {
     if (selectedEmployeeIds.size === 0) {
-      alert('Please select at least one employee');
+      toast.error('Please select at least one employee');
       return;
     }
     fetchEmployeeDetailsForBatch(Array.from(selectedEmployeeIds));
@@ -213,7 +214,7 @@ export default function EmployeeCard() {
   const handlePrintCategory = (category: string) => {
     const categoryEmployees = employeesByCategory[category] || [];
     if (categoryEmployees.length === 0) {
-      alert('No employees in this category');
+      toast.error('No employees in this category');
       return;
     }
     fetchEmployeeDetailsForBatch(categoryEmployees.map(e => e.id));
@@ -221,7 +222,7 @@ export default function EmployeeCard() {
 
   const handlePrintAll = () => {
     if (filtered.length === 0) {
-      alert('No employees to print');
+      toast.error('No employees to print');
       return;
     }
     fetchEmployeeDetailsForBatch(filtered.map(e => e.id));
@@ -248,7 +249,7 @@ export default function EmployeeCard() {
       link.remove();
     } catch (error: any) {
       console.error('PDF export error:', error);
-      alert('Failed to export PDF: ' + (error.response?.data?.error || error.message));
+      toast.error('Failed to export PDF: ' + (error.response?.data?.error || error.message));
     } finally {
       setExporting(false);
     }
@@ -275,7 +276,7 @@ export default function EmployeeCard() {
       link.remove();
     } catch (error: any) {
       console.error('XLSX export error:', error);
-      alert('Failed to export XLSX: ' + (error.response?.data?.error || error.message));
+      toast.error('Failed to export XLSX: ' + (error.response?.data?.error || error.message));
     } finally {
       setExporting(false);
     }

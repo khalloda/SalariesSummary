@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import Tooltip from '../components/Tooltip';
 import { tooltips } from '../utils/tooltips';
-import { EmployeeFormSchema } from '../validation/employees';
+import { EmployeeFormSchema, type EmployeeFormValues } from '../validation/employees';
+import LoadingButton from '../components/LoadingButton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FieldCheckmark from '../components/FieldCheckmark';
+import { useFormDraft } from '../hooks/useFormDraft';
+import { useKeyboardShortcuts, createSaveShortcut, createEscapeShortcut } from '../hooks/useKeyboardShortcuts';
+import ProgressIndicator from '../components/ProgressIndicator';
 
 interface Employee {
   id: string;
@@ -31,9 +40,92 @@ export default function EmployeeManagement() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [formData, setFormData] = useState<Partial<Employee>>({});
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; employeeId: string; employeeName: string }>({
+    isOpen: false,
+    employeeId: '',
+    employeeName: '',
+  });
+  const [deleting, setDeleting] = useState(false);
+
+  // Use react-hook-form for validated fields, but keep formData for all other fields
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isSubmitting, touchedFields },
+    reset,
+    watch,
+    setValue,
+  } = useForm<EmployeeFormValues>({
+    resolver: zodResolver(EmployeeFormSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      name: '',
+      nameArabic: '',
+      employeeCode: '',
+      category: '',
+      jobTitle: '',
+      department: '',
+      status: 'Active',
+    },
+  });
+
+  // Keep additional fields in separate state (not validated by schema)
+  const [additionalFields, setAdditionalFields] = useState<Partial<Employee>>({});
+
+  const formValues = watch();
+  const allFormData = { ...formValues, ...additionalFields };
+  const watchedName = watch('name');
+  const watchedEmployeeCode = watch('employeeCode');
+
+  // Auto-save form draft
+  const { loadDraft, clearDraft } = useFormDraft(
+    'employee-form',
+    editingEmployee?.id || null,
+    allFormData,
+    showForm
+  );
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    createSaveShortcut(() => {
+      if (showForm && !saving && !isSubmitting) {
+        handleFormSubmit(onSubmit)();
+      }
+    }, showForm && !saving && !isSubmitting),
+    createEscapeShortcut(() => {
+      if (showForm && !saving) {
+        setShowForm(false);
+        reset();
+        setAdditionalFields({});
+        setEditingEmployee(null);
+        clearDraft();
+      }
+    }, showForm && !saving),
+  ]);
+
+  // Load draft when form opens
+  useEffect(() => {
+    if (showForm && !editingEmployee) {
+      const draft = loadDraft();
+      if (draft) {
+        // Restore validated fields
+        if (draft.name) setValue('name', draft.name);
+        if (draft.nameArabic) setValue('nameArabic', draft.nameArabic);
+        if (draft.employeeCode) setValue('employeeCode', draft.employeeCode);
+        if (draft.category) setValue('category', draft.category);
+        if (draft.jobTitle) setValue('jobTitle', draft.jobTitle);
+        if (draft.department) setValue('department', draft.department);
+        if (draft.status) setValue('status', draft.status);
+        // Restore additional fields
+        const { name, nameArabic, employeeCode, category, jobTitle, department, status, ...rest } = draft;
+        setAdditionalFields(rest);
+        toast.success('Draft restored', { duration: 2000 });
+      }
+    }
+  }, [showForm, editingEmployee, loadDraft, setValue]);
 
   useEffect(() => {
     fetchEmployees();
@@ -46,13 +138,25 @@ export default function EmployeeManagement() {
       const employee = employees.find(emp => emp.id === editId);
       if (employee) {
         setEditingEmployee(employee);
-        setFormData(employee);
+        // Reset form with validated fields
+        reset({
+          name: employee.name || '',
+          nameArabic: employee.nameArabic || '',
+          employeeCode: employee.employeeCode || '',
+          category: employee.category || '',
+          jobTitle: employee.jobTitle || '',
+          department: employee.department || '',
+          status: employee.status || 'Active',
+        });
+        // Store additional fields separately
+        const { name, nameArabic, employeeCode, category, jobTitle, department, status, ...rest } = employee;
+        setAdditionalFields(rest);
         setShowForm(true);
         // Remove editId from URL
         setSearchParams({});
       }
     }
-  }, [employees, searchParams, setSearchParams, editingEmployee]);
+  }, [employees, searchParams, setSearchParams, editingEmployee, reset]);
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -61,7 +165,7 @@ export default function EmployeeManagement() {
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
-      alert(t('failedToLoadEmployees'));
+      toast.error(t('failedToLoadEmployees'));
     } finally {
       setLoading(false);
     }
@@ -69,81 +173,86 @@ export default function EmployeeManagement() {
 
   const handleCreate = () => {
     setEditingEmployee(null);
-    setFormData({ status: 'Active' });
+    setServerError(null);
+    reset({
+      name: '',
+      nameArabic: '',
+      employeeCode: '',
+      category: '',
+      jobTitle: '',
+      department: '',
+      status: 'Active',
+    });
+    setAdditionalFields({});
     setShowForm(true);
   };
 
   const handleEdit = (employee: Employee) => {
     setEditingEmployee(employee);
-    setFormData(employee);
+    setServerError(null);
+    reset({
+      name: employee.name || '',
+      nameArabic: employee.nameArabic || '',
+      employeeCode: employee.employeeCode || '',
+      category: employee.category || '',
+      jobTitle: employee.jobTitle || '',
+      department: employee.department || '',
+      status: employee.status || 'Active',
+    });
+    const { name, nameArabic, employeeCode, category, jobTitle, department, status, ...rest } = employee;
+    setAdditionalFields(rest);
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(t('deleteEmployeeConfirm', { name }))) {
-      return;
-    }
+  const handleDeleteClick = (id: string, name: string) => {
+    setDeleteConfirm({ isOpen: true, employeeId: id, employeeName: name });
+  };
 
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
     try {
-      await axios.delete(`${API_BASE_URL}/employees/${id}`);
-      alert(t('employeeDeletedSuccessfully'));
+      await axios.delete(`${API_BASE_URL}/employees/${deleteConfirm.employeeId}`);
+      toast.success(t('employeeDeletedSuccessfully'));
+      setDeleteConfirm({ isOpen: false, employeeId: '', employeeName: '' });
       fetchEmployees();
     } catch (error: any) {
-      alert(t('failedToDeleteEmployee', { error: error.response?.data?.error || error.message }));
+      toast.error(t('failedToDeleteEmployee', { error: error.response?.data?.error || error.message }));
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, employeeId: '', employeeName: '' });
+  };
+
+  const onSubmit = async (data: EmployeeFormValues) => {
+    setServerError(null);
     setSaving(true);
 
     try {
-      const parseResult = EmployeeFormSchema.safeParse({
-        name: formData.name ?? '',
-        nameArabic: formData.nameArabic ?? '',
-        employeeCode: formData.employeeCode ?? '',
-        category: formData.category ?? '',
-        jobTitle: formData.jobTitle ?? '',
-        department: formData.department ?? '',
-        status: formData.status ?? 'Active',
-      });
-
-      if (!parseResult.success) {
-        const message =
-          parseResult.error.errors
-            .map((err) => err.message)
-            .join('\n') || 'Validation error';
-        setFormError(message);
-        setSaving(false);
-        return;
-      }
-
-      const data = parseResult.data;
-
-      const submitData: any = {
-        ...formData,
-        name: data.name,
-        nameArabic: data.nameArabic,
-        employeeCode: data.employeeCode,
-        category: data.category,
-        jobTitle: data.jobTitle,
-        department: data.department,
-        status: data.status,
+      // Merge validated data with additional fields
+      const submitData = {
+        ...data,
+        ...additionalFields,
       };
 
       if (editingEmployee) {
         await axios.put(`${API_BASE_URL}/employees/${editingEmployee.id}`, submitData);
-        alert(t('employeeUpdatedSuccessfully'));
+        toast.success(t('employeeUpdatedSuccessfully'));
       } else {
         await axios.post(`${API_BASE_URL}/employees`, submitData);
-        alert(t('employeeCreatedSuccessfully'));
+        toast.success(t('employeeCreatedSuccessfully'));
       }
       setShowForm(false);
-      setFormData({});
+      reset();
+      setAdditionalFields({});
+      clearDraft(); // Clear draft on successful save
       fetchEmployees();
     } catch (error: any) {
-      alert(t('failedToSaveEmployee', { error: error.response?.data?.error || error.message }));
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to save employee';
+      setServerError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -336,7 +445,8 @@ export default function EmployeeManagement() {
                       </Tooltip>
                       <Tooltip content={tooltips.management.delete}>
                         <button
-                          onClick={() => handleDelete(employee.id, employee.name)}
+                          onClick={() => handleDeleteClick(employee.id, employee.name)}
+                          disabled={deleting}
                           className="text-red-600 hover:text-red-900"
                         >
                           {t('delete')}
@@ -364,14 +474,15 @@ export default function EmployeeManagement() {
                   {editingEmployee ? t('editEmployee') : t('createNewEmployee')}
                 </h2>
                 <Tooltip content={tooltips.common.close}>
-                  <button
-                    onClick={() => {
-                      setShowForm(false);
-                      setFormData({});
-                      setEditingEmployee(null);
-                    }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
+                    <button
+                      onClick={() => {
+                        setShowForm(false);
+                        reset();
+                        setAdditionalFields({});
+                        setEditingEmployee(null);
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -379,12 +490,32 @@ export default function EmployeeManagement() {
                 </Tooltip>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6">
-                {formError && (
+              <form onSubmit={handleFormSubmit(onSubmit)} className="p-6">
+                {serverError && (
                   <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded whitespace-pre-line">
-                    {formError}
+                    {serverError}
                   </div>
                 )}
+                
+                {/* Progress Indicator */}
+                <ProgressIndicator
+                  current={(() => {
+                    let completed = 0;
+                    const sections = [
+                      formValues.name && formValues.employeeCode, // Basic Info
+                      additionalFields.phone || additionalFields.email || additionalFields.address, // Contact
+                      additionalFields.graduationCertificate || additionalFields.graduationYear, // Education
+                      additionalFields.nationalId || additionalFields.socialInsurance, // Identification
+                      additionalFields.contractType || additionalFields.contractDuration, // Employment
+                      additionalFields.experienceInYears !== null && additionalFields.experienceInYears !== undefined, // Experience
+                    ];
+                    sections.forEach(hasData => { if (hasData) completed++; });
+                    return completed;
+                  })()}
+                  total={6}
+                  labels={['Basic Info', 'Contact', 'Education', 'Identification', 'Employment', 'Experience']}
+                />
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <div className="md:col-span-2">
@@ -392,38 +523,72 @@ export default function EmployeeManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('nameEnglish')} *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name || ''}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        {...register('name')}
+                        className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent pr-10 ${
+                          errors.name
+                            ? 'border-red-500 focus:ring-red-500'
+                            : touchedFields.name && !errors.name && watchedName
+                            ? 'border-green-500 focus:ring-green-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                      />
+                      <FieldCheckmark
+                        show={!!(touchedFields.name && !errors.name && watchedName)}
+                      />
+                    </div>
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('nameArabic')}</label>
                     <input
                       type="text"
-                      value={formData.nameArabic || ''}
-                      onChange={(e) => setFormData({ ...formData, nameArabic: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('nameArabic')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.nameArabic
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                     />
+                    {errors.nameArabic && (
+                      <p className="mt-1 text-xs text-red-600">{errors.nameArabic.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('systemId')}</label>
-                    <input
-                      type="text"
-                      value={formData.employeeCode || ''}
-                      onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        {...register('employeeCode')}
+                        className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent pr-10 ${
+                          errors.employeeCode
+                            ? 'border-red-500 focus:ring-red-500'
+                            : touchedFields.employeeCode && !errors.employeeCode && watchedEmployeeCode
+                            ? 'border-green-500 focus:ring-green-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                      />
+                      <FieldCheckmark
+                        show={!!(touchedFields.employeeCode && !errors.employeeCode && watchedEmployeeCode)}
+                      />
+                    </div>
+                    {errors.employeeCode && (
+                      <p className="mt-1 text-xs text-red-600">{errors.employeeCode.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('category')}</label>
                     <select
-                      value={formData.category || ''}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('category')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.category
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                     >
                       <option value="">{t('selectCategory')}</option>
                       <option value="Partners/شركاء">Partners/شركاء</option>
@@ -431,31 +596,46 @@ export default function EmployeeManagement() {
                       <option value="Admins/عاملين">Admins/عاملين</option>
                       <option value="Consultants/مستشارين">Consultants/مستشارين</option>
                     </select>
+                    {errors.category && (
+                      <p className="mt-1 text-xs text-red-600">{errors.category.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('jobTitle')}</label>
                     <input
                       type="text"
-                      value={formData.jobTitle || ''}
-                      onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('jobTitle')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.jobTitle
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                     />
+                    {errors.jobTitle && (
+                      <p className="mt-1 text-xs text-red-600">{errors.jobTitle.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('department')}</label>
                     <input
                       type="text"
-                      value={formData.department || ''}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('department')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.department
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                     />
+                    {errors.department && (
+                      <p className="mt-1 text-xs text-red-600">{errors.department.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('dateOfBirth')}</label>
                     <input
                       type="date"
-                      value={formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : ''}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                      value={additionalFields.dateOfBirth ? new Date(additionalFields.dateOfBirth).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, dateOfBirth: e.target.value ? new Date(e.target.value).toISOString() : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -463,21 +643,27 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('joiningDate')}</label>
                     <input
                       type="date"
-                      value={formData.joiningDate ? new Date(formData.joiningDate).toISOString().split('T')[0] : ''}
-                      onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                      value={additionalFields.joiningDate ? new Date(additionalFields.joiningDate).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, joiningDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('status')}</label>
                     <select
-                      value={formData.status || 'Active'}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('status')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.status
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                     >
                       <option value="Active">{t('statusActive')}</option>
                       <option value="Resigned">{t('statusResigned')}</option>
                     </select>
+                    {errors.status && (
+                      <p className="mt-1 text-xs text-red-600">{errors.status.message}</p>
+                    )}
                   </div>
 
                   {/* Contact Information */}
@@ -488,8 +674,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
                     <input
                       type="text"
-                      value={formData.mobileNumber || ''}
-                      onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })}
+                      value={additionalFields.mobileNumber || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, mobileNumber: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -497,8 +683,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Extension</label>
                     <input
                       type="text"
-                      value={formData.extension || ''}
-                      onChange={(e) => setFormData({ ...formData, extension: e.target.value })}
+                      value={additionalFields.extension || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, extension: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -506,8 +692,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                     <input
                       type="text"
-                      value={formData.address || ''}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      value={additionalFields.address || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, address: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -515,8 +701,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Region / City</label>
                     <input
                       type="text"
-                      value={formData.addressRegion || ''}
-                      onChange={(e) => setFormData({ ...formData, addressRegion: e.target.value })}
+                      value={additionalFields.addressRegion || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, addressRegion: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -524,8 +710,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Governorate</label>
                     <input
                       type="text"
-                      value={formData.addressGovernorate || ''}
-                      onChange={(e) => setFormData({ ...formData, addressGovernorate: e.target.value })}
+                      value={additionalFields.addressGovernorate || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, addressGovernorate: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -538,8 +724,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Certificate</label>
                     <input
                       type="text"
-                      value={formData.graduationCertificate || ''}
-                      onChange={(e) => setFormData({ ...formData, graduationCertificate: e.target.value })}
+                      value={additionalFields.graduationCertificate || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, graduationCertificate: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Ph.D., Masters, Bachelor"
                     />
@@ -548,8 +734,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
                     <input
                       type="text"
-                      value={formData.graduationSection || ''}
-                      onChange={(e) => setFormData({ ...formData, graduationSection: e.target.value })}
+                      value={additionalFields.graduationSection || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, graduationSection: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., International Business Law"
                     />
@@ -558,8 +744,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">University / School</label>
                     <input
                       type="text"
-                      value={formData.graduationUniversity || ''}
-                      onChange={(e) => setFormData({ ...formData, graduationUniversity: e.target.value })}
+                      value={additionalFields.graduationUniversity || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, graduationUniversity: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -567,8 +753,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Graduation Year</label>
                     <input
                       type="number"
-                      value={formData.graduationYear || ''}
-                      onChange={(e) => setFormData({ ...formData, graduationYear: e.target.value ? parseInt(e.target.value) : null })}
+                      value={additionalFields.graduationYear || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, graduationYear: e.target.value ? parseInt(e.target.value) : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       min="1900"
                       max="2100"
@@ -583,8 +769,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">National ID</label>
                     <input
                       type="text"
-                      value={formData.nationalId || ''}
-                      onChange={(e) => setFormData({ ...formData, nationalId: e.target.value })}
+                      value={additionalFields.nationalId || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, nationalId: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -592,8 +778,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">National ID Valid Till</label>
                     <input
                       type="date"
-                      value={formData.nationalIdValidTill ? new Date(formData.nationalIdValidTill).toISOString().split('T')[0] : ''}
-                      onChange={(e) => setFormData({ ...formData, nationalIdValidTill: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                      value={additionalFields.nationalIdValidTill ? new Date(additionalFields.nationalIdValidTill).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, nationalIdValidTill: e.target.value ? new Date(e.target.value).toISOString() : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -601,8 +787,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Social Insurance</label>
                     <input
                       type="text"
-                      value={formData.socialInsurance || ''}
-                      onChange={(e) => setFormData({ ...formData, socialInsurance: e.target.value })}
+                      value={additionalFields.socialInsurance || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, socialInsurance: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -610,8 +796,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Bar Association Number</label>
                     <input
                       type="text"
-                      value={formData.barAssociation || ''}
-                      onChange={(e) => setFormData({ ...formData, barAssociation: e.target.value })}
+                      value={additionalFields.barAssociation || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, barAssociation: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -619,8 +805,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Bar Association Valid Till</label>
                     <input
                       type="date"
-                      value={formData.barAssociationValidTill ? new Date(formData.barAssociationValidTill).toISOString().split('T')[0] : ''}
-                      onChange={(e) => setFormData({ ...formData, barAssociationValidTill: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                      value={additionalFields.barAssociationValidTill ? new Date(additionalFields.barAssociationValidTill).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, barAssociationValidTill: e.target.value ? new Date(e.target.value).toISOString() : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -628,8 +814,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Bar Association Degree (درجة القيد)</label>
                     <input
                       type="text"
-                      value={formData.barAssociationDegree || ''}
-                      onChange={(e) => setFormData({ ...formData, barAssociationDegree: e.target.value })}
+                      value={additionalFields.barAssociationDegree || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, barAssociationDegree: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -637,8 +823,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tax Card Number</label>
                     <input
                       type="text"
-                      value={formData.taxCard || ''}
-                      onChange={(e) => setFormData({ ...formData, taxCard: e.target.value })}
+                      value={additionalFields.taxCard || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, taxCard: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -651,8 +837,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Contract Type</label>
                     <input
                       type="text"
-                      value={formData.contractType || ''}
-                      onChange={(e) => setFormData({ ...formData, contractType: e.target.value })}
+                      value={additionalFields.contractType || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, contractType: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -660,8 +846,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Contract Duration</label>
                     <input
                       type="text"
-                      value={formData.contractDuration || ''}
-                      onChange={(e) => setFormData({ ...formData, contractDuration: e.target.value })}
+                      value={additionalFields.contractDuration || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, contractDuration: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Renewal for One Year"
                     />
@@ -670,8 +856,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Contract Renewal Date</label>
                     <input
                       type="date"
-                      value={formData.contractRenewalDate ? new Date(formData.contractRenewalDate).toISOString().split('T')[0] : ''}
-                      onChange={(e) => setFormData({ ...formData, contractRenewalDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                      value={additionalFields.contractRenewalDate ? new Date(additionalFields.contractRenewalDate).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, contractRenewalDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -684,8 +870,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Experience In - Years</label>
                     <input
                       type="number"
-                      value={formData.experienceInYears || ''}
-                      onChange={(e) => setFormData({ ...formData, experienceInYears: e.target.value ? parseInt(e.target.value) : null })}
+                      value={additionalFields.experienceInYears || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, experienceInYears: e.target.value ? parseInt(e.target.value) : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       min="0"
                     />
@@ -694,8 +880,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Experience In - Months</label>
                     <input
                       type="number"
-                      value={formData.experienceInMonths || ''}
-                      onChange={(e) => setFormData({ ...formData, experienceInMonths: e.target.value ? parseInt(e.target.value) : null })}
+                      value={additionalFields.experienceInMonths || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, experienceInMonths: e.target.value ? parseInt(e.target.value) : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       min="0"
                       max="11"
@@ -705,8 +891,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Experience Out - Years</label>
                     <input
                       type="number"
-                      value={formData.experienceOutYears || ''}
-                      onChange={(e) => setFormData({ ...formData, experienceOutYears: e.target.value ? parseInt(e.target.value) : null })}
+                      value={additionalFields.experienceOutYears || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, experienceOutYears: e.target.value ? parseInt(e.target.value) : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       min="0"
                     />
@@ -715,8 +901,8 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Experience Out - Months</label>
                     <input
                       type="number"
-                      value={formData.experienceOutMonths || ''}
-                      onChange={(e) => setFormData({ ...formData, experienceOutMonths: e.target.value ? parseInt(e.target.value) : null })}
+                      value={additionalFields.experienceOutMonths || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, experienceOutMonths: e.target.value ? parseInt(e.target.value) : null })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       min="0"
                       max="11"
@@ -724,7 +910,7 @@ export default function EmployeeManagement() {
                   </div>
 
                   {/* Resignation */}
-                  {formData.status === 'Resigned' && (
+                  {watch('status') === 'Resigned' && (
                     <>
                       <div className="md:col-span-2 mt-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Resignation Details</h3>
@@ -733,16 +919,16 @@ export default function EmployeeManagement() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Resignation Date</label>
                         <input
                           type="date"
-                          value={formData.resignationDate ? new Date(formData.resignationDate).toISOString().split('T')[0] : ''}
-                          onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                          value={additionalFields.resignationDate ? new Date(additionalFields.resignationDate).toISOString().split('T')[0] : ''}
+                          onChange={(e) => setAdditionalFields({ ...additionalFields, resignationDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Resignation Reason</label>
                         <textarea
-                          value={formData.resignationReason || ''}
-                          onChange={(e) => setFormData({ ...formData, resignationReason: e.target.value })}
+                          value={additionalFields.resignationReason || ''}
+                          onChange={(e) => setAdditionalFields({ ...additionalFields, resignationReason: e.target.value })}
                           rows={3}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
@@ -757,8 +943,8 @@ export default function EmployeeManagement() {
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                     <textarea
-                      value={formData.notes || ''}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      value={additionalFields.notes || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, notes: e.target.value })}
                       rows={3}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Additional notes or comments"
@@ -772,7 +958,8 @@ export default function EmployeeManagement() {
                       type="button"
                       onClick={() => {
                         setShowForm(false);
-                        setFormData({});
+                        reset();
+                        setAdditionalFields({});
                         setEditingEmployee(null);
                       }}
                       className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
@@ -781,19 +968,29 @@ export default function EmployeeManagement() {
                     </button>
                   </Tooltip>
                   <Tooltip content={tooltips.management.save}>
-                    <button
+                    <LoadingButton
                       type="submit"
-                      disabled={saving}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      loading={isSubmitting || saving}
                     >
-                      {saving ? 'Saving...' : editingEmployee ? 'Update' : 'Create'}
-                    </button>
+                      {editingEmployee ? 'Update' : 'Create'}
+                    </LoadingButton>
                   </Tooltip>
                 </div>
               </form>
             </div>
           </div>
         )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t('deleteEmployee') || 'Delete Employee'}
+        message={t('deleteEmployeeConfirm', { name: deleteConfirm.employeeName }) || `Are you sure you want to delete employee "${deleteConfirm.employeeName}"?`}
+        confirmText={t('delete') || 'Delete'}
+        cancelText={t('cancel') || 'Cancel'}
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 }

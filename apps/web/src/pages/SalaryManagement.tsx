@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
-import { SalaryFormSchema } from '../validation/salaries';
+import { SalaryFormSchema, type SalaryFormValues } from '../validation/salaries';
+import LoadingButton from '../components/LoadingButton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FormattedNumberInput from '../components/FormattedNumberInput';
+import FieldCheckmark from '../components/FieldCheckmark';
+import Tooltip from '../components/Tooltip';
 
 interface Salary {
   id: string;
@@ -53,30 +61,55 @@ export default function SalaryManagement() {
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingSalary, setEditingSalary] = useState<Salary | null>(null);
-  const [formData, setFormData] = useState<Partial<Salary & {
-    // Additions breakdown fields
-    phoneAllowance: number;
-    transportationAllowance: number;
-    accommodationAllowance: number;
-    annualBonus: number;
-    monthlyBonus: number;
-    socialInsurance: number;
-    taxes: number;
-    medicalInsurance: number;
-    otherAllowances: number;
-    // Deductions breakdown fields
-    medicalInsuranceDeducted: number;
-    lawyersTaxes: number;
-    otherBankWithdrawal: number;
-    loansDeductions: number;
-    phoneDeduction: number;
-    unpaidVacation: number;
-    lateArrivals: number;
-    timeSheetDeductions: number;
-    otherDeductions: number;
-  }>>({});
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  // Use react-hook-form for validated fields
+  const {
+    register,
+    control,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isSubmitting, touchedFields },
+    reset,
+    watch,
+  } = useForm<SalaryFormValues>({
+    resolver: zodResolver(SalaryFormSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      employeeId: '',
+      year: new Date().getFullYear(),
+      month: new Date().getMonth() + 1,
+      category: '',
+      basicSalary: 0,
+      phoneAllowance: 0,
+      transportationAllowance: 0,
+      accommodationAllowance: 0,
+      otherAllowances: 0,
+      yearlyIncrease: 0,
+      socialInsurance: 0,
+      taxes: 0,
+      medicalInsurance: 0,
+      annualBonus: 0,
+      monthlyBonus: 0,
+      medicalInsuranceDeducted: 0,
+      lawyersTaxes: 0,
+      otherBankWithdrawal: 0,
+      loansDeductions: 0,
+      phoneDeduction: 0,
+      unpaidVacation: 0,
+      lateArrivals: 0,
+      timeSheetDeductions: 0,
+      otherDeductions: 0,
+    },
+  });
+
+  // Keep additional fields (not in schema) in separate state
+  const [additionalFields, setAdditionalFields] = useState<{
+    paymentMethod?: string | null;
+    accountNumber?: string | null;
+    notes?: string | null;
+  }>({});
 
   useEffect(() => {
     fetchSalaries();
@@ -90,7 +123,7 @@ export default function SalaryManagement() {
       setSalaries(response.data.salaries || []);
     } catch (error) {
       console.error('Error fetching salaries:', error);
-      alert(t('failedToLoad') + ' ' + t('salary').toLowerCase());
+      toast.error(t('failedToLoad') + ' ' + t('salary').toLowerCase());
     } finally {
       setLoading(false);
     }
@@ -107,28 +140,23 @@ export default function SalaryManagement() {
 
   const handleCreate = () => {
     setEditingSalary(null);
-    setFormData({
+    setServerError(null);
+    reset({
+      employeeId: '',
       year: new Date().getFullYear(),
       month: new Date().getMonth() + 1,
+      category: '',
       basicSalary: 0,
-      directAdditions: 0,
-      indirectAdditions: 0,
-      yearlyIncrease: 0,
-      bonuses: 0,
-      salaryDeductions: 0,
-      grossDeductions: 0,
-      gross: 0,
-      net: 0,
-      // Initialize breakdown fields
       phoneAllowance: 0,
       transportationAllowance: 0,
       accommodationAllowance: 0,
-      annualBonus: 0,
-      monthlyBonus: 0,
+      otherAllowances: 0,
+      yearlyIncrease: 0,
       socialInsurance: 0,
       taxes: 0,
       medicalInsurance: 0,
-      otherAllowances: 0,
+      annualBonus: 0,
+      monthlyBonus: 0,
       medicalInsuranceDeducted: 0,
       lawyersTaxes: 0,
       otherBankWithdrawal: 0,
@@ -137,13 +165,15 @@ export default function SalaryManagement() {
       unpaidVacation: 0,
       lateArrivals: 0,
       timeSheetDeductions: 0,
-      otherDeductions: 0
+      otherDeductions: 0,
     });
+    setAdditionalFields({});
     setShowForm(true);
   };
 
   const handleEdit = (salary: Salary) => {
     setEditingSalary(salary);
+    setServerError(null);
     // Parse breakdown JSON if exists
     let additionsBreakdown: any = {};
     let deductionsBreakdown: any = {};
@@ -164,18 +194,22 @@ export default function SalaryManagement() {
       }
     }
     
-    setFormData({
-      ...salary,
-      // Map breakdown fields
+    reset({
+      employeeId: salary.employeeId,
+      year: salary.year,
+      month: salary.month,
+      category: salary.category || '',
+      basicSalary: salary.basicSalary,
       phoneAllowance: additionsBreakdown.phoneAllowance || 0,
       transportationAllowance: additionsBreakdown.transportationAllowance || 0,
       accommodationAllowance: additionsBreakdown.accommodationAllowance || 0,
-      annualBonus: additionsBreakdown.annualBonus || 0,
-      monthlyBonus: additionsBreakdown.monthlyBonus || 0,
+      otherAllowances: additionsBreakdown.otherAllowances || 0,
+      yearlyIncrease: salary.yearlyIncrease || 0,
       socialInsurance: additionsBreakdown.socialInsurance || 0,
       taxes: additionsBreakdown.taxes || 0,
       medicalInsurance: additionsBreakdown.medicalInsurance || 0,
-      otherAllowances: additionsBreakdown.otherAllowances || 0,
+      annualBonus: additionsBreakdown.annualBonus || 0,
+      monthlyBonus: additionsBreakdown.monthlyBonus || 0,
       medicalInsuranceDeducted: deductionsBreakdown.medicalInsuranceDeducted || 0,
       lawyersTaxes: deductionsBreakdown.lawyersTaxes || 0,
       otherBankWithdrawal: deductionsBreakdown.otherBankWithdrawal || 0,
@@ -184,69 +218,43 @@ export default function SalaryManagement() {
       unpaidVacation: deductionsBreakdown.unpaidVacation || 0,
       lateArrivals: deductionsBreakdown.lateArrivals || 0,
       timeSheetDeductions: deductionsBreakdown.timeSheetDeductions || 0,
-      otherDeductions: deductionsBreakdown.otherDeductions || 0
+      otherDeductions: deductionsBreakdown.otherDeductions || 0,
+    });
+    setAdditionalFields({
+      paymentMethod: salary.paymentMethod,
+      accountNumber: salary.accountNumber,
+      notes: salary.notes,
     });
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('deleteSalaryConfirm'))) {
-      return;
-    }
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirm({ isOpen: true, salaryId: id });
+  };
 
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
     try {
-      await axios.delete(`${API_BASE_URL}/salaries/${id}`);
-      alert(t('salaryDeleted'));
+      await axios.delete(`${API_BASE_URL}/salaries/${deleteConfirm.salaryId}`);
+      toast.success(t('salaryDeleted'));
+      setDeleteConfirm({ isOpen: false, salaryId: '' });
       fetchSalaries();
     } catch (error: any) {
-      alert(`${t('failedToDelete')} ${t('salary').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+      toast.error(`${t('failedToDelete')} ${t('salary').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, salaryId: '' });
+  };
+
+  const onSubmit = async (data: SalaryFormValues) => {
+    setServerError(null);
     setSaving(true);
 
     try {
-      const parseResult = SalaryFormSchema.safeParse({
-        employeeId: formData.employeeId ?? '',
-        year: formData.year ?? '',
-        month: formData.month ?? '',
-        category: formData.category ?? '',
-        basicSalary: formData.basicSalary ?? 0,
-        phoneAllowance: formData.phoneAllowance ?? 0,
-        transportationAllowance: formData.transportationAllowance ?? 0,
-        accommodationAllowance: formData.accommodationAllowance ?? 0,
-        otherAllowances: formData.otherAllowances ?? 0,
-        yearlyIncrease: formData.yearlyIncrease ?? 0,
-        socialInsurance: formData.socialInsurance ?? 0,
-        taxes: formData.taxes ?? 0,
-        medicalInsurance: formData.medicalInsurance ?? 0,
-        annualBonus: formData.annualBonus ?? 0,
-        monthlyBonus: formData.monthlyBonus ?? 0,
-        medicalInsuranceDeducted: formData.medicalInsuranceDeducted ?? 0,
-        lawyersTaxes: formData.lawyersTaxes ?? 0,
-        otherBankWithdrawal: formData.otherBankWithdrawal ?? 0,
-        loansDeductions: formData.loansDeductions ?? 0,
-        phoneDeduction: formData.phoneDeduction ?? 0,
-        unpaidVacation: formData.unpaidVacation ?? 0,
-        lateArrivals: formData.lateArrivals ?? 0,
-        timeSheetDeductions: formData.timeSheetDeductions ?? 0,
-        otherDeductions: formData.otherDeductions ?? 0,
-      });
-
-      if (!parseResult.success) {
-        const message =
-          parseResult.error.errors
-            .map((err) => err.message)
-            .join('\n') || 'Validation error';
-        setFormError(message);
-        setSaving(false);
-        return;
-      }
-
-      const data = parseResult.data;
 
       // Extract breakdown values
       const phoneAllowance = data.phoneAllowance ?? 0;
@@ -337,25 +345,28 @@ export default function SalaryManagement() {
         net,
         additionsBreakdown: Object.keys(additionsBreakdown).length > 0 ? additionsBreakdown : null,
         deductionsBreakdown: Object.keys(deductionsBreakdown).length > 0 ? deductionsBreakdown : null,
-        paymentMethod: formData.paymentMethod,
-        accountNumber: formData.accountNumber,
-        notes: formData.notes,
+        paymentMethod: additionalFields.paymentMethod,
+        accountNumber: additionalFields.accountNumber,
+        notes: additionalFields.notes,
         category: data.category,
-        sourceFile: formData.sourceFile || 'Manual Entry'
+        sourceFile: 'Manual Entry'
       };
 
       if (editingSalary) {
         await axios.put(`${API_BASE_URL}/salaries/${editingSalary.id}`, submitData);
-        alert(t('salaryUpdated'));
+        toast.success(t('salaryUpdated'));
       } else {
         await axios.post(`${API_BASE_URL}/salaries`, submitData);
-        alert(t('salaryCreated'));
+        toast.success(t('salaryCreated'));
       }
       setShowForm(false);
-      setFormData({});
+      reset();
+      setAdditionalFields({});
       fetchSalaries();
     } catch (error: any) {
-      alert(`${t('failedToSave')} ${t('salary').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to save salary';
+      setServerError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -477,7 +488,8 @@ export default function SalaryManagement() {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(salary.id)}
+                          onClick={() => handleDeleteClick(salary.id)}
+                          disabled={deleting}
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete
@@ -587,14 +599,26 @@ export default function SalaryManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Basic Salary *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData.basicSalary || 0}
-                      onChange={(e) => setFormData({ ...formData, basicSalary: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <Controller
+                      name="basicSalary"
+                      control={control}
+                      rules={{ required: true }}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                            errors.basicSalary
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                        />
+                      )}
                     />
+                    {errors.basicSalary && (
+                      <p className="mt-1 text-xs text-red-600">{errors.basicSalary.message}</p>
+                    )}
                   </div>
 
                   {/* Additions from اضافات sheet */}
@@ -606,52 +630,82 @@ export default function SalaryManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Phone Allowance</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.phoneAllowance || 0}
-                      onChange={(e) => setFormData({ ...formData, phoneAllowance: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <Controller
+                      name="phoneAllowance"
+                      control={control}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      )}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Transportation</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.transportationAllowance || 0}
-                      onChange={(e) => setFormData({ ...formData, transportationAllowance: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <Controller
+                      name="transportationAllowance"
+                      control={control}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      )}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Accommodation</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.accommodationAllowance || 0}
-                      onChange={(e) => setFormData({ ...formData, accommodationAllowance: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <Controller
+                      name="accommodationAllowance"
+                      control={control}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      )}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Other Allowances</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.otherAllowances || 0}
-                      onChange={(e) => setFormData({ ...formData, otherAllowances: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <Controller
+                      name="otherAllowances"
+                      control={control}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      )}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Yearly Increase</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.yearlyIncrease || 0}
-                      onChange={(e) => setFormData({ ...formData, yearlyIncrease: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Yearly Increase
+                      <Tooltip content="Annual salary increase amount. This is added to the basic salary.">
+                        <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
+                      </Tooltip>
+                    </label>
+                    <Controller
+                      name="yearlyIncrease"
+                      control={control}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      )}
                     />
                   </div>
                   <div>
@@ -660,10 +714,10 @@ export default function SalaryManagement() {
                       type="number"
                       step="0.01"
                       value={(() => {
-                        const phone = parseFloat(String(formData.phoneAllowance || 0));
-                        const transport = parseFloat(String(formData.transportationAllowance || 0));
-                        const accommodation = parseFloat(String(formData.accommodationAllowance || 0));
-                        const other = parseFloat(String(formData.otherAllowances || 0));
+                        const phone = parseFloat(String(watch('phoneAllowance') || 0));
+                        const transport = parseFloat(String(watch('transportationAllowance') || 0));
+                        const accommodation = parseFloat(String(watch('accommodationAllowance') || 0));
+                        const other = parseFloat(String(watch('otherAllowances') || 0));
                         return phone + transport + accommodation + other;
                       })()}
                       readOnly
@@ -679,29 +733,38 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.socialInsurance || 0}
-                      onChange={(e) => setFormData({ ...formData, socialInsurance: parseFloat(e.target.value) || 0 })}
+                      {...register('socialInsurance')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Taxes</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.taxes || 0}
-                      onChange={(e) => setFormData({ ...formData, taxes: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <Controller
+                      name="taxes"
+                      control={control}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      )}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Medical Insurance</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.medicalInsurance || 0}
-                      onChange={(e) => setFormData({ ...formData, medicalInsurance: parseFloat(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    <Controller
+                      name="medicalInsurance"
+                      control={control}
+                      render={({ field }) => (
+                        <FormattedNumberInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          decimals={2}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      )}
                     />
                   </div>
                   <div>
@@ -728,8 +791,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.annualBonus || 0}
-                      onChange={(e) => setFormData({ ...formData, annualBonus: parseFloat(e.target.value) || 0 })}
+                      {...register('annualBonus')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -738,8 +800,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.monthlyBonus || 0}
-                      onChange={(e) => setFormData({ ...formData, monthlyBonus: parseFloat(e.target.value) || 0 })}
+                      {...register('monthlyBonus')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -749,8 +810,8 @@ export default function SalaryManagement() {
                       type="number"
                       step="0.01"
                       value={(() => {
-                        const annual = parseFloat(String(formData.annualBonus || 0));
-                        const monthly = parseFloat(String(formData.monthlyBonus || 0));
+                        const annual = parseFloat(String(watch('annualBonus') || 0));
+                        const monthly = parseFloat(String(watch('monthlyBonus') || 0));
                         return annual + monthly;
                       })()}
                       readOnly
@@ -770,8 +831,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.medicalInsuranceDeducted || 0}
-                      onChange={(e) => setFormData({ ...formData, medicalInsuranceDeducted: parseFloat(e.target.value) || 0 })}
+                      {...register('medicalInsuranceDeducted')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -780,8 +840,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.lawyersTaxes || 0}
-                      onChange={(e) => setFormData({ ...formData, lawyersTaxes: parseFloat(e.target.value) || 0 })}
+                      {...register('lawyersTaxes')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -791,8 +850,8 @@ export default function SalaryManagement() {
                       type="number"
                       step="0.01"
                       value={(() => {
-                        const medical = parseFloat(String(formData.medicalInsuranceDeducted || 0));
-                        const lawyers = parseFloat(String(formData.lawyersTaxes || 0));
+                        const medical = parseFloat(String(watch('medicalInsuranceDeducted') || 0));
+                        const lawyers = parseFloat(String(watch('lawyersTaxes') || 0));
                         return medical + lawyers;
                       })()}
                       readOnly
@@ -808,8 +867,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.otherBankWithdrawal || 0}
-                      onChange={(e) => setFormData({ ...formData, otherBankWithdrawal: parseFloat(e.target.value) || 0 })}
+                      {...register('otherBankWithdrawal')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -818,8 +876,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.loansDeductions || 0}
-                      onChange={(e) => setFormData({ ...formData, loansDeductions: parseFloat(e.target.value) || 0 })}
+                      {...register('loansDeductions')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -828,8 +885,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.phoneDeduction || 0}
-                      onChange={(e) => setFormData({ ...formData, phoneDeduction: parseFloat(e.target.value) || 0 })}
+                      {...register('phoneDeduction')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -838,8 +894,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.unpaidVacation || 0}
-                      onChange={(e) => setFormData({ ...formData, unpaidVacation: parseFloat(e.target.value) || 0 })}
+                      {...register('unpaidVacation')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -848,8 +903,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.lateArrivals || 0}
-                      onChange={(e) => setFormData({ ...formData, lateArrivals: parseFloat(e.target.value) || 0 })}
+                      {...register('lateArrivals')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -858,8 +912,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.timeSheetDeductions || 0}
-                      onChange={(e) => setFormData({ ...formData, timeSheetDeductions: parseFloat(e.target.value) || 0 })}
+                      {...register('timeSheetDeductions')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -868,8 +921,7 @@ export default function SalaryManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.otherDeductions || 0}
-                      onChange={(e) => setFormData({ ...formData, otherDeductions: parseFloat(e.target.value) || 0 })}
+                      {...register('otherDeductions')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -879,13 +931,13 @@ export default function SalaryManagement() {
                       type="number"
                       step="0.01"
                       value={(() => {
-                        const otherBank = parseFloat(String(formData.otherBankWithdrawal || 0));
-                        const loans = parseFloat(String(formData.loansDeductions || 0));
-                        const phone = parseFloat(String(formData.phoneDeduction || 0));
-                        const vacation = parseFloat(String(formData.unpaidVacation || 0));
-                        const late = parseFloat(String(formData.lateArrivals || 0));
-                        const timesheet = parseFloat(String(formData.timeSheetDeductions || 0));
-                        const other = parseFloat(String(formData.otherDeductions || 0));
+                        const otherBank = parseFloat(String(watch('otherBankWithdrawal') || 0));
+                        const loans = parseFloat(String(watch('loansDeductions') || 0));
+                        const phone = parseFloat(String(watch('phoneDeduction') || 0));
+                        const vacation = parseFloat(String(watch('unpaidVacation') || 0));
+                        const late = parseFloat(String(watch('lateArrivals') || 0));
+                        const timesheet = parseFloat(String(watch('timeSheetDeductions') || 0));
+                        const other = parseFloat(String(watch('otherDeductions') || 0));
                         return otherBank + loans + phone + vacation + late + timesheet + other;
                       })()}
                       readOnly
@@ -965,8 +1017,8 @@ export default function SalaryManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                     <input
                       type="text"
-                      value={formData.paymentMethod || ''}
-                      onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                      value={additionalFields.paymentMethod || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, paymentMethod: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -974,16 +1026,16 @@ export default function SalaryManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
                     <input
                       type="text"
-                      value={formData.accountNumber || ''}
-                      onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                      value={additionalFields.accountNumber || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, accountNumber: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                     <textarea
-                      value={formData.notes || ''}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      value={additionalFields.notes || ''}
+                      onChange={(e) => setAdditionalFields({ ...additionalFields, notes: e.target.value })}
                       rows={2}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
@@ -995,25 +1047,36 @@ export default function SalaryManagement() {
                     type="button"
                     onClick={() => {
                       setShowForm(false);
-                      setFormData({});
+                      reset();
+                      setAdditionalFields({});
                       setEditingSalary(null);
                     }}
                     className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </button>
-                  <button
+                  <LoadingButton
                     type="submit"
-                    disabled={saving}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    loading={isSubmitting || saving}
                   >
-                    {saving ? 'Saving...' : editingSalary ? 'Update' : 'Create'}
-                  </button>
+                    {editingSalary ? 'Update' : 'Create'}
+                  </LoadingButton>
                 </div>
               </form>
             </div>
           </div>
         )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t('deleteSalary') || 'Delete Salary'}
+        message={t('deleteSalaryConfirm') || 'Are you sure you want to delete this salary record?'}
+        confirmText={t('delete') || 'Delete'}
+        cancelText={t('cancel') || 'Cancel'}
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 }

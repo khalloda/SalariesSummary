@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
 import { BulkSalaryMetaSchema } from '../validation/salaries';
@@ -91,9 +92,9 @@ export default function BulkSalaryEntry() {
             `Sample employees:\n${debug.sampleEmployees.map((e: any) => 
               `- ${e.name} (${e.employeeCode}): Status="${e.status}", Category="${e.category}"`
             ).join('\n')}`;
-          alert(message);
+          toast.success(message);
         } else {
-          alert(t('noEmployeesFoundMessage'));
+          toast.error(t('noEmployeesFoundMessage'));
         }
       }
       
@@ -102,7 +103,7 @@ export default function BulkSalaryEntry() {
       setPreviousMonth(response.data.previousMonth);
     } catch (error: any) {
       console.error('Error loading data:', error);
-      alert(`${t('failedToLoad')}: ${error.response?.data?.error || error.message}`);
+      toast.error(`${t('failedToLoad')}: ${error.response?.data?.error || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -153,14 +154,14 @@ export default function BulkSalaryEntry() {
       });
 
       if (response.data.success) {
-        alert(`${t('successfullyCreated')} ${response.data.created} ${t('records')} ${t('recordsAndUpdated')} ${response.data.updated} ${t('records')}.${response.data.errors.length > 0 ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}` : ''}`);
+        toast.success(`${t('successfullyCreated')} ${response.data.created} ${t('records')} ${t('recordsAndUpdated')} ${response.data.updated} ${t('records')}.${response.data.errors.length > 0 ? `\n\n${t('errors')}: ${response.data.errors.slice(0, 5).join('\n')}` : ''}`);
         // Reload data to show updated records
         await loadLastMonthData();
       } else {
-        alert(`${t('failedToSave')}: ${response.data.error || 'Unknown error'}`);
+        toast.error(`${t('failedToSave')}: ${response.data.error || 'Unknown error'}`);
       }
     } catch (error: any) {
-      alert(`${t('failedToSave')}: ${error.response?.data?.error || error.message}`);
+      toast.error(`${t('failedToSave')}: ${error.response?.data?.error || error.message}`);
     } finally {
       setSaving(false);
     }

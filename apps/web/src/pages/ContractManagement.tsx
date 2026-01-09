@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_BASE_URL } from '../api/config';
-import { ContractFormSchema } from '../validation/contracts';
+import { ContractFormSchema, type ContractFormValues } from '../validation/contracts';
+import LoadingButton from '../components/LoadingButton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FieldCheckmark from '../components/FieldCheckmark';
 
 interface Contract {
   id: string;
@@ -25,18 +31,74 @@ interface Employee {
   employeeCode: string | null;
 }
 
+const CONTRACT_FILTER_STORAGE_KEY = 'contracts-filters';
+
 export default function ContractManagement() {
   const { t } = useTranslation();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
+  
+  // Load filters from localStorage on mount
+  const loadFilters = () => {
+    try {
+      const saved = localStorage.getItem(CONTRACT_FILTER_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          search: parsed.search || '',
+          employeeFilter: parsed.employeeFilter || 'all',
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load filters:', e);
+    }
+    return {
+      search: '',
+      employeeFilter: 'all',
+    };
+  };
+  
+  const initialFilters = loadFilters();
+  const [search, setSearch] = useState(initialFilters.search);
+  const [employeeFilter, setEmployeeFilter] = useState<string>(initialFilters.employeeFilter);
+  
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(CONTRACT_FILTER_STORAGE_KEY, JSON.stringify({
+        search,
+        employeeFilter,
+      }));
+    } catch (e) {
+      console.error('Failed to save filters:', e);
+    }
+  }, [search, employeeFilter]);
   const [showForm, setShowForm] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
-  const [formData, setFormData] = useState<Partial<Contract>>({});
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isSubmitting, touchedFields },
+    reset,
+    setValue,
+    watch,
+  } = useForm<ContractFormValues>({
+    resolver: zodResolver(ContractFormSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      employeeId: null,
+      employeeName: null,
+      employeeCode: null,
+      contractDate: null,
+      contractDuration: null,
+      comments: null,
+    },
+  });
 
   useEffect(() => {
     fetchContracts();
@@ -50,7 +112,7 @@ export default function ContractManagement() {
       setContracts(response.data.contracts || []);
     } catch (error) {
       console.error('Error fetching contracts:', error);
-      alert(t('failedToLoad') + ' ' + t('contracts').toLowerCase());
+      toast.error(t('failedToLoad') + ' ' + t('contracts').toLowerCase());
     } finally {
       setLoading(false);
     }
@@ -67,66 +129,73 @@ export default function ContractManagement() {
 
   const handleCreate = () => {
     setEditingContract(null);
-    setFormData({});
+    setServerError(null);
+    reset({
+      employeeId: null,
+      employeeName: null,
+      employeeCode: null,
+      contractDate: null,
+      contractDuration: null,
+      comments: null,
+    });
     setShowForm(true);
   };
 
   const handleEdit = (contract: Contract) => {
     setEditingContract(contract);
-    setFormData({
-      employeeId: contract.employeeId || undefined,
-      employeeName: contract.employeeName || undefined,
-      employeeCode: contract.employeeCode || undefined,
-      contractDate: contract.contractDate ? new Date(contract.contractDate).toISOString().split('T')[0] : undefined,
-      contractDuration: contract.contractDuration || undefined,
-      comments: contract.comments || undefined
+    setServerError(null);
+    reset({
+      employeeId: contract.employeeId || null,
+      employeeName: contract.employeeName || null,
+      employeeCode: contract.employeeCode || null,
+      contractDate: contract.contractDate ? new Date(contract.contractDate).toISOString().split('T')[0] : null,
+      contractDuration: contract.contractDuration || null,
+      comments: contract.comments || null,
     });
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('deleteContractConfirm'))) {
-      return;
-    }
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirm({ isOpen: true, contractId: id });
+  };
 
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
     try {
-      await axios.delete(`${API_BASE_URL}/contracts/${id}`);
-      alert(t('contractDeleted'));
+      await axios.delete(`${API_BASE_URL}/contracts/${deleteConfirm.contractId}`);
+      toast.success(t('contractDeleted'));
+      setDeleteConfirm({ isOpen: false, contractId: '' });
       fetchContracts();
     } catch (error: any) {
-      alert(`${t('failedToDelete')} ${t('contract').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+      toast.error(`${t('failedToDelete')} ${t('contract').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, contractId: '' });
+  };
+
+  const onSubmit = async (data: ContractFormValues) => {
+    setServerError(null);
     setSaving(true);
 
     try {
-      // Validate form data
-      const parseResult = ContractFormSchema.safeParse(formData);
-      if (!parseResult.success) {
-        const errorMessages = parseResult.error.errors.map((err) => err.message).join('\n');
-        setFormError(errorMessages || 'Validation error');
-        setSaving(false);
-        return;
-      }
-
-      const submitData = parseResult.data;
-
       if (editingContract) {
-        await axios.put(`${API_BASE_URL}/contracts/${editingContract.id}`, submitData);
-        alert(t('contractUpdated'));
+        await axios.put(`${API_BASE_URL}/contracts/${editingContract.id}`, data);
+        toast.success(t('contractUpdated'));
       } else {
-        await axios.post(`${API_BASE_URL}/contracts`, submitData);
-        alert(t('contractCreated'));
+        await axios.post(`${API_BASE_URL}/contracts`, data);
+        toast.success(t('contractCreated'));
       }
       setShowForm(false);
-      setFormData({});
+      reset();
       fetchContracts();
     } catch (error: any) {
-      alert(`${t('failedToSave')} ${t('contract').toLowerCase()}: ${error.response?.data?.error || error.message}`);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to save contract';
+      setServerError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -242,7 +311,8 @@ export default function ContractManagement() {
                         {t('edit')}
                       </button>
                       <button
-                        onClick={() => handleDelete(contract.id)}
+                        onClick={() => handleDeleteClick(contract.id)}
+                        disabled={deleting}
                         className="text-red-600 hover:text-red-900"
                       >
                         {t('delete')}
@@ -282,64 +352,91 @@ export default function ContractManagement() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6">
-                {formError && (
+              <form onSubmit={handleFormSubmit(onSubmit)} className="p-6">
+                {serverError && (
                   <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded whitespace-pre-line text-sm">
-                    {formError}
+                    {serverError}
                   </div>
                 )}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('employees')}</label>
-                    <select
-                      value={formData.employeeId || ''}
-                      onChange={(e) => {
-                        const selectedEmployee = employees.find(emp => emp.id === e.target.value);
-                        setFormData({
-                          ...formData,
-                          employeeId: e.target.value || undefined,
-                          employeeName: selectedEmployee?.name,
-                          employeeCode: selectedEmployee?.employeeCode || undefined
-                        });
-                      }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">{t('selectEmployeeOrBlank')}</option>
-                      {employees.map(emp => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.name} ({emp.employeeCode || 'N/A'})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        {...register('employeeId')}
+                        onChange={(e) => {
+                          const selectedEmployee = employees.find(emp => emp.id === e.target.value);
+                          setValue('employeeId', e.target.value || null, { shouldValidate: true });
+                          if (selectedEmployee) {
+                            setValue('employeeName', selectedEmployee.name, { shouldValidate: true });
+                            setValue('employeeCode', selectedEmployee.employeeCode || null, { shouldValidate: true });
+                          } else {
+                            setValue('employeeName', null, { shouldValidate: true });
+                            setValue('employeeCode', null, { shouldValidate: true });
+                          }
+                        }}
+                        className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent pr-10 ${
+                          errors.employeeId
+                            ? 'border-red-500 focus:ring-red-500'
+                            : touchedFields.employeeId && !errors.employeeId && watch('employeeId')
+                            ? 'border-green-500 focus:ring-green-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                      >
+                        <option value="">{t('selectEmployeeOrBlank')}</option>
+                        {employees.map(emp => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.name} ({emp.employeeCode || 'N/A'})
+                          </option>
+                        ))}
+                      </select>
+                      <FieldCheckmark
+                        show={!!(touchedFields.employeeId && !errors.employeeId && watch('employeeId'))}
+                      />
+                    </div>
+                    {errors.employeeId && (
+                      <p className="mt-1 text-xs text-red-600">{errors.employeeId.message}</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('employeeNameIfNotLinked')}</label>
                       <input
                         type="text"
-                        value={formData.employeeName || ''}
-                        onChange={(e) => setFormData({ ...formData, employeeName: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        {...register('employeeName')}
+                        className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                          errors.employeeName
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
                         placeholder={t('enterNameIfNotInSystem')}
                       />
+                      {errors.employeeName && (
+                        <p className="mt-1 text-xs text-red-600">{errors.employeeName.message}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('employeeCodeIfNotLinked')}</label>
                       <input
                         type="text"
-                        value={formData.employeeCode || ''}
-                        onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        {...register('employeeCode')}
+                        className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                          errors.employeeCode
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
                         placeholder="e.g., 2-21"
                       />
+                      {errors.employeeCode && (
+                        <p className="mt-1 text-xs text-red-600">{errors.employeeCode.message}</p>
+                      )}
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('contractDate')}</label>
                     <input
                       type="date"
-                      value={formData.contractDate || ''}
-                      onChange={(e) => setFormData({ ...formData, contractDate: e.target.value })}
+                      {...register('contractDate')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -347,21 +444,33 @@ export default function ContractManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('contractDuration')}</label>
                     <input
                       type="text"
-                      value={formData.contractDuration || ''}
-                      onChange={(e) => setFormData({ ...formData, contractDuration: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      {...register('contractDuration')}
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.contractDuration
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                       placeholder="e.g., Renewal for One Year"
                     />
+                    {errors.contractDuration && (
+                      <p className="mt-1 text-xs text-red-600">{errors.contractDuration.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('notes')}</label>
                     <textarea
-                      value={formData.comments || ''}
-                      onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                      {...register('comments')}
                       rows={3}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:border-transparent ${
+                        errors.comments
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                       placeholder={t('additionalNotes')}
                     />
+                    {errors.comments && (
+                      <p className="mt-1 text-xs text-red-600">{errors.comments.message}</p>
+                    )}
                   </div>
                 </div>
 
@@ -370,25 +479,35 @@ export default function ContractManagement() {
                     type="button"
                     onClick={() => {
                       setShowForm(false);
-                      setFormData({});
+                      reset();
                       setEditingContract(null);
                     }}
                     className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     {t('cancel')}
                   </button>
-                  <button
+                  <LoadingButton
                     type="submit"
-                    disabled={saving}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    loading={isSubmitting || saving}
                   >
-                    {saving ? t('loading') : editingContract ? t('update') : t('create')}
-                  </button>
+                    {editingContract ? t('update') : t('create')}
+                  </LoadingButton>
                 </div>
               </form>
             </div>
           </div>
         )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t('deleteContract') || 'Delete Contract'}
+        message={t('deleteContractConfirm') || 'Are you sure you want to delete this contract?'}
+        confirmText={t('delete') || 'Delete'}
+        cancelText={t('cancel') || 'Cancel'}
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 }
