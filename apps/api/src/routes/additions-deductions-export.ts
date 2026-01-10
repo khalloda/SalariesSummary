@@ -5,6 +5,8 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { logAudit } from '../utils/audit.js';
+import { validateBody } from '../validation/middleware.js';
+import { AdditionsDeductionsExportBodySchema } from '../validation/schemas/exports.js';
 
 export const additionsDeductionsExportRouter = Router();
 
@@ -26,13 +28,11 @@ function getLogoBase64(): string {
  * POST /api/exports/additions-deductions/pdf
  * Export additions and deductions breakdown report as PDF
  */
-additionsDeductionsExportRouter.post('/additions-deductions/pdf', async (req, res) => {
+additionsDeductionsExportRouter.post('/additions-deductions/pdf',
+  validateBody(AdditionsDeductionsExportBodySchema),
+  async (req, res) => {
   try {
     const { year, detailView, data } = req.body;
-    
-    if (!data || !data.additions || !data.deductions) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const html = generateAdditionsDeductionsHTML(year, detailView, data);
     
@@ -64,13 +64,11 @@ additionsDeductionsExportRouter.post('/additions-deductions/pdf', async (req, re
  * POST /api/exports/additions-deductions/xlsx
  * Export additions and deductions breakdown report as XLSX
  */
-additionsDeductionsExportRouter.post('/additions-deductions/xlsx', async (req, res) => {
+additionsDeductionsExportRouter.post('/additions-deductions/xlsx',
+  validateBody(AdditionsDeductionsExportBodySchema),
+  async (req, res) => {
   try {
     const { year, detailView, data } = req.body;
-    
-    if (!data || !data.additions || !data.deductions) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const workbook = new ExcelJS.Workbook();
     

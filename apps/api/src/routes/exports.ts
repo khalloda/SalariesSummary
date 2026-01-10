@@ -8,6 +8,12 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateParams, validateQuery } from '../validation/middleware.js';
+import {
+  ExportEmployeeParamsSchema,
+  EmployeeAnnualExportQuerySchema,
+  SalaryChangesExportQuerySchema,
+} from '../validation/schemas/exports.js';
 export const exportsRouter = Router();
 
 // Get logo as base64 for PDF embedding
@@ -29,10 +35,13 @@ function getLogoBase64(): string {
 /**
  * GET /api/exports/employee/:id/annual?year=YYYY&format=csv|xlsx|pdf
  */
-exportsRouter.get('/employee/:id/annual', async (req, res) => {
+exportsRouter.get('/employee/:id/annual',
+  validateParams(ExportEmployeeParamsSchema),
+  validateQuery(EmployeeAnnualExportQuerySchema),
+  async (req, res) => {
   try {
     const format = (req.query.format as string) || 'csv';
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     const employeeId = req.params.id;
     
     const employee = await prisma.employee.findUnique({
@@ -385,10 +394,12 @@ function generateEmployeeReportHTML(employee: any, salaries: any[], year: number
  * GET /api/exports/salary-changes?year=YYYY&format=pdf
  * Export salary changes report as PDF
  */
-exportsRouter.get('/salary-changes', async (req, res) => {
+exportsRouter.get('/salary-changes',
+  validateQuery(SalaryChangesExportQuerySchema),
+  async (req, res) => {
   try {
     const format = (req.query.format as string) || 'pdf';
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     
     if (format !== 'pdf') {
       return res.status(400).json({ error: 'Only PDF format is supported for salary changes report' });

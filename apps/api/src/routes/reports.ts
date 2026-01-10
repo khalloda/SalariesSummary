@@ -13,6 +13,10 @@ import {
   ContractRenewalsQuerySchema,
   QuickStatsQuerySchema,
   AdditionsDeductionsQuerySchema,
+  JoinersLeaversQuerySchema,
+  BonusIncentiveAnalysisQuerySchema,
+  EmployeeTenureQuerySchema,
+  AvailableYearsQuerySchema,
 } from '../validation/schemas/reports.js';
 export const reportsRouter = Router();
 
@@ -20,7 +24,9 @@ export const reportsRouter = Router();
  * GET /api/reports/available-years
  * Get all available years from salary records
  */
-reportsRouter.get('/available-years', async (req, res) => {
+reportsRouter.get('/available-years',
+  validateQuery(AvailableYearsQuerySchema),
+  async (req, res) => {
   try {
     // Use groupBy for SQLite compatibility (distinct doesn't work well with SQLite)
     const salaryYearsData = await prisma.salaryRecord.groupBy({
@@ -193,9 +199,11 @@ reportsRouter.get('/category-totals',
  * GET /api/reports/joiners-leavers?year=YYYY
  * Get joiners and leavers report
  */
-reportsRouter.get('/joiners-leavers', async (req, res) => {
+reportsRouter.get('/joiners-leavers',
+  validateQuery(JoinersLeaversQuerySchema),
+  async (req, res) => {
   try {
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     
     // Get all employees with their salary records for current year, previous year, and next year
     const employees = await prisma.employee.findMany({
@@ -676,9 +684,11 @@ reportsRouter.get('/annual-bonus',
  * GET /api/reports/quick-stats?year=YYYY
  * Get quick statistics for the dashboard
  */
-reportsRouter.get('/quick-stats', async (req, res) => {
+reportsRouter.get('/quick-stats',
+  validateQuery(QuickStatsQuerySchema),
+  async (req, res) => {
   try {
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     
     // Get total employees
     const totalEmployees = await prisma.employee.groupBy({
@@ -751,9 +761,11 @@ reportsRouter.get('/quick-stats', async (req, res) => {
  * GET /api/reports/bonus-incentive-analysis?year=YYYY
  * Get bonus and incentive analysis report
  */
-reportsRouter.get('/bonus-incentive-analysis', async (req, res) => {
+reportsRouter.get('/bonus-incentive-analysis',
+  validateQuery(BonusIncentiveAnalysisQuerySchema),
+  async (req, res) => {
   try {
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     
     // Get all bonus records for the year
     const bonuses = await prisma.annualBonus.findMany({
@@ -1134,9 +1146,11 @@ reportsRouter.get('/additions-deductions-breakdown',
  * GET /api/reports/employee-tenure?year=YYYY
  * Get employee tenure report
  */
-reportsRouter.get('/employee-tenure', async (req, res) => {
+reportsRouter.get('/employee-tenure',
+  validateQuery(EmployeeTenureQuerySchema),
+  async (req, res) => {
   try {
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     
     // Get all employees (not filtered by year - we want all employees with joining dates)
     const employees = await prisma.employee.findMany({

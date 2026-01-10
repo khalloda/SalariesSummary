@@ -2,6 +2,12 @@ import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { redactSalaryArrayForRoles, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateParams, validateQuery } from '../validation/middleware.js';
+import {
+  EmployeeIdParamSchema,
+  EmployeeAnnualQuerySchema,
+  EmployeeBonusComparisonQuerySchema,
+} from '../validation/schemas/employees.js';
 import {
   calculateReflectedInMonths,
   calculateReflectedInPercent,
@@ -61,7 +67,9 @@ employeesRouter.get('/', async (req, res) => {
  * GET /api/employees/:id
  * Get employee details
  */
-employeesRouter.get('/:id', async (req, res) => {
+employeesRouter.get('/:id',
+  validateParams(EmployeeIdParamSchema),
+  async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id },
@@ -97,7 +105,9 @@ employeesRouter.get('/:id', async (req, res) => {
  * GET /api/employees/:id/details
  * Get employee full details with contract records
  */
-employeesRouter.get('/:id/details', async (req, res) => {
+employeesRouter.get('/:id/details',
+  validateParams(EmployeeIdParamSchema),
+  async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id },
@@ -133,7 +143,9 @@ employeesRouter.get('/:id/details', async (req, res) => {
  * GET /api/employees/:id/card
  * Get employee details for Employee Card report
  */
-employeesRouter.get('/:id/card', async (req, res) => {
+employeesRouter.get('/:id/card',
+  validateParams(EmployeeIdParamSchema),
+  async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id },
@@ -171,7 +183,9 @@ employeesRouter.get('/:id/card', async (req, res) => {
  * GET /api/employees/:id/all-years
  * Get all salary records for an employee across all years
  */
-employeesRouter.get('/:id/all-years', async (req, res) => {
+employeesRouter.get('/:id/all-years',
+  validateParams(EmployeeIdParamSchema),
+  async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id }
@@ -267,9 +281,12 @@ employeesRouter.get('/:id/all-years', async (req, res) => {
  * GET /api/employees/:id/annual?year=YYYY
  * Get employee annual report
  */
-employeesRouter.get('/:id/annual', async (req, res) => {
+employeesRouter.get('/:id/annual',
+  validateParams(EmployeeIdParamSchema),
+  validateQuery(EmployeeAnnualQuerySchema),
+  async (req, res) => {
   try {
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     const employee = await prisma.employee.findUnique({
       where: { id: req.params.id }
     });
@@ -418,10 +435,13 @@ employeesRouter.get('/:id/annual', async (req, res) => {
  * GET /api/employees/:id/bonus?year=YYYY
  * Get annual bonus details for a specific employee for a given year, including historical data.
  */
-employeesRouter.get('/:id/bonus', async (req, res) => {
+employeesRouter.get('/:id/bonus',
+  validateParams(EmployeeIdParamSchema),
+  validateQuery(EmployeeAnnualQuerySchema),
+  async (req, res) => {
   try {
     const employeeId = req.params.id;
-    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
 
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
@@ -562,11 +582,14 @@ employeesRouter.get('/all/details', async (req, res) => {
  * GET /api/employees/:id/bonus-comparison?fromYear=YYYY&toYear=YYYY
  * Get bonus and annual increase comparison data for an employee across a year range
  */
-employeesRouter.get('/:id/bonus-comparison', async (req, res) => {
+employeesRouter.get('/:id/bonus-comparison',
+  validateParams(EmployeeIdParamSchema),
+  validateQuery(EmployeeBonusComparisonQuerySchema),
+  async (req, res) => {
   try {
     const employeeId = req.params.id;
-    const fromYear = parseInt(req.query.fromYear as string) || new Date().getFullYear() - 4;
-    const toYear = parseInt(req.query.toYear as string) || new Date().getFullYear();
+    const fromYear = req.query.fromYear ? Number(req.query.fromYear) : new Date().getFullYear() - 4;
+    const toYear = req.query.toYear ? Number(req.query.toYear) : new Date().getFullYear();
 
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },

@@ -100,3 +100,28 @@ export const EmployeeCardQuerySchema = z.object({
   format: z.enum(['pdf', 'xlsx']).optional().default('pdf'),
 });
 
+/**
+ * Joiners and leavers report query schema
+ */
+export const JoinersLeaversQuerySchema = z.object({
+  year: YearSchema.optional(),
+});
+
+/**
+ * Bonus incentive analysis query schema
+ */
+export const BonusIncentiveAnalysisQuerySchema = z.object({
+  year: YearSchema.optional(),
+});
+
+/**
+ * Employee tenure report query schema
+ */
+export const EmployeeTenureQuerySchema = z.object({
+  year: YearSchema.optional(),
+});
+
+/**
+ * Available years query schema (no params, but schema for consistency)
+ */
+export const AvailableYearsQuerySchema = z.object({}).optional();

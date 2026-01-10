@@ -6,6 +6,12 @@
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { logAudit } from '../utils/audit.js';
+import { validateQuery, validateParams } from '../validation/middleware.js';
+import {
+  PersonnelComplianceQuerySchema,
+  PersonnelAssetsQuerySchema,
+  PersonnelParamsSchema,
+} from '../validation/schemas/personnel.js';
 export const personnelRouter = Router();
 
 /**
@@ -13,10 +19,12 @@ export const personnelRouter = Router();
  * Get document compliance report
  * Query params: category (optional), minCompliance (optional, default 0)
  */
-personnelRouter.get('/compliance/report', async (req, res) => {
+personnelRouter.get('/compliance/report',
+  validateQuery(PersonnelComplianceQuerySchema),
+  async (req, res) => {
   try {
     const { category, minCompliance } = req.query;
-    const minComplianceNum = minCompliance ? parseFloat(minCompliance as string) : 0;
+    const minComplianceNum = Number(minCompliance) || 0;
 
     // Get all employees with personnel records
     // Note: We'll filter by status on the client side to allow showing Resigned employees if needed
@@ -114,7 +122,9 @@ personnelRouter.get('/compliance/report', async (req, res) => {
  * GET /api/personnel/assets/report
  * Get asset inventory report
  */
-personnelRouter.get('/assets/report', async (req, res) => {
+personnelRouter.get('/assets/report',
+  validateQuery(PersonnelAssetsQuerySchema),
+  async (req, res) => {
   try {
     const { category } = req.query;
 
@@ -417,7 +427,9 @@ personnelRouter.get('/dashboard', async (req, res) => {
  * NOTE: This must be defined AFTER all specific routes (like /dashboard, /compliance/report, etc.)
  * to prevent route conflicts
  */
-personnelRouter.get('/:employeeId', async (req, res) => {
+personnelRouter.get('/:employeeId',
+  validateParams(PersonnelParamsSchema),
+  async (req, res) => {
   try {
     const { employeeId } = req.params;
 

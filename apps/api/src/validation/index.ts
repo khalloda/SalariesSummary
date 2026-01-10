@@ -18,4 +18,6 @@ export * from './schemas/reports.js';
 export * from './schemas/exports.js';
 export * from './schemas/imports.js';
 export * from './schemas/notifications.js';
+export * from './schemas/bulk.js';
+export * from './schemas/personnel.js';
 

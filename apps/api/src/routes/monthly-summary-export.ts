@@ -6,6 +6,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody } from '../validation/middleware.js';
+import { MonthlySummaryExportBodySchema } from '../validation/schemas/exports.js';
 
 export const monthlySummaryExportRouter = Router();
 
@@ -27,13 +29,11 @@ function getLogoBase64(): string {
  * POST /api/exports/monthly-summary/pdf
  * Export monthly summary report as PDF
  */
-monthlySummaryExportRouter.post('/monthly-summary/pdf', async (req, res) => {
+monthlySummaryExportRouter.post('/monthly-summary/pdf',
+  validateBody(MonthlySummaryExportBodySchema),
+  async (req, res) => {
   try {
     const { year, data } = req.body;
-    
-    if (!data || !data.monthlyData) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
 
     const roles = (req.user?.roles ?? []) as RoleName[];
     const canSee = canViewSalaryAmounts(roles);
@@ -71,13 +71,11 @@ monthlySummaryExportRouter.post('/monthly-summary/pdf', async (req, res) => {
  * POST /api/exports/monthly-summary/xlsx
  * Export monthly summary report as XLSX
  */
-monthlySummaryExportRouter.post('/monthly-summary/xlsx', async (req, res) => {
+monthlySummaryExportRouter.post('/monthly-summary/xlsx',
+  validateBody(MonthlySummaryExportBodySchema),
+  async (req, res) => {
   try {
     const { year, data } = req.body;
-    
-    if (!data || !data.monthlyData) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
 
     const roles = (req.user?.roles ?? []) as RoleName[];
     const canSee = canViewSalaryAmounts(roles);

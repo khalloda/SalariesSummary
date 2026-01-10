@@ -10,6 +10,8 @@ import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
 import { requireRole } from '../utils/auth.js';
+import { validateQuery } from '../validation/middleware.js';
+import { PersonnelDiagnosticsQuerySchema } from '../validation/schemas/personnel.js';
 export const personnelDiagnosticsRouter = Router();
 
 // Get Sheets directory
@@ -38,7 +40,10 @@ function parseString(value: any): string | null {
  * Compare Personnel sheet with AllOffice sheet and database
  * Query params: filePath (optional, uses server Sheets directory if not provided)
  */
-personnelDiagnosticsRouter.get('/compare-sheets', requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+personnelDiagnosticsRouter.get('/compare-sheets',
+  requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
+  validateQuery(PersonnelDiagnosticsQuerySchema),
+  async (req, res) => {
   try {
     const { filePath } = req.query;
     const sheetsDir = getSheetsDir();
@@ -385,7 +390,10 @@ personnelDiagnosticsRouter.get('/compare-sheets', requireRole('HR_PERSONNEL', 'O
  * Get list of employees in Personnel sheet that don't match any database employees
  * (Similar to compare-sheets but focuses on database matching)
  */
-personnelDiagnosticsRouter.get('/unmatched', requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+personnelDiagnosticsRouter.get('/unmatched',
+  requireRole('HR_PERSONNEL', 'OFFICE_MANAGER', 'ADMIN', 'SUPER_ADMIN'),
+  validateQuery(PersonnelDiagnosticsQuerySchema),
+  async (req, res) => {
   try {
     const { filePath } = req.query;
     const sheetsDir = getSheetsDir();

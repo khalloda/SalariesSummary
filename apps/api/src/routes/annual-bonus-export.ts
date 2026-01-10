@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 import { shouldShowBonusHalves } from '../utils/config.js';
 import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody } from '../validation/middleware.js';
+import { AnnualBonusExportBodySchema } from '../validation/schemas/exports.js';
 
 export const annualBonusExportRouter = Router();
 
@@ -28,15 +30,13 @@ function getLogoBase64(): string {
  * POST /api/exports/annual-bonus-report/pdf
  * Export annual bonus report as PDF
  */
-annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
+annualBonusExportRouter.post('/annual-bonus-report/pdf',
+  validateBody(AnnualBonusExportBodySchema),
+  async (req, res) => {
   try {
     const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
     // Use server config if client doesn't specify, otherwise use client value
     const showHalves = clientShowHalves !== undefined ? clientShowHalves : shouldShowBonusHalves();
-    
-    if (!data || !data.categoryTotals) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
 
     const roles = (req.user?.roles ?? []) as RoleName[];
     const canSee = canViewSalaryAmounts(roles);
@@ -76,15 +76,13 @@ annualBonusExportRouter.post('/annual-bonus-report/pdf', async (req, res) => {
  * POST /api/exports/annual-bonus-report/xlsx
  * Export annual bonus report as XLSX
  */
-annualBonusExportRouter.post('/annual-bonus-report/xlsx', async (req, res) => {
+annualBonusExportRouter.post('/annual-bonus-report/xlsx',
+  validateBody(AnnualBonusExportBodySchema),
+  async (req, res) => {
   try {
     const { year, includeConsultants, viewMode, exportMode, showHalves: clientShowHalves, data } = req.body;
     // Use server config if client doesn't specify, otherwise use client value
     const showHalves = clientShowHalves !== undefined ? clientShowHalves : shouldShowBonusHalves();
-    
-    if (!data || !data.categoryTotals) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
 
     const roles = (req.user?.roles ?? []) as RoleName[];
     const canSee = canViewSalaryAmounts(roles);

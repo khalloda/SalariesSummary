@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { shouldShowBonusHalves, setShowBonusHalves } from '../utils/config.js';
 import { requireRole } from '../utils/auth.js';
+import { validateBody } from '../validation/middleware.js';
+import { z } from 'zod';
 
 export const configRouter = Router();
 
@@ -18,18 +20,21 @@ configRouter.get('/bonus-halves', (req, res) => {
   }
 });
 
+const BonusHalvesBodySchema = z.object({
+  showHalves: z.boolean(),
+});
+
 /**
  * POST /api/config/bonus-halves
  * Set bonus halves visibility setting
  * Body: { showHalves: boolean }
  */
-configRouter.post('/bonus-halves', requireRole('ADMIN', 'SUPER_ADMIN'), (req, res) => {
+configRouter.post('/bonus-halves',
+  requireRole('ADMIN', 'SUPER_ADMIN'),
+  validateBody(BonusHalvesBodySchema),
+  (req, res) => {
   try {
     const { showHalves } = req.body;
-    
-    if (typeof showHalves !== 'boolean') {
-      return res.status(400).json({ error: 'showHalves must be a boolean' });
-    }
     
     setShowBonusHalves(showHalves);
     

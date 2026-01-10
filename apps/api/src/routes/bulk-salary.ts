@@ -2,16 +2,20 @@ import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { requireRole, canViewSalaryAmounts, redactSalaryArrayForRoles, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateParams, validateBody } from '../validation/middleware.js';
+import { BulkSalaryParamsSchema, BulkSalaryCreateBodySchema } from '../validation/schemas/bulk.js';
 export const bulkSalaryRouter = Router();
 
 /**
  * GET /api/bulk-salary/last-month/:year/:month
  * Get last month's salary data for all employees, grouped by category
  */
-bulkSalaryRouter.get('/last-month/:year/:month', async (req, res) => {
+bulkSalaryRouter.get('/last-month/:year/:month',
+  validateParams(BulkSalaryParamsSchema),
+  async (req, res) => {
   try {
-    const year = parseInt(req.params.year);
-    const month = parseInt(req.params.month);
+    const year = Number(req.params.year);
+    const month = Number(req.params.month);
 
     // Calculate previous month
     let prevYear = year;
@@ -314,13 +318,12 @@ bulkSalaryRouter.get('/last-month/:year/:month', async (req, res) => {
  * POST /api/bulk-salary/create
  * Create salary records for multiple employees at once
  */
-bulkSalaryRouter.post('/create', requireRole('OFFICE_MANAGER', 'FINANCE', 'SUPER_ADMIN'), async (req, res) => {
+bulkSalaryRouter.post('/create',
+  requireRole('OFFICE_MANAGER', 'FINANCE', 'SUPER_ADMIN'),
+  validateBody(BulkSalaryCreateBodySchema),
+  async (req, res) => {
   try {
     const { year, month, employees } = req.body;
-
-    if (!year || !month || !employees || !Array.isArray(employees)) {
-      return res.status(400).json({ error: 'Year, month, and employees array are required' });
-    }
 
     const monthName = new Date(year, month - 1).toLocaleString('en-US', { month: 'long' });
     const results = {

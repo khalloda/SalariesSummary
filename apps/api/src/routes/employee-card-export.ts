@@ -7,6 +7,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
+import { validateBody } from '../validation/middleware.js';
+import { EmployeeCardBodySchema } from '../validation/schemas/exports.js';
 export const employeeCardExportRouter = Router();
 
 // Get logo as base64 for PDF embedding
@@ -27,13 +29,11 @@ function getLogoBase64(): string {
  * POST /api/exports/employee-card/pdf
  * Export employee card as PDF
  */
-employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
+employeeCardExportRouter.post('/employee-card/pdf',
+  validateBody(EmployeeCardBodySchema),
+  async (req, res) => {
   try {
     const { employeeId } = req.body;
-    
-    if (!employeeId) {
-      return res.status(400).json({ error: 'Employee ID is required' });
-    }
     
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
@@ -145,13 +145,11 @@ employeeCardExportRouter.post('/employee-card/pdf', async (req, res) => {
  * POST /api/exports/employee-card/xlsx
  * Export employee card as XLSX
  */
-employeeCardExportRouter.post('/employee-card/xlsx', async (req, res) => {
+employeeCardExportRouter.post('/employee-card/xlsx',
+  validateBody(EmployeeCardBodySchema),
+  async (req, res) => {
   try {
     const { employeeId } = req.body;
-    
-    if (!employeeId) {
-      return res.status(400).json({ error: 'Employee ID is required' });
-    }
     
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },

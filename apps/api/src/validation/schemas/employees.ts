@@ -128,3 +128,17 @@ export const EmployeeQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+/**
+ * Employee annual query schema (year parameter)
+ */
+export const EmployeeAnnualQuerySchema = z.object({
+  year: z.coerce.number().int('Year must be an integer').min(2000, 'Year must be >= 2000').max(2100, 'Year must be <= 2100').optional(),
+});
+
+/**
+ * Employee bonus comparison query schema (fromYear, toYear)
+ */
+export const EmployeeBonusComparisonQuerySchema = z.object({
+  fromYear: z.coerce.number().int().min(2000).max(2100).optional(),
+  toYear: z.coerce.number().int().min(2000).max(2100).optional(),
+});

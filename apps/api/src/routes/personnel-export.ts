@@ -5,6 +5,13 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { logAudit } from '../utils/audit.js';
+import { validateBody } from '../validation/middleware.js';
+import {
+  DocumentComplianceExportBodySchema,
+  AssetInventoryExportBodySchema,
+  PersonnelDashboardExportBodySchema,
+  EmployeeTenureExportBodySchema,
+} from '../validation/schemas/exports.js';
 
 export const personnelExportRouter = Router();
 
@@ -26,13 +33,11 @@ function getLogoBase64(): string {
  * POST /api/exports/document-compliance/pdf
  * Export Document Compliance Report as PDF
  */
-personnelExportRouter.post('/document-compliance/pdf', async (req, res) => {
+personnelExportRouter.post('/document-compliance/pdf',
+  validateBody(DocumentComplianceExportBodySchema),
+  async (req, res) => {
   try {
     const { data, categoryFilter, minComplianceFilter } = req.body;
-    
-    if (!data || !data.employees) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const html = generateDocumentComplianceReportHTML(data, categoryFilter, minComplianceFilter);
     
@@ -63,13 +68,11 @@ personnelExportRouter.post('/document-compliance/pdf', async (req, res) => {
  * POST /api/exports/asset-inventory/pdf
  * Export Asset Inventory Report as PDF
  */
-personnelExportRouter.post('/asset-inventory/pdf', async (req, res) => {
+personnelExportRouter.post('/asset-inventory/pdf',
+  validateBody(AssetInventoryExportBodySchema),
+  async (req, res) => {
   try {
     const { data, categoryFilter, assetFilter } = req.body;
-    
-    if (!data || !data.employees) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const html = generateAssetInventoryReportHTML(data, categoryFilter, assetFilter);
     
@@ -100,13 +103,11 @@ personnelExportRouter.post('/asset-inventory/pdf', async (req, res) => {
  * POST /api/exports/personnel-dashboard/pdf
  * Export Personnel Status Dashboard as PDF
  */
-personnelExportRouter.post('/personnel-dashboard/pdf', async (req, res) => {
+personnelExportRouter.post('/personnel-dashboard/pdf',
+  validateBody(PersonnelDashboardExportBodySchema),
+  async (req, res) => {
   try {
     const { data } = req.body;
-    
-    if (!data) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const html = generatePersonnelDashboardHTML(data);
     
@@ -938,13 +939,11 @@ function generatePersonnelDashboardHTML(data: any): string {
  * POST /api/exports/employee-tenure/pdf
  * Export Employee Tenure Report as PDF
  */
-personnelExportRouter.post('/employee-tenure/pdf', async (req, res) => {
+personnelExportRouter.post('/employee-tenure/pdf',
+  validateBody(EmployeeTenureExportBodySchema),
+  async (req, res) => {
   try {
     const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
-    
-    if (!employees || !Array.isArray(employees)) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const html = generateEmployeeTenureReportHTML({ year, summary, tenureRanges, categoryAverages, employees });
     
@@ -975,13 +974,11 @@ personnelExportRouter.post('/employee-tenure/pdf', async (req, res) => {
  * POST /api/exports/employee-tenure/xlsx
  * Export Employee Tenure Report as XLSX
  */
-personnelExportRouter.post('/employee-tenure/xlsx', async (req, res) => {
+personnelExportRouter.post('/employee-tenure/xlsx',
+  validateBody(EmployeeTenureExportBodySchema),
+  async (req, res) => {
   try {
     const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
-    
-    if (!employees || !Array.isArray(employees)) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Employee Tenure');
@@ -1036,13 +1033,11 @@ personnelExportRouter.post('/employee-tenure/xlsx', async (req, res) => {
  * POST /api/exports/employee-tenure/csv
  * Export Employee Tenure Report as CSV
  */
-personnelExportRouter.post('/employee-tenure/csv', async (req, res) => {
+personnelExportRouter.post('/employee-tenure/csv',
+  validateBody(EmployeeTenureExportBodySchema),
+  async (req, res) => {
   try {
     const { year, summary, tenureRanges, categoryAverages, employees } = req.body;
-    
-    if (!employees || !Array.isArray(employees)) {
-      return res.status(400).json({ error: 'Invalid report data' });
-    }
     
     const headers = ['System ID', 'Employee Name', 'Category', 'Department', 'Status', 'Start Date', 'Last Record', 'Total Months', 'Tenure (Y, M, D)', 'Years', 'Months', 'Days', 'Tenure Range'];
     const csvRows = [headers.join(',')];
