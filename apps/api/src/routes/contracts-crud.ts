@@ -1,12 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { prisma } from '../db/prisma.js';
 import { requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { ContractCreateSchema, ContractUpdateSchema, ContractIdParamSchema } from '../validation/schemas/contracts.js';
-
-const prisma = new PrismaClient();
 export const contractsCrudRouter = Router();
 
 /**

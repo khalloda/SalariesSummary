@@ -1,12 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { normalizeEmployeeName } from '../utils/normalize.js';
 import { requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { EmployeeCreateSchema, EmployeeUpdateSchema, EmployeeIdParamSchema } from '../validation/schemas/employees.js';
-
-const prisma = new PrismaClient();
 export const employeesCrudRouter = Router();
 
 /**

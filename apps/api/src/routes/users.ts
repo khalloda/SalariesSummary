@@ -1,12 +1,10 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { requireRole, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { UserCreateSchema, UserUpdateSchema, UserIdParamSchema } from '../validation/schemas/users.js';
-
-const prisma = new PrismaClient();
 export const usersRouter = Router();
 
 // GET /api/users - List all users (ADMIN+ only)

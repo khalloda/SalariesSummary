@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import type { AuthUserPayload } from './auth.js';
-
-const prisma = new PrismaClient();
 
 export async function logAudit(
   user: AuthUserPayload | undefined,

@@ -4,14 +4,12 @@
  */
 
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
 import { requireRole } from '../utils/auth.js';
-
-const prisma = new PrismaClient();
 export const personnelDiagnosticsRouter = Router();
 
 // Get Sheets directory

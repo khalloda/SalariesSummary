@@ -1,8 +1,6 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { requireRole } from '../utils/auth.js';
-
-const prisma = new PrismaClient();
 export const rolesRouter = Router();
 
 // GET /api/roles - List all roles (ADMIN+ only)

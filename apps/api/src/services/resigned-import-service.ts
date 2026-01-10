@@ -3,13 +3,11 @@
  * Handles importing resigned employee data from SEPEmployees.xlsx - Resigned sheet
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName } from '../utils/normalize.js';
-
-const prisma = new PrismaClient();
 
 // Get Sheets directory
 const getSheetsDir = () => {

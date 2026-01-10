@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import { readFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { prisma } from '../db/prisma.js';
 import { importAllWorkbooks } from '../services/import-service.js';
 import { parseBonusSheet, importBonusRecords } from '../services/bonus-import-service.js';
 import { importSEPEmployees } from '../services/sep-employees-import-service.js';
@@ -26,7 +26,6 @@ import {
 } from '../validation/schemas/imports.js';
 
 export const importRouter = Router();
-const prisma = new PrismaClient();
 
 // Configure multer for file uploads
 const uploadDir = join(process.cwd(), 'uploads');
@@ -172,8 +171,6 @@ importRouter.delete('/clear', requireRole('SUPER_ADMIN'), async (req, res) => {
     const deletedEmployees = await prisma.employee.deleteMany({});
     const deletedLogs = await prisma.importLog.deleteMany({});
     
-    await prisma.$disconnect();
-    
     res.json({
       success: true,
       message: 'Database cleared successfully',
@@ -186,7 +183,6 @@ importRouter.delete('/clear', requireRole('SUPER_ADMIN'), async (req, res) => {
     });
   } catch (error: any) {
     console.error('Clear database error:', error);
-    await prisma.$disconnect();
     res.status(500).json({ 
       success: false, 
       error: error.message
@@ -361,8 +357,6 @@ importRouter.post('/resolve-conflicts', validateBody(SalaryConflictResolutionsSc
       }
     }
     
-    await prisma.$disconnect();
-    
     res.json({
       success: errors.length === 0,
       kept,
@@ -372,7 +366,6 @@ importRouter.post('/resolve-conflicts', validateBody(SalaryConflictResolutionsSc
     });
   } catch (error: any) {
     console.error('Resolve conflicts error:', error);
-    await prisma.$disconnect();
     res.status(500).json({
       success: false,
       error: error.message
@@ -436,8 +429,6 @@ importRouter.post('/resolve-employee-conflicts', validateBody(EmployeeConflictRe
       }
     }
     
-    await prisma.$disconnect();
-    
     res.json({
       success: errors.length === 0,
       kept,
@@ -447,7 +438,6 @@ importRouter.post('/resolve-employee-conflicts', validateBody(EmployeeConflictRe
     });
   } catch (error: any) {
     console.error('Resolve employee conflicts error:', error);
-    await prisma.$disconnect();
     res.status(500).json({
       success: false,
       error: error.message
@@ -530,8 +520,6 @@ importRouter.post('/resolve-contract-conflicts', validateBody(ContractConflictRe
       }
     }
     
-    await prisma.$disconnect();
-    
     res.json({
       success: errors.length === 0,
       kept,
@@ -541,7 +529,6 @@ importRouter.post('/resolve-contract-conflicts', validateBody(ContractConflictRe
     });
   } catch (error: any) {
     console.error('Resolve contract conflicts error:', error);
-    await prisma.$disconnect();
     res.status(500).json({
       success: false,
       error: error.message
@@ -629,8 +616,6 @@ importRouter.post('/resolve-personnel-conflicts', validateBody(PersonnelConflict
       }
     }
     
-    await prisma.$disconnect();
-    
     res.json({
       success: errors.length === 0,
       kept,
@@ -640,7 +625,6 @@ importRouter.post('/resolve-personnel-conflicts', validateBody(PersonnelConflict
     });
   } catch (error: any) {
     console.error('Resolve personnel conflicts error:', error);
-    await prisma.$disconnect();
     res.status(500).json({
       success: false,
       error: error.message
@@ -1008,9 +992,6 @@ importRouter.post('/resigned/create-candidates', validateBody(CreateResignedCand
 
     console.log(`Creating ${candidates.length} candidate employees from Resigned sheet`);
 
-    const prisma = new PrismaClient();
-    await prisma.$connect();
-
     let created = 0;
     let skipped = 0;
     const errors: string[] = [];
@@ -1100,8 +1081,6 @@ importRouter.post('/resigned/create-candidates', validateBody(CreateResignedCand
       }
     }
 
-    await prisma.$disconnect();
-
     res.json({
       success: errors.length === 0,
       created,
@@ -1146,9 +1125,6 @@ importRouter.post('/resigned/resolve-conflicts', validateBody(ResignedConflictRe
     const { resolutions } = req.body;
 
     console.log(`Resolving ${resolutions.length} resigned import conflicts`);
-
-    const prisma = new PrismaClient();
-    await prisma.$connect();
 
     let updated = 0;
     let skipped = 0;
@@ -1237,8 +1213,6 @@ importRouter.post('/resigned/resolve-conflicts', validateBody(ResignedConflictRe
         console.error(`  ❌ Error resolving conflict:`, errorMsg);
       }
     }
-
-    await prisma.$disconnect();
 
     res.json({
       success: errors.length === 0,

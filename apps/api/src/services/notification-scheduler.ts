@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { emailService } from './email-service.js';
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -6,8 +6,6 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-const prisma = new PrismaClient();
 
 interface NotificationSettings {
   enabled: boolean;

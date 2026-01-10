@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
 import {
   type AuthUserPayload,
   loadUserWithRoles,
@@ -9,11 +8,10 @@ import {
   clearAuthCookie,
   requireAuth,
 } from '../utils/auth.js';
+import { prisma } from '../db/prisma.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody } from '../validation/middleware.js';
 import { LoginRequestSchema } from '../validation/schemas/auth.js';
-
-const prisma = new PrismaClient();
 export const authRouter = Router();
 
 authRouter.post('/login', validateBody(LoginRequestSchema), async (req, res) => {

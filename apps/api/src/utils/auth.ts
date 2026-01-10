@@ -1,10 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient, type User } from '@prisma/client';
+import type { User } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { AuthUserPayloadSchema } from '../validation/schemas/auth.js';
 import { ZodError } from 'zod';
-
-const prisma = new PrismaClient();
 
 // NOTE: In production, use a strong secret from environment variables.
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_ME_IN_PRODUCTION';

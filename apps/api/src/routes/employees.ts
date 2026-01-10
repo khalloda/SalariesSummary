@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { redactSalaryArrayForRoles, canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import {
@@ -9,8 +9,6 @@ import {
   calculateYearComparison,
   calculateGrowthRatio
 } from '../utils/bonus-calculations.js';
-
-const prisma = new PrismaClient();
 export const employeesRouter = Router();
 
 /**

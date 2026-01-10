@@ -3,10 +3,8 @@
  * Finds and merges duplicate employees based on normalized names
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Special case matching for known duplicate patterns

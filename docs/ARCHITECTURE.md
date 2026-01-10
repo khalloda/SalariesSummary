@@ -40,7 +40,7 @@ The Salaries Summary application is a full-stack web application built with a mo
 
 - **Express.js**: Web framework
 - **TypeScript**: Type safety
-- **Prisma**: ORM for database access
+- **Prisma**: ORM for database access (singleton pattern)
 - **SQLite**: Database (file-based)
 - **SheetJS (xlsx)**: Excel file parsing
 - **ExcelJS**: Excel file generation
@@ -62,6 +62,8 @@ SalariesSummary/
 │   │   │   ├── services/       # Business logic
 │   │   │   │   ├── excel-parser.ts    # Excel parsing logic
 │   │   │   │   └── import-service.ts  # Import orchestration
+│   │   │   ├── db/            # Database client (singleton)
+│   │   │   │   └── prisma.ts  # PrismaClient singleton
 │   │   │   ├── scripts/       # Utility scripts
 │   │   │   │   └── merge-duplicate-employees.ts
 │   │   │   └── utils/         # Utility functions
@@ -178,7 +180,31 @@ model SalaryRecord {
 - Easy backup (just copy the file)
 - Prisma provides type-safe access
 
-### 3. Excel Parsing Strategy
+### 3. Prisma Client Singleton Pattern
+
+- **Single instance** shared across the entire application
+- Located at `apps/api/src/db/prisma.ts`
+- Prevents connection pool exhaustion (avoiding 33+ separate instances)
+- Supports hot-reload in development via `globalThis`
+- Handles graceful shutdown on process termination
+- All routes, services, utilities, and scripts import from the singleton
+
+**Usage:**
+```typescript
+// ✅ Correct - Import singleton
+import { prisma } from '../db/prisma.js';
+
+// ❌ Wrong - Never create new instances
+const prisma = new PrismaClient();
+```
+
+**Benefits:**
+- **Connection pool efficiency**: Single connection pool shared across all requests
+- **Memory optimization**: One instance instead of 33+ separate instances
+- **Best practice compliance**: Follows Prisma's recommended pattern
+- **Consistent lifecycle**: Centralized connection management and graceful shutdown
+
+### 4. Excel Parsing Strategy
 
 - Two-pass parsing:
   1. First pass: Find category boundaries
@@ -186,7 +212,7 @@ model SalaryRecord {
 - Fixed column indices based on schema analysis
 - Handles variations in Excel structure
 
-### 4. Employee Identity Resolution
+### 5. Employee Identity Resolution
 
 - Normalized names for matching
 - Handles Arabic/English variations
@@ -195,7 +221,7 @@ model SalaryRecord {
 - Stores original name for display
 - Merge duplicates feature to consolidate duplicate employees
 
-### 5. Internationalization
+### 6. Internationalization
 
 - react-i18next for translations
 - Dynamic `dir` attribute for RTL/LTR
@@ -214,6 +240,7 @@ model SalaryRecord {
 - Database queries use indexes on common fields
 - Frontend uses React hooks for efficient re-renders
 - Export generation happens server-side
+- **Prisma singleton pattern**: Single connection pool prevents resource exhaustion (previously 33+ instances creating 330+ potential connections)
 
 ## Scalability
 

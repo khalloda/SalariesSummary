@@ -1,9 +1,8 @@
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { checkAndSendNotifications } from './notification-scheduler.js';
 
 let scheduledTask: cron.ScheduledTask | null = null;
-const prisma = new PrismaClient();
 
 export function startNotificationScheduler() {
   // Stop existing scheduler if running

@@ -3,14 +3,12 @@
  * Handles importing Excel workbooks into the database
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { parseWorkbook } from './excel-parser.js';
 import { parseMonthYearFromFilename, getMonthName, normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
 import { compareSalaryRecords, type SalaryRecordData, type ComparisonResult } from '../utils/record-comparison.js';
-
-const prisma = new PrismaClient();
 
 // Get Sheets directory - handle both dev and production paths
 const getSheetsDir = () => {

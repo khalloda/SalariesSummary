@@ -3,11 +3,9 @@
  * Finds potential duplicates without merging them
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { normalizeEmployeeName, areNamesSimilar } from '../utils/normalize.js';
 import { isSpecialCaseMatch } from './merge-duplicate-employees.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Find potential duplicate employees without merging

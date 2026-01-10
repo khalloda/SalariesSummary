@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { requireRole } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 
@@ -70,7 +70,6 @@ function formatAssetsForDisplay(value: string | null): string[] {
   return [];
 }
 
-const prisma = new PrismaClient();
 export const personnelCrudRouter = Router();
 
 /**

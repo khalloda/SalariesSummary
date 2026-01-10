@@ -1,12 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { prisma } from '../db/prisma.js';
 import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
 import { validateBody, validateParams } from '../validation/middleware.js';
 import { SalaryCreateSchema, SalaryUpdateSchema, SalaryIdParamSchema } from '../validation/schemas/salaries.js';
-
-const prisma = new PrismaClient();
 export const salariesCrudRouter = Router();
 
 /**

@@ -3,9 +3,7 @@
  * Merges specific employees with user-selected target
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../db/prisma.js';
 
 /**
  * Manually merge specific employees into a target employee

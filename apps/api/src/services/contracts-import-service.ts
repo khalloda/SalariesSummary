@@ -3,14 +3,12 @@
  * Handles importing contract data from SEPEmployees.xlsx - Contracts sheet
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as XLSX from 'xlsx';
 import { normalizeEmployeeName } from '../utils/normalize.js';
 import { compareContractRecords, type ContractData, type ComparisonResult } from '../utils/contract-comparison.js';
-
-const prisma = new PrismaClient();
 
 // Get Sheets directory
 const getSheetsDir = () => {

@@ -3,11 +3,9 @@
  * Handles importing annual bonus data from Excel workbooks
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import XLSX from 'xlsx';
 import { normalizeEmployeeName } from '../utils/normalize.js';
-
-const prisma = new PrismaClient();
 
 export interface ParsedBonusRecord {
   employeeName: string;

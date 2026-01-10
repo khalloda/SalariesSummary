@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import { emailService } from '../services/email-service.js';
 import {
   loadNotificationSettings,
@@ -12,8 +12,6 @@ import {
   EmailConfigurationSchema,
   NotificationSettingsSchema,
 } from '../validation/schemas/notifications.js';
-
-const prisma = new PrismaClient();
 
 const notificationsRouter = express.Router();
 

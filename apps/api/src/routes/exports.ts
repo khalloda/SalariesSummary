@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 import ExcelJS from 'exceljs';
 import puppeteer from 'puppeteer';
 import { Readable } from 'stream';
@@ -8,8 +8,6 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { canViewSalaryAmounts, type RoleName } from '../utils/auth.js';
 import { logAudit } from '../utils/audit.js';
-
-const prisma = new PrismaClient();
 export const exportsRouter = Router();
 
 // Get logo as base64 for PDF embedding
